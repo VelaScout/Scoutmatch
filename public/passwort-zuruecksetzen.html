@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – Neues Passwort festlegen</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+main.wrap-narrow{padding:56px 24px 80px;max-width:440px}
+.login-head{text-align:center;margin:0 0 28px}
+.login-head h1{font-size:26px;margin:0 0 8px}
+.login-head p{font-size:14.5px;margin:0}
+.login-card{padding:32px}
+.login-actions{margin-top:22px;display:flex;flex-direction:column;gap:14px}
+.login-actions .btn{width:100%}
+.form-note{
+  margin-top:18px;padding:12px 14px;background:var(--green-tint);color:var(--green-tint-text);
+  border-radius:var(--radius-sm);font-size:13px;font-weight:600;display:none;
+}
+.form-note.show{display:block}
+.form-error{
+  margin-top:18px;padding:12px 14px;background:var(--red-tint,#fdecec);color:var(--red-tint-text,#a12222);
+  border-radius:var(--radius-sm);font-size:13px;font-weight:600;display:none;
+}
+.form-error.show{display:block}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html" aria-label="ScoutMatch Startseite"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="index.html">Start</a>
+      <a href="fuer-spieler.html">Für Spieler</a>
+      <a href="fuer-vereine.html">Für Vereine</a>
+      <a href="preise.html">Preise</a>
+      <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+      <a href="login.html">Einloggen</a>
+      <a href="registrieren.html" class="cta">Registrieren</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<main class="wrap-narrow">
+  <div class="login-head reveal">
+    <div class="eyebrow">Neues Passwort</div>
+    <h1>Neues Passwort festlegen</h1>
+    <p>Vergib ein neues Passwort für dein Konto.</p>
+  </div>
+
+  <div class="card login-card reveal" id="card">
+    <form id="f" novalidate>
+      <div style="margin-bottom:16px">
+        <label for="password">Neues Passwort</label>
+        <div class="password-field">
+          <input type="password" id="password" required minlength="8" autocomplete="new-password" data-password-strength>
+          <button type="button" class="toggle-visibility" data-target="password" aria-label="Passwort anzeigen">👁</button>
+        </div>
+      </div>
+      <div>
+        <label for="passwordConfirm">Passwort bestätigen</label>
+        <div class="password-field">
+          <input type="password" id="passwordConfirm" required minlength="8" autocomplete="new-password">
+          <button type="button" class="toggle-visibility" data-target="passwordConfirm" aria-label="Passwort anzeigen">👁</button>
+        </div>
+      </div>
+      <p class="hint-text">Mindestens 8 Zeichen.</p>
+      <div class="login-actions">
+        <button class="btn primary" type="submit">Passwort speichern</button>
+      </div>
+      <p class="form-note" id="note"></p>
+      <p class="form-error" id="error"></p>
+    </form>
+  </div>
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html" style="margin-bottom:10px"><span class="dot"></span>ScoutMatch</a>
+        <p style="max-width:280px;font-size:13.5px;margin-top:10px">Die Plattform, die Spieler und Vereine miteinander verbindet.</p>
+      </div>
+      <div>
+        <h5>Plattform</h5>
+        <a href="fuer-spieler.html">Für Spieler</a>
+        <a href="fuer-vereine.html">Für Vereine</a>
+        <a href="preise.html">Preise</a>
+      </div>
+      <div>
+        <h5>Unternehmen</h5>
+        <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+        <a href="kontakt.html">Kontakt</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script src="assets/api.js"></script>
+<script>
+document.querySelectorAll('.toggle-visibility').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var input = document.getElementById(btn.dataset.target);
+    var show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? '🙈' : '👁';
+  });
+});
+
+(function () {
+  var token = new URLSearchParams(location.search).get('token');
+  var error = document.getElementById('error');
+  var note = document.getElementById('note');
+
+  if (!token) {
+    document.getElementById('card').innerHTML = '<p class="form-error show">Kein gültiger Link. Bitte fordere einen neuen Link zum Zurücksetzen an.</p>' +
+      '<p style="margin-top:16px"><a class="btn secondary" href="passwort-vergessen.html">Neuen Link anfordern</a></p>';
+    return;
+  }
+
+  document.getElementById('f').addEventListener('submit', function (e) {
+    e.preventDefault();
+    error.classList.remove('show');
+    note.classList.remove('show');
+
+    var password = document.getElementById('password').value;
+    var passwordConfirm = document.getElementById('passwordConfirm').value;
+
+    var submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+
+    ScoutMatchAPI.post('/api/auth/reset-password', { token: token, password: password, password_confirm: passwordConfirm })
+      .then(function (res) {
+        submitBtn.disabled = false;
+        if (!res.ok) {
+          error.textContent = res.data.error || 'Etwas ist schiefgelaufen.';
+          error.classList.add('show');
+          return;
+        }
+        note.textContent = 'Passwort erfolgreich geändert. Du kannst dich jetzt einloggen.';
+        note.classList.add('show');
+        document.getElementById('f').style.display = 'none';
+        note.insertAdjacentHTML('afterend', '<p style="margin-top:14px"><a class="btn primary" href="login.html" style="width:100%">Zum Login</a></p>');
+      })
+      .catch(function () {
+        submitBtn.disabled = false;
+        error.textContent = 'Der Server ist gerade nicht erreichbar.';
+        error.classList.add('show');
+      });
+  });
+})();
+</script>
+</body>
+</html>

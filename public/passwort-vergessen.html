@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – Passwort vergessen</title>
+<meta name="robots" content="noindex,follow">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+main.wrap-narrow{padding:56px 24px 80px;max-width:440px}
+.login-head{text-align:center;margin:0 0 28px}
+.login-head h1{font-size:26px;margin:0 0 8px}
+.login-head p{font-size:14.5px;margin:0}
+.login-card{padding:32px}
+.login-actions{margin-top:22px;display:flex;flex-direction:column;gap:14px}
+.login-actions .btn{width:100%}
+.form-note{
+  margin-top:18px;padding:12px 14px;background:var(--navy-tint);color:var(--navy-tint-text);
+  border-radius:var(--radius-sm);font-size:12.5px;display:none;
+}
+.form-note.show{display:block}
+.form-error{
+  margin-top:18px;padding:12px 14px;background:var(--red-tint,#fdecec);color:var(--red-tint-text,#a12222);
+  border-radius:var(--radius-sm);font-size:13px;font-weight:600;display:none;
+}
+.form-error.show{display:block}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html" aria-label="ScoutMatch Startseite"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="index.html">Start</a>
+      <a href="fuer-spieler.html">Für Spieler</a>
+      <a href="fuer-vereine.html">Für Vereine</a>
+      <a href="preise.html">Preise</a>
+      <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+      <a href="login.html">Einloggen</a>
+      <a href="registrieren.html" class="cta">Registrieren</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<main class="wrap-narrow">
+  <div class="login-head reveal">
+    <div class="eyebrow">Passwort vergessen</div>
+    <h1>Passwort zurücksetzen</h1>
+    <p>Gib deine E-Mail-Adresse ein. Wenn ein Konto existiert, senden wir dir einen Link zum Zurücksetzen.</p>
+  </div>
+
+  <div class="card login-card reveal">
+    <form id="f" novalidate>
+      <div style="margin-bottom:16px">
+        <label for="email">E-Mail</label>
+        <input type="email" id="email" name="email" required autocomplete="username">
+      </div>
+      <div class="login-actions">
+        <button class="btn primary" type="submit">Link anfordern</button>
+      </div>
+      <p class="form-note" id="note"></p>
+      <p class="form-error" id="error"></p>
+    </form>
+  </div>
+
+  <p style="text-align:center;font-size:13.5px;margin-top:22px" class="reveal">
+    <a class="btn ghost" href="login.html">← Zurück zum Login</a>
+  </p>
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html" style="margin-bottom:10px"><span class="dot"></span>ScoutMatch</a>
+        <p style="max-width:280px;font-size:13.5px;margin-top:10px">Die Plattform, die Spieler und Vereine miteinander verbindet.</p>
+      </div>
+      <div>
+        <h5>Plattform</h5>
+        <a href="fuer-spieler.html">Für Spieler</a>
+        <a href="fuer-vereine.html">Für Vereine</a>
+        <a href="preise.html">Preise</a>
+      </div>
+      <div>
+        <h5>Unternehmen</h5>
+        <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+        <a href="kontakt.html">Kontakt</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script src="assets/api.js"></script>
+<script>
+document.getElementById('f').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var note = document.getElementById('note');
+  var error = document.getElementById('error');
+  note.classList.remove('show');
+  error.classList.remove('show');
+
+  var submitBtn = this.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+
+  ScoutMatchAPI.post('/api/auth/forgot-password', { email: document.getElementById('email').value })
+    .then(function (res) {
+      submitBtn.disabled = false;
+      if (!res.ok) {
+        error.textContent = res.data.error || 'Etwas ist schiefgelaufen. Bitte versuche es erneut.';
+        error.classList.add('show');
+        return;
+      }
+      note.textContent = res.data.message;
+      note.classList.add('show');
+    })
+    .catch(function () {
+      submitBtn.disabled = false;
+      error.textContent = 'Der Server ist gerade nicht erreichbar.';
+      error.classList.add('show');
+    });
+});
+</script>
+</body>
+</html>

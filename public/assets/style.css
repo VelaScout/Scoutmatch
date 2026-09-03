@@ -1,0 +1,355 @@
+/* ScoutMatch – Design-System
+   Verifizierter Spielerpool für Oberliga/Regionalliga – ruhig, professionell, vertrauenswürdig */
+
+:root{
+  /* Modernes Navy+Blau-Design: dunkles Navy als Grundton für Hero/Akzentflächen,
+     kräftiges Blau als einziger Haupt-Akzent (Buttons, Links, Badges, Icons).
+     --green ist bewusst reserviert für echte Erfolgs-/Verifizierungszustände
+     (z. B. .badge.verified, Erfolgsmeldungen) und taucht sonst nirgends als
+     Dekofarbe auf, damit die Seite durchgehend navy/blau/weiß wirkt. */
+  --navy:#0f1c33;
+  --navy-2:#16294a;
+  --navy-tint:#e9edf5;
+  --navy-tint-text:#28405f;
+  --blue:#2f6fed;
+  --blue-2:#1f56c9;
+  --blue-tint:#eaf1ff;
+  --blue-tint-text:#1d4ed8;
+  --green:#1b8a5a;
+  --green-tint:#e5f4ec;
+  --green-tint-text:#166a45;
+  --amber-tint:#fdf1dc;
+  --amber-tint-text:#8a5a13;
+  /* Seite ist überwiegend hell/weiß – Hero-Bereich, CTA-Band und die
+     "dark-band"-Akzentflächen bleiben als bewusst farbige, dunkle Navy-Flächen
+     (eigene, explizite Hintergrund-/Textfarben, unabhängig von --bg/--text). */
+  --text:#161c26;
+  --muted:#5b6472;
+  --line:#e4e7ec;
+  --bg:#f7f8fa;
+  --surface:#ffffff;
+  --surface-muted:#f7f8fa;
+  --radius:18px;
+  --radius-sm:12px;
+  --shadow:0 1px 2px rgba(15,26,44,.04), 0 8px 24px rgba(15,26,44,.06);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:var(--font);
+  color:var(--text);
+  background:var(--bg);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;
+}
+
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.wrap-narrow{max-width:760px;margin:0 auto;padding:0 24px}
+
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4,h5{font-weight:800;letter-spacing:-0.01em;color:var(--text)}
+p{color:var(--muted)}
+
+/* ---------- Header ---------- */
+.site-header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:saturate(180%) blur(10px);
+  border-bottom:1px solid var(--line);
+  --text:#161c26;--muted:#5b6472;color:var(--text);
+}
+.site-header .bar{display:flex;align-items:center;justify-content:space-between;height:68px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;color:var(--navy)}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px var(--blue-tint)}
+
+.site-nav{display:flex;align-items:center;gap:26px}
+.site-nav a{font-size:14px;font-weight:600;color:var(--muted);transition:color .15s}
+.site-nav a:hover{color:var(--navy)}
+.site-nav a.active{color:var(--navy)}
+.site-nav a.cta{
+  background:var(--blue);color:#fff;padding:9px 16px;border-radius:999px;
+  font-weight:700;transition:background .15s;
+}
+.site-nav a.cta:hover{background:var(--blue-2)}
+
+.mobile-toggle{
+  display:none;border:1px solid var(--line);background:#fff;border-radius:9px;
+  width:44px;height:44px;font-size:18px;cursor:pointer;
+}
+
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:12px 20px;border-radius:999px;font-weight:700;font-size:14.5px;
+  border:1px solid transparent;cursor:pointer;transition:all .15s;
+}
+.btn.primary{background:var(--blue);color:#fff}
+.btn.primary:hover{background:var(--blue-2)}
+.btn.secondary{background:#fff;color:var(--navy);border-color:var(--line)}
+.btn.secondary:hover{border-color:var(--navy)}
+.btn.ghost{padding:0;background:none;color:var(--blue);font-size:13.5px;border:0}
+.btn.ghost:hover{text-decoration:underline}
+
+/* ---------- Generic elements ---------- */
+.eyebrow{
+  display:inline-block;font-size:12px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--blue-tint-text);
+  background:var(--blue-tint);padding:5px 12px;border-radius:999px;
+}
+
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:24px;box-shadow:var(--shadow);
+  --text:#161c26;--muted:#5b6472;color:var(--text);
+}
+.card.hoverable{transition:transform .15s, box-shadow .15s}
+.card.hoverable:hover{transform:translateY(-3px);box-shadow:0 4px 10px rgba(15,26,44,.06), 0 16px 32px rgba(15,26,44,.1)}
+
+.badge{
+  display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;
+  padding:5px 10px;border-radius:999px;background:var(--blue-tint);color:var(--blue-tint-text);
+}
+.badge.partial{background:var(--amber-tint);color:var(--amber-tint-text)}
+.badge.pending{background:var(--amber-tint);color:var(--amber-tint-text)}
+.badge.muted{background:var(--navy-tint);color:var(--muted)}
+
+/* ---------- Forms ---------- */
+label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:var(--text)}
+input,select,textarea{
+  width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  font-size:14.5px;font-family:var(--font);background:#fff;
+  --text:#161c26;--muted:#5b6472;color:var(--text);
+  transition:border-color .15s, box-shadow .15s;
+}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-tint);
+}
+textarea{min-height:100px;resize:vertical}
+.hint-text{margin:6px 0 0;font-size:12px;color:var(--muted)}
+
+/* ---------- Footer ---------- */
+.footer-main{margin-top:40px;padding:44px 0 0;background:var(--navy);position:relative;overflow:hidden;
+  --text:#ffffff;--muted:rgba(255,255,255,.65);color:var(--text);}
+.footer-main::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 6% 0%, rgba(47,111,237,.22), transparent 55%);
+}
+.footer-main > .wrap{position:relative}
+.footer-main .brand{color:#fff}
+.footer-main .brand .dot{box-shadow:0 0 0 4px rgba(255,255,255,.14)}
+.footer-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:32px;padding-bottom:32px}
+.footer-grid h5{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.footer-grid a{display:block;font-size:14px;color:var(--muted);margin-bottom:9px}
+.footer-grid a:hover{color:#fff}
+.footer-bottom{
+  border-top:1px solid rgba(255,255,255,.14);padding:18px 0;display:flex;justify-content:space-between;
+  flex-wrap:wrap;gap:8px;font-size:12.5px;color:var(--muted);
+}
+
+@media(max-width:900px){
+  .site-nav{position:fixed;inset:68px 0 auto 0;background:#fff;border-bottom:1px solid var(--line);
+    flex-direction:column;align-items:stretch;padding:10px 20px 20px;gap:2px;
+    transform:translateY(-8px);opacity:0;pointer-events:none;transition:all .15s;
+    max-height:calc(100vh - 68px);overflow-y:auto;}
+  .site-nav.open{transform:translateY(0);opacity:1;pointer-events:auto}
+  .site-nav a{padding:13px 4px;border-bottom:1px solid var(--line);font-size:15px}
+  .site-nav a.cta{border-bottom:0;text-align:center;margin-top:10px}
+  .mobile-toggle{display:block}
+  .footer-grid{grid-template-columns:1fr}
+}
+
+/* ---------- Fokus-Zustände (Tastaturbedienung) ---------- */
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+  outline:2px solid var(--blue); outline-offset:2px; border-radius:4px;
+}
+
+/* ---------- Scroll-Reveal (site-weit, außer Footer) ---------- */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .6s cubic-bezier(.16,.8,.3,1), transform .6s cubic-bezier(.16,.8,.3,1)}
+.reveal.in-view{opacity:1;transform:translateY(0)}
+@media (prefers-reduced-motion: reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+}
+
+/* ==========================================================
+   Gemeinsame Seiten-Komponenten (site-weit wiederverwendet)
+   ========================================================== */
+
+.section-title{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.section-title h2{margin:0;font-size:24px}
+.section-intro{margin:0 0 22px;max-width:640px}
+
+.page-head{padding:40px 0 10px}
+.page-head .eyebrow{margin-bottom:14px}
+.page-head h1{margin:0 0 8px;font-size:32px;max-width:680px}
+.page-head p.lead{margin:0;max-width:600px;font-size:17px;color:var(--text);font-weight:600}
+
+/* Karten-Grids: 2/3-spaltig, kollabiert unter 900px auf 1 Spalte */
+.roles{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin:44px 0}
+.role-card .icon{width:42px;height:42px;border-radius:12px;background:var(--navy-tint);color:var(--navy-tint-text);
+  display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:16px}
+.role-card h3{margin:0 0 8px;font-size:18px}
+.role-card p{margin:0 0 18px;font-size:14.5px}
+
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:20px 0 54px}
+.steps.cols-5{grid-template-columns:repeat(5,1fr)}
+.steps.cols-4{grid-template-columns:repeat(4,1fr)}
+.step .n{display:inline-flex;width:30px;height:30px;border-radius:9px;background:var(--navy);color:#fff;
+  align-items:center;justify-content:center;font-weight:800;font-size:14px;margin-bottom:14px}
+/* Für Emoji-Icons statt Nummern: heller Chip, damit das Emoji selbst nicht auf
+   einem dunklen Kreis "verschwindet" bzw. schwer lesbar wirkt. */
+.step .n.icon{width:38px;height:38px;border-radius:11px;background:var(--blue-tint);color:var(--blue-tint-text);font-size:17px}
+.step h3{margin:0 0 6px;font-size:16px}
+.step p{margin:0;font-size:14px}
+
+.why{display:flex;flex-direction:column;gap:16px;margin:20px 0 54px;max-width:720px}
+.why .item{display:flex;gap:14px;padding:20px}
+.why .check{flex-shrink:0;width:28px;height:28px;border-radius:9px;background:var(--blue-tint);color:var(--blue-tint-text);
+  display:flex;align-items:center;justify-content:center;font-weight:800}
+.why h3{margin:0 0 4px;font-size:15px}
+.why p{margin:0;font-size:13.5px}
+
+.verify-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:20px 0 54px}
+.verify-card .check{width:28px;height:28px;border-radius:9px;background:var(--blue-tint);color:var(--blue-tint-text);
+  display:flex;align-items:center;justify-content:center;font-weight:800;margin-bottom:14px}
+.verify-card h3{margin:0 0 6px;font-size:16px}
+.verify-card p{margin:0;font-size:14px}
+
+@media(max-width:1100px){.steps.cols-5{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){
+  .roles,.steps,.verify-cards{grid-template-columns:1fr}
+  .steps.cols-4{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:700px){.steps.cols-5{grid-template-columns:1fr}}
+@media(max-width:560px){.steps.cols-4{grid-template-columns:1fr}}
+
+/* FAQ-Akkordeon (natives <details>, ohne JS bedienbar) */
+.faq-list{display:flex;flex-direction:column;gap:12px;margin:20px 0 22px;max-width:720px}
+.faq-item{padding:6px 4px}
+.faq-item summary{
+  cursor:pointer;font-weight:700;font-size:15px;padding:10px 4px;list-style:none;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--text);
+}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{content:"+";font-size:20px;font-weight:400;color:var(--muted);flex-shrink:0;transition:transform .2s}
+.faq-item[open] summary::after{content:"–"}
+.faq-item p{margin:2px 4px 12px;font-size:14px;max-width:640px}
+
+/* Große, hervorgehobene CTA-Box (Navy mit Blau/Grün-Glow, wie der Hero) */
+.cta-banner{
+  background:var(--navy);border-radius:var(--radius);padding:44px 36px;margin:10px 0 54px;
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:18px;color:#fff;
+  position:relative;overflow:hidden;
+}
+.cta-banner::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 10% 0%, rgba(47,111,237,.35), transparent 50%),
+             radial-gradient(circle at 95% 100%, rgba(31,86,201,.30), transparent 55%);
+}
+.cta-banner > *{position:relative}
+.cta-banner h2{color:#fff;font-size:26px;margin:0}
+.cta-banner p{color:rgba(255,255,255,.75);margin:0;font-size:15px;max-width:480px}
+.cta-banner .actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.cta-banner .btn.primary{border-color:rgba(255,255,255,.35)}
+.cta-banner .btn.primary:hover{border-color:#fff}
+.cta-banner .btn.secondary{background:transparent;border-color:rgba(255,255,255,.35);color:#fff}
+.cta-banner .btn.secondary:hover{border-color:#fff}
+@media(max-width:480px){
+  .cta-banner{padding:32px 24px}
+  .cta-banner .actions{flex-direction:column;align-items:stretch}
+  .cta-banner .actions .btn{width:100%}
+}
+
+/* Volle Breite sprengendes dunkles Akzent-Band (gleicher Anthrazit/Grün-Look
+   wie der Hero und das CTA-Band) – für einzelne Abschnitte, die zwischen den
+   überwiegend weißen Bereichen der Seite farblich hervorstechen sollen.
+   Karten (.card) innerhalb bleiben wie gewohnt weiß, nur Überschriften/Text,
+   die direkt auf dem Band liegen, werden hell eingefärbt. */
+.dark-band{
+  width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;
+  background:var(--navy);padding:56px 0;
+  --text:#ffffff;--muted:rgba(255,255,255,.72);
+}
+.dark-band::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 10% 0%, rgba(47,111,237,.32), transparent 50%),
+             radial-gradient(circle at 92% 100%, rgba(31,86,201,.28), transparent 55%);
+}
+.dark-band .wrap{position:relative;padding:0 24px}
+.dark-band h2, .dark-band h3{color:#fff}
+.dark-band p{color:rgba(255,255,255,.72)}
+.dark-band .section-title h2{color:#fff}
+/* Karten (.card) innerhalb eines dark-band bleiben weiß – ihr Text darf also
+   NICHT von den hellen dark-band-Textregeln oben überschrieben werden. */
+.dark-band .card h2, .dark-band .card h3{color:var(--text)}
+.dark-band .card p{color:var(--muted)}
+
+/* Navy-Kopfbereich für den geschützten Bereich (Spieler-/Vereins-Dashboard,
+   Admin) – gleicher Navy+Blau-Akzent wie auf den öffentlichen Seiten, damit
+   die Farbe auch hinter dem Login noch präsent ist, ohne die dichten
+   Datenkarten darunter zu verdunkeln. */
+.dashboard-head{
+  background:var(--navy);border-radius:var(--radius);padding:32px 32px;margin:32px 0 26px;
+  display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;
+  position:relative;overflow:hidden;color:#fff;
+}
+.dashboard-head::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 8% 0%, rgba(47,111,237,.35), transparent 55%),
+             radial-gradient(circle at 96% 100%, rgba(31,86,201,.30), transparent 55%);
+}
+.dashboard-head > *{position:relative}
+.dashboard-head h1{color:#fff;margin:0 0 8px;font-size:28px}
+.dashboard-head p{color:rgba(255,255,255,.72);margin:0;max-width:600px}
+.dashboard-head .eyebrow{background:rgba(255,255,255,.14);color:#fff;margin-bottom:14px}
+.dashboard-head .btn.secondary{background:transparent;color:#fff;border-color:rgba(255,255,255,.32)}
+.dashboard-head .btn.secondary:hover{border-color:#fff}
+.dashboard-head .actions-col{display:flex;flex-direction:column;gap:10px}
+@media(max-width:600px){.dashboard-head{padding:26px 22px}}
+
+/* Profil-Bausteine: Statistik-Kacheln, Steckbrief-Liste, Badge-Zeile, Kicker-Label */
+.badge-row{display:flex;flex-wrap:wrap;gap:8px}
+.section-label{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:26px 0 8px}
+.section-label:first-child{margin-top:0}
+
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat-grid div{background:var(--navy-tint);border-radius:var(--radius-sm);padding:14px;text-align:center}
+.stat-grid b{display:block;font-size:19px;color:var(--navy-tint-text)}
+.stat-grid span{font-size:10.5px;color:var(--muted)}
+
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}
+.facts dt{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:0}
+.facts dd{margin:2px 0 0;font-size:14.5px;font-weight:600}
+@media(max-width:600px){.stat-grid{grid-template-columns:1fr 1fr}.facts{grid-template-columns:1fr}}
+
+/* Verifizierungs-Status (Badges für: verifiziert / ausstehend / selbst angegeben / nicht verifiziert) */
+.badge.verified{background:var(--green-tint);color:var(--green-tint-text)}
+.badge.self-reported{background:var(--navy-tint);color:var(--navy-tint-text)}
+.badge.unverified{background:var(--line);color:var(--muted)}
+
+/* Generisches Formular-Grid (2 Spalten, 1 Spalte auf schmalen Screens) */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid .full{grid-column:1/-1}
+@media(max-width:700px){.form-grid{grid-template-columns:1fr}}
+
+/* Zentrierte/erklärende Hinweis-Notiz (z. B. Datenschutz, Preishinweise) */
+.privacy-note{max-width:680px;font-size:15px;line-height:1.6;margin:14px 0 10px;color:var(--muted)}
+
+/* Passwort-Stärkeanzeige (wird per JS unter Feldern mit
+   data-password-strength eingefügt, siehe app.js) */
+.pw-strength{margin-top:8px}
+.pw-strength-track{height:5px;border-radius:999px;background:var(--line);overflow:hidden}
+.pw-strength-fill{height:100%;width:0%;border-radius:999px;transition:width .15s ease,background-color .15s ease}
+.pw-strength-label{display:block;margin-top:4px;font-size:11.5px;font-weight:700}
+
+/* Passwort-Eingabe mit Anzeigen/Verbergen-Button */
+.password-field{position:relative}
+.password-field input{padding-right:44px}
+.password-field .toggle-visibility{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  width:32px;height:32px;border:0;background:none;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:15px;border-radius:8px;
+}
+.password-field .toggle-visibility:hover{background:var(--navy-tint);color:var(--navy)}

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – Für Vereine</title>
+<meta name="description" content="ScoutMatch bündelt Spielerprofile, Leistungsdaten und Verfügbarkeit an einem Ort und hilft Vereinen, die Spielersuche gezielter und effizienter zu gestalten.">
+<meta name="robots" content="index,follow">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.hero-narrow{padding:56px 0 20px;max-width:660px}
+.hero-narrow h1{font-size:36px;line-height:1.15;margin:16px 0 16px}
+.hero-narrow p{font-size:16.5px;margin:0 0 26px}
+.hero-narrow .actions{display:flex;gap:12px;flex-wrap:wrap}
+
+.search-preview-banner{
+  background:var(--navy-tint);color:var(--navy-tint-text);border-radius:var(--radius-sm);
+  padding:14px 18px;font-size:13.5px;font-weight:600;margin:0 0 18px;text-align:center;
+}
+.preview-filter-card{margin-bottom:22px}
+.preview-filter-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.preview-filter-grid label{font-size:12px;margin-bottom:5px}
+.preview-filter-grid select[disabled],.preview-filter-grid input[disabled]{background:var(--surface-muted);color:var(--muted);cursor:not-allowed}
+
+.preview-players{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.preview-player-card{position:relative;overflow:hidden;padding:0}
+.ppc-inner{filter:blur(2.5px);pointer-events:none;user-select:none;opacity:.8;padding:20px}
+.pc-avatar{width:44px;height:44px;border-radius:50%;background:var(--navy-tint);color:var(--navy-tint-text);
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;margin-bottom:10px}
+.pc-name{font-weight:800;font-size:15px}
+.pc-meta{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
+.ppc-lock{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  background:rgba(255,255,255,.4);text-align:center;padding:16px;
+}
+.ppc-lock .lock-icon{width:34px;height:34px;border-radius:50%;background:#fff;box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:center;font-size:15px}
+.ppc-lock span{font-size:11px;font-weight:700;color:var(--navy);background:#fff;padding:4px 10px;border-radius:999px}
+
+.unlock-cta{text-align:center;margin:26px 0 10px}
+
+@media(max-width:900px){
+  .preview-filter-grid{grid-template-columns:repeat(2,1fr)}
+  .preview-players{grid-template-columns:1fr 1fr}
+}
+@media(max-width:700px){
+  .preview-filter-grid{grid-template-columns:1fr}
+  .preview-players{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .hero-narrow .actions{flex-direction:column;align-items:stretch}
+  .hero-narrow .actions .btn{width:100%}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html" aria-label="ScoutMatch Startseite"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="index.html">Start</a>
+      <a href="fuer-spieler.html">Für Spieler</a>
+      <a href="fuer-vereine.html" class="active">Für Vereine</a>
+      <a href="preise.html">Preise</a>
+      <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+      <a href="login.html">Einloggen</a>
+      <a href="registrieren.html" class="cta">Registrieren</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero-narrow reveal">
+    <div class="eyebrow">Für Vereine</div>
+    <h1>Finde Spieler, die wirklich zu deinem Kader passen.</h1>
+    <p>ScoutMatch bündelt Spielerprofile, Leistungsdaten, Verfügbarkeit und weitere relevante Informationen an einem Ort und hilft Vereinen dabei, die Spielersuche gezielter und effizienter zu gestalten.</p>
+    <div class="actions">
+      <a class="btn primary" href="registrieren.html?type=verein">Vereinskonto erstellen</a>
+      <a class="btn secondary" href="login.html">Bereits registriert? Einloggen</a>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title reveal"><h2>Vorschau der Spielersuche</h2></div>
+    <p class="section-intro reveal">So sieht die Spielersuche im Vereins-Dashboard aus. Diese Ansicht ist eine Vorschau – die vollständige Suche steht nach der Registrierung zur Verfügung.</p>
+
+    <div class="search-preview-banner reveal">🔒 Registriere deinen Verein, um die vollständige Spielersuche zu nutzen.</div>
+
+    <div class="card preview-filter-card reveal" aria-hidden="true">
+      <div class="preview-filter-grid">
+        <div><label>Position</label><select disabled><option>Alle Positionen</option></select></div>
+        <div><label>Nebenposition</label><select disabled><option>Alle</option></select></div>
+        <div><label>Alter</label><select disabled><option>Alle Altersgruppen</option></select></div>
+        <div><label>Liga</label><select disabled><option>Alle Ligen</option></select></div>
+        <div><label>Region</label><input disabled placeholder="z. B. Hamburg"></div>
+        <div><label>Umkreis</label><select disabled><option>Beliebig</option></select></div>
+        <div><label>Vertragsstatus</label><select disabled><option>Alle</option></select></div>
+        <div><label>Starker Fuß</label><select disabled><option>Alle</option></select></div>
+        <div><label>Größe</label><select disabled><option>Beliebig</option></select></div>
+        <div><label>Wechselbereitschaft</label><select disabled><option>Alle</option></select></div>
+      </div>
+    </div>
+
+    <div class="preview-players reveal-stagger">
+      <div class="card preview-player-card reveal">
+        <div class="ppc-inner">
+          <div class="pc-avatar">L.M.</div>
+          <div class="pc-name">Spieler-Profil</div>
+          <div class="pc-meta">Linksverteidiger · 24 Jahre<br>Regionalliga Nord · Hamburg<br>Offen für Angebote</div>
+          <div class="badge-row" style="margin-top:10px"><span class="badge verified">✓ Verifiziert</span></div>
+        </div>
+        <div class="ppc-lock"><div class="lock-icon">🔒</div><span>Nach Registrierung sichtbar</span></div>
+      </div>
+      <div class="card preview-player-card reveal">
+        <div class="ppc-inner">
+          <div class="pc-avatar">T.K.</div>
+          <div class="pc-name">Spieler-Profil</div>
+          <div class="pc-meta">Zentrales Mittelfeld · 21 Jahre<br>Oberliga Bayern · München<br>Aktiv auf Vereinssuche</div>
+          <div class="badge-row" style="margin-top:10px"><span class="badge pending">… Prüfung ausstehend</span></div>
+        </div>
+        <div class="ppc-lock"><div class="lock-icon">🔒</div><span>Nach Registrierung sichtbar</span></div>
+      </div>
+      <div class="card preview-player-card reveal">
+        <div class="ppc-inner">
+          <div class="pc-avatar">J.S.</div>
+          <div class="pc-name">Spieler-Profil</div>
+          <div class="pc-meta">Stürmer · 26 Jahre<br>Landesliga · Köln<br>Nicht interessiert</div>
+          <div class="badge-row" style="margin-top:10px"><span class="badge self-reported">◐ Selbst angegeben</span></div>
+        </div>
+        <div class="ppc-lock"><div class="lock-icon">🔒</div><span>Nach Registrierung sichtbar</span></div>
+      </div>
+    </div>
+
+    <div class="unlock-cta reveal">
+      <a class="btn primary" href="registrieren.html?type=verein">Spielerpool freischalten</a>
+    </div>
+  </section>
+
+  <section class="dark-band">
+   <div class="wrap">
+    <div class="section-title reveal"><h2>Vorteile für Vereine</h2></div>
+    <p class="section-intro reveal">Warum ScoutMatch die Spielersuche für Vereine einfacher macht.</p>
+    <div class="steps reveal-stagger">
+      <div class="card step reveal">
+        <div class="n icon">🎯</div>
+        <h3>Gezielter suchen</h3>
+        <p>Filtere Spieler nach genau den Kriterien, die für deinen Kader relevant sind.</p>
+      </div>
+      <div class="card step reveal">
+        <div class="n icon">⏱️</div>
+        <h3>Zeit sparen</h3>
+        <p>Statt viele Profile und Quellen einzeln zu durchsuchen, findest du wichtige Informationen gebündelt.</p>
+      </div>
+      <div class="card step reveal">
+        <div class="n icon">⭐</div>
+        <h3>Kandidaten speichern</h3>
+        <p>Interessante Spieler können in Favoritenlisten gespeichert werden.</p>
+      </div>
+      <div class="card step reveal">
+        <div class="n icon">⚖️</div>
+        <h3>Spieler vergleichen</h3>
+        <p>Vergleiche relevante Informationen verschiedener Kandidaten.</p>
+      </div>
+      <div class="card step reveal">
+        <div class="n icon">📊</div>
+        <h3>Leistungsdaten ansehen</h3>
+        <p>Erhalte einen schnellen Überblick über sportliche Daten und verfügbare Medien.</p>
+      </div>
+      <div class="card step reveal">
+        <div class="n icon">✉️</div>
+        <h3>Kontakt aufnehmen</h3>
+        <p>Nimm über ScoutMatch Kontakt zu interessanten Spielern auf.</p>
+      </div>
+    </div>
+   </div>
+  </section>
+
+  <section>
+    <div class="section-title reveal"><h2>Häufige Fragen für Vereine</h2></div>
+    <div class="faq-list reveal-stagger">
+      <details class="faq-item reveal">
+        <summary>Wer darf ein Vereinskonto erstellen?</summary>
+        <p>Ein Vereinskonto richtet sich an Vereinsvertreter wie sportliche Leiter, Trainer, Scouts, Vorstände oder Kaderplaner.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Kostet ScoutMatch für Vereine Geld?</summary>
+        <p>Details zu unserem Preismodell für Vereine geben wir im Zuge der Registrierung bekannt.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Sind alle Spielerprofile verifiziert?</summary>
+        <p>Nein. ScoutMatch kennzeichnet Angaben getrennt als bestätigt, in Prüfung befindlich oder selbst angegeben – so bleibt transparent, was bereits geprüft wurde.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Welche Filter stehen zur Verfügung?</summary>
+        <p>Unter anderem Position, Nebenposition, Alter, Liga, Region, Umkreis, Vertragsstatus, starker Fuß, Größe und Wechselbereitschaft.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Können Spieler gespeichert werden?</summary>
+        <p>Ja, interessante Spieler können nach der Registrierung in Favoritenlisten gespeichert werden.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Wie funktioniert die Kontaktaufnahme?</summary>
+        <p>Vereine können über ScoutMatch eine Kontaktanfrage stellen. Persönliche Kontaktdaten werden erst nach Bestätigung durch den Spieler freigegeben.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="cta-banner reveal">
+    <h2>Starte deine nächste Spielersuche mit ScoutMatch.</h2>
+    <div class="actions">
+      <a class="btn primary" href="registrieren.html?type=verein">Vereinskonto erstellen</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html" style="margin-bottom:10px"><span class="dot"></span>ScoutMatch</a>
+        <p style="max-width:280px;font-size:13.5px;margin-top:10px">Die Plattform, die Spieler und Vereine miteinander verbindet.</p>
+      </div>
+      <div>
+        <h5>Plattform</h5>
+        <a href="fuer-spieler.html">Für Spieler</a>
+        <a href="fuer-vereine.html">Für Vereine</a>
+        <a href="preise.html">Preise</a>
+      </div>
+      <div>
+        <h5>Unternehmen</h5>
+        <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+        <a href="kontakt.html">Kontakt</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

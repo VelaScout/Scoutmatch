@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – Für Spieler</title>
+<meta name="description" content="Erstelle dein digitales Spielerprofil auf ScoutMatch, zeige deine sportlichen Daten und werde von Vereinen gefunden, die genau nach deinem Profil suchen.">
+<meta name="robots" content="index,follow">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.hero-narrow{padding:56px 0 20px;max-width:640px}
+.hero-narrow h1{font-size:36px;line-height:1.15;margin:16px 0 16px}
+.hero-narrow p{font-size:16.5px;margin:0 0 26px}
+.hero-narrow .actions{display:flex;gap:12px;flex-wrap:wrap}
+
+.preview-wrap{margin:10px 0 56px;display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.preview-wrap .intro{padding-top:8px}
+.preview-wrap .intro h2{font-size:24px;margin:0 0 12px}
+.preview-wrap .intro p{font-size:15px;margin:0 0 16px}
+.preview-hint{font-size:12.5px;color:var(--muted);margin-top:14px}
+
+.profile-preview .pp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.profile-preview .pp-name{font-weight:800;font-size:19px}
+.profile-preview .pp-sub{font-size:13px;color:var(--muted);margin-top:3px}
+.profile-preview .facts{margin-top:18px}
+.profile-preview .stat-grid{margin:14px 0 4px}
+
+.visibility-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:20px 0 10px}
+.visibility-card h3{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.visibility-card ul{margin:0;padding-left:20px}
+.visibility-card li{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:6px}
+.visibility-card.locked{background:var(--surface-muted);border-style:dashed}
+
+@media(max-width:900px){
+  .preview-wrap{grid-template-columns:1fr}
+  .visibility-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .hero-narrow .actions{flex-direction:column;align-items:stretch}
+  .hero-narrow .actions .btn{width:100%}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html" aria-label="ScoutMatch Startseite"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="index.html">Start</a>
+      <a href="fuer-spieler.html" class="active">Für Spieler</a>
+      <a href="fuer-vereine.html">Für Vereine</a>
+      <a href="preise.html">Preise</a>
+      <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+      <a href="login.html">Einloggen</a>
+      <a href="registrieren.html" class="cta">Registrieren</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero-narrow reveal">
+    <div class="eyebrow">Für Spieler</div>
+    <h1>Zeig Vereinen, was du kannst.</h1>
+    <p>Erstelle dein digitales Spielerprofil, präsentiere deine sportlichen Daten und werde von Vereinen gefunden, die genau nach deinem Profil suchen.</p>
+    <div class="actions">
+      <a class="btn primary" href="registrieren.html?type=spieler">Spielerprofil erstellen</a>
+      <a class="btn secondary" href="login.html">Bereits registriert? Einloggen</a>
+    </div>
+  </section>
+
+  <section class="dark-band">
+   <div class="wrap">
+    <div class="section-title reveal"><h2>So läuft's ab</h2></div>
+    <p class="section-intro reveal">Vom ersten Eintrag bis zur Kontaktaufnahme durch einen Verein.</p>
+    <div class="steps cols-5 reveal-stagger">
+      <div class="card step reveal">
+        <div class="n">1</div>
+        <h3>Spielerprofil erstellen</h3>
+        <p>Hinterlege deine wichtigsten persönlichen und sportlichen Informationen.</p>
+      </div>
+      <div class="card step reveal">
+        <div class="n">2</div>
+        <h3>Angaben verifizieren</h3>
+        <p>Bestätigte Angaben schaffen Vertrauen bei interessierten Vereinen.</p>
+      </div>
+      <div class="card step reveal">
+        <div class="n">3</div>
+        <h3>Leistungsdaten &amp; Videos hinzufügen</h3>
+        <p>Zeige Einsätze, Tore, Vorlagen, Spielminuten und deine besten Spielszenen.</p>
+      </div>
+      <div class="card step reveal">
+        <div class="n">4</div>
+        <h3>Von Vereinen gefunden werden</h3>
+        <p>Vereine können gezielt nach Spielern suchen, die zu ihren Anforderungen passen.</p>
+      </div>
+      <div class="card step reveal">
+        <div class="n">5</div>
+        <h3>Wechselbereitschaft festlegen</h3>
+        <p>Du entscheidest, ob du aktiv suchst, offen für Angebote bist oder aktuell nicht wechseln möchtest.</p>
+      </div>
+    </div>
+   </div>
+  </section>
+
+  <section class="preview-wrap">
+    <div class="intro reveal">
+      <div class="eyebrow">Beispielprofil</div>
+      <h2 style="margin-top:12px">So sehen Vereine dein Profil</h2>
+      <p>Ein Beispiel, wie dein Spielerprofil später für Vereine aussehen könnte – kompakt, mit den wichtigsten sportlichen Daten auf einen Blick.</p>
+      <p class="preview-hint">Zur Veranschaulichung: Nicht jede Angabe ist automatisch geprüft. ScoutMatch unterscheidet zwischen bestätigten, in Prüfung befindlichen und selbst angegebenen Informationen.</p>
+    </div>
+    <div class="card profile-preview reveal">
+      <div class="pp-head">
+        <div>
+          <div class="pp-name">Max Mustermann</div>
+          <div class="pp-sub">22 Jahre · Linksaußen · FC Beispiel · Oberliga Hamburg</div>
+        </div>
+        <span class="badge">Offen für Angebote</span>
+      </div>
+      <dl class="facts">
+        <div><dt>Größe</dt><dd>1,78 m</dd></div>
+        <div><dt>Starker Fuß</dt><dd>Rechts</dd></div>
+        <div><dt>Vertragsstatus</dt><dd>Vertrag bis 30.06.2027</dd></div>
+        <div><dt>Region</dt><dd>Hamburg</dd></div>
+      </dl>
+      <div class="section-label">Leistungsdaten</div>
+      <div class="stat-grid">
+        <div><b>18</b><span>EINSÄTZE</span></div>
+        <div><b>7</b><span>TORE</span></div>
+        <div><b>6</b><span>VORLAGEN</span></div>
+        <div><b>1.420</b><span>MINUTEN</span></div>
+      </div>
+      <div class="section-label">Verifizierung</div>
+      <div class="badge-row">
+        <span class="badge verified">✓ Identität · bestätigt</span>
+        <span class="badge pending">… Verein · Prüfung ausstehend</span>
+        <span class="badge self-reported">◐ Leistungsdaten · selbst angegeben</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title reveal"><h2>Du entscheidest, wie du dich präsentierst.</h2></div>
+    <p class="section-intro reveal">Du behältst die Kontrolle darüber, welche Informationen Vereine im Spielerpool sehen können.</p>
+    <div class="visibility-grid reveal-stagger">
+      <div class="card visibility-card reveal">
+        <h3><span class="badge">✓ Sichtbar</span></h3>
+        <ul>
+          <li>Sportliche Daten (Position, Größe, starker Fuß)</li>
+          <li>Aktueller Verein &amp; Liga</li>
+          <li>Leistungsdaten</li>
+          <li>Wechselstatus</li>
+          <li>Highlightvideos</li>
+        </ul>
+      </div>
+      <div class="card visibility-card locked reveal">
+        <h3><span class="badge muted">🔒 Nie öffentlich</span></h3>
+        <ul>
+          <li>Private Telefonnummer</li>
+          <li>Private E-Mail-Adresse</li>
+          <li>Persönliche Dokumente / Verifizierungsunterlagen</li>
+        </ul>
+      </div>
+    </div>
+    <p class="privacy-note reveal">Deine persönlichen Daten gehören dir. ScoutMatch zeigt Vereinen nur die Informationen, die für die sportliche Spielersuche vorgesehen sind. Private Kontaktdaten und Verifizierungsunterlagen werden nicht öffentlich angezeigt. <a class="btn ghost" href="datenschutz.html">Mehr zum Datenschutz →</a></p>
+  </section>
+
+  <section>
+    <div class="section-title reveal"><h2>Häufige Fragen für Spieler</h2></div>
+    <div class="faq-list reveal-stagger">
+      <details class="faq-item reveal">
+        <summary>Ist ScoutMatch für Spieler kostenlos?</summary>
+        <p>Ja, die Erstellung eines Spielerprofils ist für Spieler kostenlos.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Welche Vereine können mein Profil sehen?</summary>
+        <p>Dein Profil ist im Spielerpool für registrierte, geprüfte Vereinsaccounts sichtbar – nicht öffentlich für jeden Internetnutzer.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Kann ich mein Profil jederzeit bearbeiten?</summary>
+        <p>Ja, du kannst deine Angaben jederzeit in deinem Profil aktualisieren.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Was bedeutet „verifiziert“?</summary>
+        <p>Verifiziert bedeutet, dass eine Angabe geprüft und bestätigt wurde. Nicht geprüfte Angaben werden entsprechend als „selbst angegeben“ gekennzeichnet.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Kann ich mein Profil unsichtbar stellen?</summary>
+        <p>Ja, du kannst deine Sichtbarkeit selbst steuern, zum Beispiel wenn du aktuell nicht wechseln möchtest.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Werden meine Kontaktdaten öffentlich angezeigt?</summary>
+        <p>Nein. Private Kontaktdaten werden nie öffentlich im Spielerpool angezeigt.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="cta-banner reveal">
+    <h2>Mach dich für Vereine sichtbar.</h2>
+    <p>Erstelle dein ScoutMatch-Profil und zeige Vereinen auf einen Blick, wer du bist und was du kannst.</p>
+    <div class="actions">
+      <a class="btn primary" href="registrieren.html?type=spieler">Jetzt kostenlos Spielerprofil erstellen</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html" style="margin-bottom:10px"><span class="dot"></span>ScoutMatch</a>
+        <p style="max-width:280px;font-size:13.5px;margin-top:10px">Die Plattform, die Spieler und Vereine miteinander verbindet.</p>
+      </div>
+      <div>
+        <h5>Plattform</h5>
+        <a href="fuer-spieler.html">Für Spieler</a>
+        <a href="fuer-vereine.html">Für Vereine</a>
+        <a href="preise.html">Preise</a>
+      </div>
+      <div>
+        <h5>Unternehmen</h5>
+        <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+        <a href="kontakt.html">Kontakt</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

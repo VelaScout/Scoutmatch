@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – Kontakt</title>
+<meta name="robots" content="noindex,follow">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+main.wrap-narrow{padding:48px 24px 80px;max-width:560px}
+.page-head{text-align:center;margin:0 0 32px}
+.page-head .eyebrow{margin-bottom:14px}
+.page-head h1{font-size:28px;margin:0 0 8px}
+.page-head p{margin:0}
+.form-card{padding:32px}
+.full{margin-bottom:16px}
+.form-note{
+  margin-top:18px;padding:12px 14px;background:var(--green-tint);color:var(--green-tint-text);
+  border-radius:var(--radius-sm);font-size:13px;font-weight:600;display:none;
+}
+.form-note.show{display:block}
+.form-error{
+  margin-top:18px;padding:12px 14px;background:var(--red-tint,#fdecec);color:var(--red-tint-text,#a12222);
+  border-radius:var(--radius-sm);font-size:13px;font-weight:600;display:none;
+}
+.form-error.show{display:block}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="index.html">Start</a>
+      <a href="fuer-spieler.html">Für Spieler</a>
+      <a href="fuer-vereine.html">Für Vereine</a>
+      <a href="preise.html">Preise</a>
+      <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+      <a href="login.html">Einloggen</a>
+      <a href="registrieren.html" class="cta">Registrieren</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<section class="dark-band" style="padding:48px 0">
+ <div class="wrap" style="max-width:560px;padding:0 24px">
+  <div class="page-head reveal">
+    <div class="eyebrow" style="color:rgba(255,255,255,.72)">Kontakt</div>
+    <h1>Sprich mit uns</h1>
+    <p>Fragen zu ScoutMatch, Paketen oder deinem Konto? Schreib uns – wir melden uns zurück.</p>
+  </div>
+ </div>
+</section>
+
+<main class="wrap-narrow">
+  <div class="card form-card reveal" style="margin-top:32px">
+    <form id="f" novalidate>
+      <div class="full"><label>Name *</label><input name="name" required></div>
+      <div class="full"><label>E-Mail *</label><input type="email" name="email" required></div>
+      <div class="full"><label>Nachricht *</label><textarea name="message" rows="5" required></textarea></div>
+      <button class="btn primary" type="submit" style="width:100%">Nachricht senden</button>
+      <p class="form-note" id="note"></p>
+      <p class="form-error" id="error"></p>
+    </form>
+  </div>
+
+  <p class="hint-text" style="text-align:center;margin-top:20px">Direkt per E-Mail: <span style="font-weight:600">[E-MAIL-ADRESSE EINTRAGEN]</span></p>
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html" style="margin-bottom:10px"><span class="dot"></span>ScoutMatch</a>
+        <p style="max-width:280px;font-size:13.5px;margin-top:10px">Die Plattform, die Spieler und Vereine miteinander verbindet.</p>
+      </div>
+      <div>
+        <h5>Plattform</h5>
+        <a href="fuer-spieler.html">Für Spieler</a>
+        <a href="fuer-vereine.html">Für Vereine</a>
+        <a href="preise.html">Preise</a>
+      </div>
+      <div>
+        <h5>Unternehmen</h5>
+        <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+        <a href="kontakt.html">Kontakt</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script src="assets/api.js"></script>
+<script>
+document.getElementById('f').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var form = this;
+  var note = document.getElementById('note');
+  var error = document.getElementById('error');
+  note.classList.remove('show');
+  error.classList.remove('show');
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+
+  var data = Object.fromEntries(new FormData(form).entries());
+  var btn = form.querySelector('button[type="submit"]');
+  btn.disabled = true;
+
+  ScoutMatchAPI.post('/api/public/contact', data).then(function (res) {
+    btn.disabled = false;
+    if (!res.ok) {
+      error.textContent = res.data.error || 'Nachricht konnte nicht gesendet werden.';
+      error.classList.add('show');
+      return;
+    }
+    form.reset();
+    note.textContent = 'Danke, deine Nachricht wurde übermittelt.';
+    note.classList.add('show');
+  }).catch(function () {
+    btn.disabled = false;
+    error.textContent = 'Der Server ist gerade nicht erreichbar.';
+    error.classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

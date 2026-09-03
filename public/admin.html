@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.page-head p{margin:0;max-width:600px}
+
+.tabs{display:flex;gap:6px;margin:22px 0 18px;border-bottom:1px solid var(--line)}
+.tab-btn{
+  border:0;background:none;padding:10px 16px;font-size:13.5px;font-weight:700;color:var(--muted);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;
+}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+.data-table-wrap{overflow-x:auto;margin-bottom:60px}
+table.data-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden;
+  --text:#161c26;--muted:#5b6472;color:var(--text);}
+table.data-table th{
+  text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);
+  padding:12px 14px;border-bottom:1px solid var(--line);background:var(--surface);white-space:nowrap;
+}
+table.data-table td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle;white-space:nowrap}
+table.data-table tr:last-child td{border-bottom:0}
+table.data-table select{padding:6px 8px;font-size:12.5px;width:auto;min-width:150px}
+.row-actions{display:flex;gap:8px}
+.row-actions button{
+  border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;
+  cursor:pointer;color:var(--navy);
+}
+.row-actions button.danger{color:#a12222;border-color:#f3c9c9}
+.lock-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--red-tint,#fdecec);color:var(--red-tint-text,#a12222)}
+.loading-note{padding:60px 0;color:var(--muted);text-align:center}
+.outbox-item{padding:14px 16px;border-bottom:1px solid var(--line)}
+.outbox-item:last-child{border-bottom:0}
+.outbox-item .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+.outbox-item pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:13px;margin:0}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="admin.html" class="active">Admin</a>
+      <a href="#" id="logoutLink">Ausloggen</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="page-head dashboard-head">
+    <div>
+      <div class="eyebrow">Admin-Bereich</div>
+      <h1>Verwaltung</h1>
+      <p>Nutzerkonten, Vereins- und Spieler-Verifizierung, lokaler Mail-Postausgang.</p>
+    </div>
+  </div>
+
+  <div class="loading-note" id="loadingNote">Lade …</div>
+
+  <div id="adminBody" style="display:none">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="users">Nutzer</button>
+      <button class="tab-btn" data-tab="clubs">Vereine</button>
+      <button class="tab-btn" data-tab="players">Spieler</button>
+      <button class="tab-btn" data-tab="outbox">Postausgang</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-users">
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>E-Mail</th><th>Rolle</th><th>Name</th><th>E-Mail bestätigt</th><th>Status</th><th>Erstellt</th><th>Aktionen</th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-clubs">
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>Verein</th><th>E-Mail</th><th>Liga</th><th>Ort</th><th>Ansprechpartner</th><th>Verifizierung</th></tr></thead>
+          <tbody id="clubsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-players">
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>Name</th><th>E-Mail</th><th>Verein</th><th>Profil</th><th>Identität</th><th>Vereinszugehörigkeit</th><th>Leistungsdaten</th></tr></thead>
+          <tbody id="playersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-outbox">
+      <p class="hint-text" style="margin-bottom:14px">Lokaler Mock-Postausgang – hier landen alle "gesendeten" E-Mails (Verifizierung, Passwort-Reset) der lokalen Entwicklungsumgebung, da kein echter E-Mail-Versand angebunden ist.</p>
+      <div class="card" id="outboxList" style="padding:0"></div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script src="assets/api.js"></script>
+<script>
+(function () {
+  var VERIFICATION_STATUSES = ['selbst_angegeben', 'pruefung_ausstehend', 'verifiziert', 'abgelehnt'];
+  var VERIFICATION_LABELS = {
+    selbst_angegeben: 'Selbst angegeben', pruefung_ausstehend: 'Prüfung ausstehend',
+    verifiziert: 'Verifiziert', abgelehnt: 'Abgelehnt'
+  };
+  var CLUB_STATUSES = ['pending', 'verified', 'rejected'];
+  var CLUB_LABELS = { pending: 'Verifizierung ausstehend', verified: 'Verifiziert', rejected: 'Abgelehnt' };
+
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s == null ? '' : s;
+    return d.innerHTML;
+  }
+
+  function selectHtml(options, labels, current, dataAttrs) {
+    return '<select ' + dataAttrs + '>' + options.map(function (opt) {
+      return '<option value="' + opt + '"' + (opt === current ? ' selected' : '') + '>' + labels[opt] + '</option>';
+    }).join('') + '</select>';
+  }
+
+  function loadUsers() {
+    return ScoutMatchAPI.get('/api/admin/users').then(function (res) {
+      if (!res.ok) return;
+      document.getElementById('usersBody').innerHTML = res.data.users.map(function (u) {
+        return '<tr>' +
+          '<td>' + u.id + '</td>' +
+          '<td>' + esc(u.email) + '</td>' +
+          '<td>' + esc(u.role) + '</td>' +
+          '<td>' + esc(u.name || '–') + '</td>' +
+          '<td>' + (u.email_verified ? '✓' : '—') + '</td>' +
+          '<td>' + (u.is_locked ? '<span class="lock-badge">Gesperrt</span>' : 'Aktiv') + '</td>' +
+          '<td>' + esc((u.created_at || '').slice(0, 10)) + '</td>' +
+          '<td><div class="row-actions">' +
+            '<button data-lock="' + u.id + '" data-locked="' + (u.is_locked ? '0' : '1') + '">' + (u.is_locked ? 'Entsperren' : 'Sperren') + '</button>' +
+            '<button class="danger" data-delete="' + u.id + '">Löschen</button>' +
+          '</div></td>' +
+        '</tr>';
+      }).join('');
+    });
+  }
+
+  function loadClubs() {
+    return ScoutMatchAPI.get('/api/admin/clubs').then(function (res) {
+      if (!res.ok) return;
+      document.getElementById('clubsBody').innerHTML = res.data.clubs.map(function (c) {
+        return '<tr>' +
+          '<td>' + c.id + '</td>' +
+          '<td>' + esc(c.vereinsname) + '</td>' +
+          '<td>' + esc(c.email) + '</td>' +
+          '<td>' + esc(c.liga || '–') + '</td>' +
+          '<td>' + esc(c.ort || '–') + '</td>' +
+          '<td>' + esc([c.ansprechpartner_vorname, c.ansprechpartner_nachname].filter(Boolean).join(' ')) + '</td>' +
+          '<td>' + selectHtml(CLUB_STATUSES, CLUB_LABELS, c.verification_status, 'data-club-status="' + c.id + '"') + '</td>' +
+        '</tr>';
+      }).join('');
+    });
+  }
+
+  function loadPlayers() {
+    return ScoutMatchAPI.get('/api/admin/players').then(function (res) {
+      if (!res.ok) return;
+      document.getElementById('playersBody').innerHTML = res.data.players.map(function (p) {
+        var v = p.verifizierung || {};
+        return '<tr>' +
+          '<td>' + p.id + '</td>' +
+          '<td>' + esc(p.vorname + ' ' + p.nachname) + '</td>' +
+          '<td>' + esc(p.email) + '</td>' +
+          '<td>' + esc(p.aktueller_verein || '–') + '</td>' +
+          '<td><div class="row-actions">' +
+            '<button data-player-visibility="' + p.id + '" data-sichtbar="' + (p.profil_sichtbar ? '0' : '1') + '">' +
+              (p.profil_sichtbar ? 'Deaktivieren' : 'Aktivieren') +
+            '</button>' +
+          '</div></td>' +
+          '<td>' + selectHtml(VERIFICATION_STATUSES, VERIFICATION_LABELS, v.identitaet || 'selbst_angegeben', 'data-player-verify="' + p.id + '" data-type="identitaet"') + '</td>' +
+          '<td>' + selectHtml(VERIFICATION_STATUSES, VERIFICATION_LABELS, v.vereinszugehoerigkeit || 'selbst_angegeben', 'data-player-verify="' + p.id + '" data-type="vereinszugehoerigkeit"') + '</td>' +
+          '<td>' + selectHtml(VERIFICATION_STATUSES, VERIFICATION_LABELS, v.leistungsdaten || 'selbst_angegeben', 'data-player-verify="' + p.id + '" data-type="leistungsdaten"') + '</td>' +
+        '</tr>';
+      }).join('');
+    });
+  }
+
+  function loadOutbox() {
+    return ScoutMatchAPI.get('/api/admin/outbox').then(function (res) {
+      if (!res.ok) return;
+      var list = document.getElementById('outboxList');
+      if (!res.data.emails.length) {
+        list.innerHTML = '<p class="contact-empty" style="padding:22px">Noch keine E-Mails versendet.</p>';
+        return;
+      }
+      list.innerHTML = res.data.emails.map(function (e) {
+        return '<div class="outbox-item">' +
+          '<div class="meta">An: ' + esc(e.to) + ' · ' + esc(e.sent_at) + '</div>' +
+          '<div style="font-weight:700;margin-bottom:6px">' + esc(e.subject) + '</div>' +
+          '<pre>' + esc(e.body) + '</pre>' +
+        '</div>';
+      }).join('');
+    });
+  }
+
+  document.getElementById('usersBody').addEventListener('click', function (e) {
+    var lockBtn = e.target.closest('[data-lock]');
+    var delBtn = e.target.closest('[data-delete]');
+    if (lockBtn) {
+      ScoutMatchAPI.put('/api/admin/users/' + lockBtn.dataset.lock + '/lock', { locked: lockBtn.dataset.locked === '1' })
+        .then(function (res) { if (res.ok) loadUsers(); else alert(res.data.error || 'Fehlgeschlagen'); });
+    }
+    if (delBtn) {
+      if (!confirm('Dieses Konto wirklich unwiderruflich löschen?')) return;
+      ScoutMatchAPI.del('/api/admin/users/' + delBtn.dataset.delete)
+        .then(function (res) { if (res.ok) loadUsers(); else alert(res.data.error || 'Fehlgeschlagen'); });
+    }
+  });
+
+  document.getElementById('clubsBody').addEventListener('change', function (e) {
+    var sel = e.target.closest('[data-club-status]');
+    if (!sel) return;
+    ScoutMatchAPI.put('/api/admin/clubs/' + sel.dataset.clubStatus + '/verification', { status: sel.value })
+      .then(function (res) { if (!res.ok) alert(res.data.error || 'Fehlgeschlagen'); });
+  });
+
+  document.getElementById('playersBody').addEventListener('change', function (e) {
+    var sel = e.target.closest('[data-player-verify]');
+    if (!sel) return;
+    ScoutMatchAPI.put('/api/admin/players/' + sel.dataset.playerVerify + '/verification', {
+      verification_type: sel.dataset.type, status: sel.value
+    }).then(function (res) { if (!res.ok) alert(res.data.error || 'Fehlgeschlagen'); });
+  });
+
+  document.getElementById('playersBody').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-player-visibility]');
+    if (!btn) return;
+    ScoutMatchAPI.put('/api/admin/players/' + btn.dataset.playerVisibility + '/visibility', {
+      sichtbar: btn.dataset.sichtbar === '1'
+    }).then(function (res) {
+      if (res.ok) loadPlayers();
+      else alert(res.data.error || 'Fehlgeschlagen');
+    });
+  });
+
+  ScoutMatchAPI.requireRole(['admin']).then(function (info) {
+    if (!info) return;
+    document.getElementById('loadingNote').style.display = 'none';
+    document.getElementById('adminBody').style.display = 'block';
+    loadUsers();
+    loadClubs();
+    loadPlayers();
+    loadOutbox();
+  });
+
+  document.getElementById('logoutLink').addEventListener('click', function (e) {
+    e.preventDefault();
+    ScoutMatchAPI.post('/api/auth/logout').then(function () { location.href = 'login.html'; });
+  });
+})();
+</script>
+</body>
+</html>

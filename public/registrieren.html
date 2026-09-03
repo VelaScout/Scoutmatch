@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – Registrieren</title>
+<meta name="description" content="Registriere dich bei ScoutMatch als Spieler oder als Verein und werde Teil der Plattform, die Fußballspieler und Vereine zusammenbringt.">
+<meta name="robots" content="noindex,follow">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+main.wrap-narrow{padding:56px 24px 80px}
+.choice-head{text-align:center;margin:0 0 40px}
+.choice-head h1{font-size:30px;margin:0 0 10px}
+.choice-head p{font-size:15.5px;margin:0 auto;max-width:480px}
+
+.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.choice-card{text-align:center;padding:32px 26px;border-width:2px;transition:border-color .15s, transform .15s, box-shadow .15s}
+.choice-card .icon{
+  width:56px;height:56px;border-radius:16px;background:var(--navy-tint);color:var(--navy-tint-text);
+  display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 18px;
+}
+.choice-card h2{font-size:19px;margin:0 0 10px}
+.choice-card p{font-size:14px;margin:0 0 22px;min-height:60px}
+.choice-card.selected{border-color:var(--navy);box-shadow:0 4px 10px rgba(15,26,44,.06), 0 16px 32px rgba(15,26,44,.1)}
+.choice-card.selected .icon{background:var(--navy);color:#fff}
+
+.login-note{text-align:center;margin-top:32px;font-size:14.5px}
+
+.plan-summary{margin:0 0 28px;padding:20px 24px;display:none;flex-direction:column;gap:12px}
+.plan-summary-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.plan-summary-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.plan-summary-name{font-weight:800;font-size:17px}
+.plan-summary-price{font-size:13.5px;color:var(--muted);margin-top:2px}
+.plan-summary select{width:auto;min-width:220px}
+
+@media(max-width:700px){.choice-grid{grid-template-columns:1fr}}
+@media(max-width:500px){.plan-summary-row{flex-direction:column;align-items:stretch}.plan-summary select{width:100%}}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html" aria-label="ScoutMatch Startseite"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="index.html">Start</a>
+      <a href="fuer-spieler.html">Für Spieler</a>
+      <a href="fuer-vereine.html">Für Vereine</a>
+      <a href="preise.html">Preise</a>
+      <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+      <a href="login.html">Einloggen</a>
+      <a href="registrieren.html" class="cta active">Registrieren</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<main class="wrap-narrow">
+  <div class="choice-head reveal">
+    <div class="eyebrow">Registrieren</div>
+    <h1>Wie möchtest du ScoutMatch nutzen?</h1>
+    <p>Wähle aus, ob du ein Spielerprofil erstellen oder ScoutMatch für deinen Verein nutzen möchtest.</p>
+  </div>
+
+  <div class="card plan-summary reveal" id="planSummary">
+    <div class="plan-summary-label">Ausgewähltes Paket</div>
+    <div class="plan-summary-row">
+      <div>
+        <div class="plan-summary-name" id="planSummaryName">–</div>
+        <div class="plan-summary-price" id="planSummaryPrice">–</div>
+      </div>
+      <select id="planSelect" aria-label="Paket ändern"></select>
+    </div>
+  </div>
+
+  <div class="choice-grid reveal-stagger">
+    <div class="card choice-card reveal" id="choicePlayer">
+      <div class="icon">⚽</div>
+      <h2>Ich bin Spieler</h2>
+      <p>Erstelle dein Spielerprofil, hinterlege deine sportlichen Informationen und werde für passende Vereine sichtbar.</p>
+      <a class="btn primary" href="spieler-registrierung.html" style="width:100%">Als Spieler registrieren</a>
+    </div>
+    <div class="card choice-card reveal" id="choiceClub">
+      <div class="icon">🏟️</div>
+      <h2>Ich vertrete einen Verein</h2>
+      <p>Erstelle ein Vereinskonto und erhalte nach erfolgreicher Anmeldung Zugang zur gezielten Spielersuche.</p>
+      <a class="btn primary" href="vereins-registrierung.html" style="width:100%">Als Verein registrieren</a>
+    </div>
+  </div>
+
+  <p class="login-note reveal">Bereits registriert? <a class="btn ghost" href="login.html">Einloggen</a></p>
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html" style="margin-bottom:10px"><span class="dot"></span>ScoutMatch</a>
+        <p style="max-width:280px;font-size:13.5px;margin-top:10px">Die Plattform, die Spieler und Vereine miteinander verbindet.</p>
+      </div>
+      <div>
+        <h5>Plattform</h5>
+        <a href="fuer-spieler.html">Für Spieler</a>
+        <a href="fuer-vereine.html">Für Vereine</a>
+        <a href="preise.html">Preise</a>
+      </div>
+      <div>
+        <h5>Unternehmen</h5>
+        <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+        <a href="kontakt.html">Kontakt</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script>
+var SCOUTMATCH_PLANS = {
+  verein: {
+    flex:   { label: 'ScoutMatch Flex',      price: '119 € / Monat · monatlich kündbar' },
+    winter: { label: 'Winter Scout Pass',    price: '199 € für 2 Monate (99,50 € / Monat)' },
+    summer: { label: 'Summer Scout Pass',    price: '349 € für 4 Monate (87,25 € / Monat)' },
+    '365':  { label: 'ScoutMatch 365',       price: '799 € / Jahr (66,58 € / Monat)' }
+  },
+  spieler: {
+    'free':        { label: 'Player Basic',            price: '0 € – dauerhaft kostenlos' },
+    'pro-monthly': { label: 'Player Pro (monatlich)',   price: '10 € / Monat' },
+    'pro-yearly':  { label: 'Player Pro (jährlich)',    price: '100 € / Jahr (2 Monate gespart)' }
+  }
+};
+
+(function () {
+  var params = new URLSearchParams(location.search);
+  var type = params.get('type');
+  var plan = params.get('plan');
+
+  if (type === 'spieler') document.getElementById('choicePlayer').classList.add('selected');
+  if (type === 'verein') document.getElementById('choiceClub').classList.add('selected');
+
+  function targetHref(t, p) {
+    var base = t === 'spieler' ? 'spieler-registrierung.html' : 'vereins-registrierung.html';
+    return base + (p ? '?plan=' + encodeURIComponent(p) : '');
+  }
+
+  if ((type === 'spieler' || type === 'verein') && plan && SCOUTMATCH_PLANS[type] && SCOUTMATCH_PLANS[type][plan]) {
+    var data = SCOUTMATCH_PLANS[type];
+    var summary = document.getElementById('planSummary');
+    var select = document.getElementById('planSelect');
+    var nameEl = document.getElementById('planSummaryName');
+    var priceEl = document.getElementById('planSummaryPrice');
+    var btn = (type === 'spieler'
+      ? document.querySelector('#choicePlayer a.btn')
+      : document.querySelector('#choiceClub a.btn'));
+
+    Object.keys(data).forEach(function (key) {
+      var opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = data[key].label;
+      if (key === plan) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    function render(key) {
+      nameEl.textContent = data[key].label;
+      priceEl.textContent = data[key].price;
+      btn.setAttribute('href', targetHref(type, key));
+    }
+    render(plan);
+    summary.style.display = 'flex';
+
+    select.addEventListener('change', function () { render(select.value); });
+  }
+})();
+</script>
+</body>
+</html>

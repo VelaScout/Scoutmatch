@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – Vereins-Dashboard</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.page-head p{margin:0;max-width:640px}
+
+.filter-bar{margin:22px 0 8px}
+.filter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.filter-grid label{font-size:12px;margin-bottom:5px}
+.filter-range{display:flex;align-items:center;gap:8px}
+.filter-range input{flex:1;min-width:0}
+.filter-range span{color:var(--muted);font-size:13px;flex-shrink:0}
+.checkbox-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer}
+.checkbox-row input[type="checkbox"]{all:revert;width:16px;height:16px;flex-shrink:0;cursor:pointer}
+.filter-actions{display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:10px}
+.result-count{font-size:13.5px;color:var(--muted);font-weight:600}
+
+.mine-note{
+  margin:22px 0 0;padding:16px 20px;border-radius:var(--radius-sm);background:var(--navy-tint);
+  color:var(--navy-tint-text);font-size:13.5px;font-weight:600;
+}
+
+.player-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:26px 0 60px}
+.player-card{display:flex;flex-direction:column;gap:12px}
+.player-card.mine{border-color:var(--navy)}
+.pc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.fav-btn{
+  flex-shrink:0;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;cursor:pointer;
+  color:var(--muted);transition:all .15s;
+}
+.fav-btn:hover{border-color:#e8a9bb}
+.fav-btn.active{background:#fdeef2;color:#c2255c;border-color:#f3c1d3}
+.pc-name{font-weight:800;font-size:16.5px}
+.pc-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.pc-badges{display:flex;flex-wrap:wrap;gap:6px}
+.pc-badges span{font-size:10.5px;padding:4px 8px}
+.pc-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted)}
+.pc-meta b{color:var(--text)}
+.pc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-top:10px;border-top:1px solid var(--line)}
+.pc-stats div{text-align:center}
+.pc-stats b{display:block;font-size:15px}
+.pc-stats span{font-size:10px;color:var(--muted)}
+.pc-foot{display:flex;justify-content:flex-end}
+
+.empty-state{grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--muted)}
+
+.status-banner{
+  margin:22px 0 0;padding:14px 18px;border-radius:var(--radius-sm);background:var(--amber-tint);
+  color:var(--amber-tint-text);font-size:13.5px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.status-banner button{border:0;background:none;color:inherit;font-weight:700;text-decoration:underline;cursor:pointer;font-size:13.5px;padding:0}
+
+.danger-zone{margin:20px 0 40px;padding:20px;border:1px solid #f3c9c9;border-radius:var(--radius-sm);
+  background:var(--surface);--text:#161c26;--muted:#5b6472;}
+.danger-zone h3{font-size:14px;margin:0 0 6px;color:#a12222}
+.danger-zone p{font-size:13px;margin:0 0 14px}
+.danger-zone .btn.danger{background:#a12222;color:#fff;border-color:#a12222}
+.confirm-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.confirm-row input{max-width:260px}
+.form-error{padding:10px 12px;background:var(--red-tint,#fdecec);color:var(--red-tint-text,#a12222);border-radius:var(--radius-sm);font-size:12.5px;font-weight:600}
+
+@media(max-width:1000px){
+  .player-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:700px){
+  .filter-grid{grid-template-columns:1fr 1fr}
+  .player-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="index.html">Start</a>
+      <a href="fuer-spieler.html">Für Spieler</a>
+      <a href="fuer-vereine.html">Für Vereine</a>
+      <a href="preise.html">Preise</a>
+      <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+      <a href="vereins-dashboard.html?favorites=1">Favoriten</a>
+      <a href="#" id="logoutLink">Ausloggen</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<main class="wrap reveal-stagger">
+  <div class="page-head dashboard-head reveal">
+    <div>
+      <div class="eyebrow">Für Vereine</div>
+      <h1>Passende Spieler finden</h1>
+      <p>Durchsuche Spielerprofile gezielt nach den Anforderungen deines Kaders.</p>
+    </div>
+  </div>
+
+  <div class="status-banner" id="verifyBanner" style="display:none">
+    <span id="verifyBannerText"></span>
+    <button type="button" id="resendBtn" style="display:none">Bestätigungslink erneut senden</button>
+  </div>
+
+  <form id="filters" class="card filter-bar reveal" novalidate>
+    <div class="filter-grid">
+      <div>
+        <label>Position</label>
+        <select name="position">
+          <option value="">Alle</option>
+          <option>Torwart</option><option>Innenverteidiger</option><option>Rechtsverteidiger</option>
+          <option>Linksverteidiger</option><option>Defensives Mittelfeld</option><option>Zentrales Mittelfeld</option>
+          <option>Offensives Mittelfeld</option><option>Rechtsaußen</option><option>Linksaußen</option><option>Stürmer</option>
+        </select>
+      </div>
+      <div>
+        <label>Nebenposition</label>
+        <select name="nebenposition">
+          <option value="">Alle</option>
+          <option>Torwart</option><option>Innenverteidiger</option><option>Rechtsverteidiger</option>
+          <option>Linksverteidiger</option><option>Defensives Mittelfeld</option><option>Zentrales Mittelfeld</option>
+          <option>Offensives Mittelfeld</option><option>Rechtsaußen</option><option>Linksaußen</option><option>Stürmer</option>
+        </select>
+      </div>
+      <div>
+        <label>Alter von / bis</label>
+        <div class="filter-range">
+          <input type="number" name="alterVon" min="14" max="45" placeholder="z. B. 18">
+          <span>–</span>
+          <input type="number" name="alterBis" min="14" max="45" placeholder="z. B. 30">
+        </div>
+      </div>
+      <div>
+        <label>Liga</label>
+        <input type="text" name="liga" placeholder="z. B. Oberliga">
+      </div>
+      <div>
+        <label>Region / Umkreis</label>
+        <input type="text" name="region" placeholder="z. B. Hamburg">
+      </div>
+      <div>
+        <label>Vertragsstatus</label>
+        <select name="vertrag">
+          <option value="">Alle</option>
+          <option>Unter Vertrag</option><option>Vertragslos</option><option>Vertrag läuft aus</option><option>Wechsel möglich</option>
+        </select>
+      </div>
+      <div>
+        <label>Vertragsende bis</label>
+        <input type="date" name="vertragsendeBis">
+      </div>
+      <div>
+        <label>Starker Fuß</label>
+        <select name="fuss">
+          <option value="">Alle</option>
+          <option>Rechts</option><option>Links</option><option>Beidfüßig</option>
+        </select>
+      </div>
+      <div>
+        <label>Größe von / bis (cm)</label>
+        <div class="filter-range">
+          <input type="number" name="groesseVon" min="100" max="230" placeholder="z. B. 170">
+          <span>–</span>
+          <input type="number" name="groesseBis" min="100" max="230" placeholder="z. B. 195">
+        </div>
+      </div>
+      <div>
+        <label>Verfügbar ab</label>
+        <select name="verfuegbarAb">
+          <option value="">Alle</option>
+          <option>Sommer</option><option>Winter</option>
+        </select>
+      </div>
+      <div>
+        <label>Tore / Assists / Einsätze min.</label>
+        <div class="filter-range">
+          <input type="number" name="toreMin" min="0" placeholder="Tore">
+          <input type="number" name="assistsMin" min="0" placeholder="Assists">
+          <input type="number" name="einsaetzeMin" min="0" placeholder="Einsätze">
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <label class="checkbox-row" style="margin:0"><input type="checkbox" name="nurVerifiziert" value="1"> Nur verifizierte Spieler</label>
+      </div>
+    </div>
+    <div class="filter-actions">
+      <span class="result-count" id="resultCount"></span>
+      <div style="display:flex;gap:10px">
+        <button type="button" class="btn ghost" id="resetFilters">Filter zurücksetzen</button>
+        <button type="submit" class="btn primary">Filtern</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="player-grid" id="playerGrid"></div>
+
+  <div class="section-label">Kontoeinstellungen</div>
+  <div class="card" style="margin-bottom:20px">
+    <h3 style="font-size:14px;margin:0 0 14px">Passwort ändern</h3>
+    <form id="passwordForm">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="grid-column:1/-1"><label>Aktuelles Passwort</label><input type="password" name="current_password" required autocomplete="current-password"></div>
+        <div><label>Neues Passwort</label><input type="password" name="new_password" required minlength="8" autocomplete="new-password" data-password-strength></div>
+        <div><label>Neues Passwort bestätigen</label><input type="password" name="new_password_confirm" required minlength="8" autocomplete="new-password"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px">
+        <button class="btn secondary" type="submit">Passwort speichern</button>
+      </div>
+      <p class="form-error" id="passwordOk" style="display:none;background:var(--green-tint);color:var(--green-tint-text)">Passwort wurde geändert.</p>
+      <p class="form-error" id="passwordError" style="display:none"></p>
+    </form>
+  </div>
+
+  <div class="danger-zone">
+    <h3>Konto löschen</h3>
+    <p>Dein Vereinskonto, alle Favoritenlisten und Kontaktanfragen werden dabei unwiderruflich gelöscht.</p>
+    <button class="btn secondary" id="showDeleteBtn" type="button">Konto löschen</button>
+    <div class="confirm-row" id="deleteConfirm" style="display:none">
+      <input type="password" id="deletePassword" placeholder="Passwort zur Bestätigung">
+      <button class="btn danger" id="confirmDeleteBtn" type="button">Endgültig löschen</button>
+      <button class="btn ghost" id="cancelDeleteBtn" type="button">Abbrechen</button>
+    </div>
+    <p class="form-error" id="deleteError" style="display:none;margin-top:10px"></p>
+  </div>
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html" style="margin-bottom:10px"><span class="dot"></span>ScoutMatch</a>
+        <p style="max-width:280px;font-size:13.5px;margin-top:10px">Die Plattform, die Spieler und Vereine miteinander verbindet.</p>
+      </div>
+      <div>
+        <h5>Plattform</h5>
+        <a href="fuer-spieler.html">Für Spieler</a>
+        <a href="fuer-vereine.html">Für Vereine</a>
+        <a href="preise.html">Preise</a>
+      </div>
+      <div>
+        <h5>Unternehmen</h5>
+        <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+        <a href="kontakt.html">Kontakt</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script src="assets/api.js"></script>
+<script>
+(function () {
+  var grid = document.getElementById('playerGrid');
+  var countEl = document.getElementById('resultCount');
+  var form = document.getElementById('filters');
+  var favoriteIds = {};
+
+  var favoritesOnly = new URLSearchParams(location.search).get('favorites') === '1';
+
+  if (favoritesOnly) {
+    document.querySelector('.page-head .eyebrow').textContent = 'Favoritenliste';
+    document.querySelector('.page-head h1').textContent = 'Deine Favoritenliste';
+    document.querySelector('.page-head p').innerHTML =
+      'Spieler, die du dir gemerkt hast. <a href="vereins-dashboard.html" style="color:var(--blue);font-weight:600">Alle Spieler anzeigen →</a>';
+  }
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s == null ? '' : s;
+    return d.innerHTML;
+  }
+
+  function badge(label, status) {
+    var cls = status === 'verifiziert' ? '' : 'pending';
+    var icon = status === 'verifiziert' ? '✓' : '…';
+    return '<span class="badge ' + cls + '">' + icon + ' ' + esc(label) + '</span>';
+  }
+
+  function cardHtml(p) {
+    var v = p.verifizierung || {};
+    var href = 'spielerprofil.html?id=' + p.id;
+    var fav = !!favoriteIds[p.id];
+    var stats = (p.statistiken && p.statistiken[0]) || {};
+    return '' +
+      '<div class="card hoverable player-card">' +
+        '<div class="pc-top">' +
+          '<div><div class="pc-name">' + esc(p.vorname) + ' ' + esc(p.nachname) + '</div>' +
+          '<div class="pc-sub">' + esc(p.hauptposition || '—') + ' · ' + esc(p.alter || '—') + ' Jahre · ' + esc(p.aktueller_verein || '—') + '</div></div>' +
+          '<button type="button" class="fav-btn' + (fav ? ' active' : '') + '" data-fav-id="' + p.id + '" data-favorite-id="' + (favoriteIds[p.id] || '') + '" aria-label="Favorit">' + (fav ? '♥' : '♡') + '</button>' +
+        '</div>' +
+        '<div class="pc-badges">' +
+          (p.is_demo ? '<span class="badge muted">Demo</span>' : '') +
+          badge('Identität', v.identitaet) + badge('Verein', v.vereinszugehoerigkeit) + badge('Leistung', v.leistungsdaten) +
+        '</div>' +
+        '<div class="pc-meta">' +
+          '<span><b>' + esc(p.wohnort || '—') + '</b></span>' +
+          '<span><b>' + esc(p.liga || '—') + '</b></span>' +
+          '<span><b>' + esc(p.starker_fuss || '—') + '</b></span>' +
+          '<span><b>' + esc(p.vertragsstatus || '—') + '</b></span>' +
+          (p.verfuegbar_ab ? '<span>Verfügbar ab <b>' + esc(p.verfuegbar_ab) + '</b></span>' : '') +
+        '</div>' +
+        '<div class="pc-stats">' +
+          '<div><b>' + (stats.einsaetze || 0) + '</b><span>EINSÄTZE</span></div>' +
+          '<div><b>' + (stats.tore || 0) + '</b><span>TORE</span></div>' +
+          '<div><b>' + (stats.assists || 0) + '</b><span>ASSISTS</span></div>' +
+        '</div>' +
+        '<div class="pc-foot"><a class="btn ghost" href="' + href + '">Profil ansehen →</a></div>' +
+      '</div>';
+  }
+
+  function loadFavorites() {
+    return ScoutMatchAPI.get('/api/favorites').then(function (res) {
+      favoriteIds = {};
+      if (res.ok) {
+        res.data.favorites.forEach(function (f) { favoriteIds[f.id] = f.favorite_id; });
+      }
+    });
+  }
+
+  function buildQuery() {
+    var f = Object.fromEntries(new FormData(form).entries());
+    var params = new URLSearchParams();
+    Object.keys(f).forEach(function (key) { if (f[key]) params.set(key, f[key]); });
+    return params.toString();
+  }
+
+  function render() {
+    var query = buildQuery();
+    ScoutMatchAPI.get('/api/players/search' + (query ? '?' + query : '')).then(function (res) {
+      if (!res.ok) {
+        var message = (res.data && res.data.error) || 'Spieler konnten nicht geladen werden.';
+        grid.innerHTML = '<div class="empty-state">' + esc(message) + '</div>';
+        countEl.textContent = '';
+        return;
+      }
+      var players = res.data.players;
+      if (favoritesOnly) players = players.filter(function (p) { return !!favoriteIds[p.id]; });
+
+      if (players.length === 0) {
+        grid.innerHTML = favoritesOnly
+          ? '<div class="empty-state">Noch keine Favoriten. Klicke bei einem Spieler auf das Herz, um ihn hier zu speichern.</div>'
+          : '<div class="empty-state">Keine Spieler gefunden. Passe die Filter an oder setze sie zurück.</div>';
+      } else {
+        grid.innerHTML = players.map(cardHtml).join('');
+      }
+      countEl.textContent = players.length + (favoritesOnly ? ' Favoriten' : ' Spieler gefunden');
+    });
+  }
+
+  ScoutMatchAPI.requireRole(['club']).then(function (info) {
+    if (!info) return;
+
+    var messages = [];
+    if (!info.email_verified) messages.push('Deine E-Mail-Adresse ist noch nicht bestätigt.');
+    if (info.verification_status === 'pending') messages.push('Dein Vereinskonto wird geprüft (Status: Verifizierung ausstehend).');
+    if (info.verification_status === 'rejected') messages.push('Die Verifizierung deines Vereinskontos wurde abgelehnt. Bitte kontaktiere den Support.');
+    if (messages.length) {
+      document.getElementById('verifyBannerText').textContent = messages.join(' ');
+      document.getElementById('verifyBanner').style.display = 'flex';
+      if (!info.email_verified) document.getElementById('resendBtn').style.display = 'inline';
+    }
+
+    loadFavorites().then(render);
+  });
+
+  document.getElementById('resendBtn').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    ScoutMatchAPI.post('/api/auth/resend-verification').then(function (res) {
+      btn.disabled = false;
+      btn.textContent = res.ok ? 'Erneut gesendet ✓' : (res.data.error || 'Fehlgeschlagen');
+    });
+  });
+
+  form.addEventListener('submit', function (e) { e.preventDefault(); render(); });
+  form.addEventListener('change', render);
+  document.getElementById('resetFilters').addEventListener('click', function () {
+    form.reset();
+    render();
+  });
+
+  grid.addEventListener('click', function (e) {
+    var btn = e.target.closest('.fav-btn');
+    if (!btn) return;
+    var playerId = Number(btn.dataset.favId);
+    var favoriteId = favoriteIds[playerId];
+
+    var op = favoriteId
+      ? ScoutMatchAPI.del('/api/favorites/' + favoriteId)
+      : ScoutMatchAPI.post('/api/favorites', { player_id: playerId });
+
+    op.then(function (res) {
+      if (!res.ok) return;
+      if (favoriteId) {
+        delete favoriteIds[playerId];
+      } else {
+        favoriteIds[playerId] = res.data.favorite_id;
+      }
+      render();
+    });
+  });
+
+  document.getElementById('logoutLink').addEventListener('click', function (e) {
+    e.preventDefault();
+    ScoutMatchAPI.post('/api/auth/logout').then(function () {
+      location.href = 'login.html';
+    });
+  });
+
+  document.getElementById('passwordForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var form = this;
+    var okEl = document.getElementById('passwordOk');
+    var errorEl = document.getElementById('passwordError');
+    okEl.style.display = 'none';
+    errorEl.style.display = 'none';
+
+    var data = Object.fromEntries(new FormData(form).entries());
+    var btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    ScoutMatchAPI.post('/api/auth/change-password', data).then(function (res) {
+      btn.disabled = false;
+      if (!res.ok) {
+        errorEl.textContent = res.data.error || 'Passwort konnte nicht geändert werden.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      form.reset();
+      okEl.style.display = 'block';
+    });
+  });
+
+  document.getElementById('showDeleteBtn').addEventListener('click', function () {
+    this.style.display = 'none';
+    document.getElementById('deleteConfirm').style.display = 'flex';
+  });
+  document.getElementById('cancelDeleteBtn').addEventListener('click', function () {
+    document.getElementById('deleteConfirm').style.display = 'none';
+    document.getElementById('showDeleteBtn').style.display = 'inline-flex';
+    document.getElementById('deleteError').style.display = 'none';
+  });
+  document.getElementById('confirmDeleteBtn').addEventListener('click', function () {
+    var btn = this;
+    var errorEl = document.getElementById('deleteError');
+    var password = document.getElementById('deletePassword').value;
+    btn.disabled = true;
+    ScoutMatchAPI.post('/api/auth/delete-account', { password: password }).then(function (res) {
+      btn.disabled = false;
+      if (!res.ok) {
+        errorEl.textContent = res.data.error || 'Löschen fehlgeschlagen.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      location.href = 'index.html';
+    });
+  });
+})();
+</script>
+</body>
+</html>

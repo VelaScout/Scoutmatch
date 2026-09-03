@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – E-Mail bestätigen</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+main.wrap-narrow{padding:56px 24px 80px;max-width:440px;text-align:center}
+.status-card{padding:36px 28px}
+.status-icon{width:52px;height:52px;border-radius:50%;background:var(--navy-tint);color:var(--navy-tint-text);
+  display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 18px}
+.status-icon.ok{background:var(--green-tint);color:var(--green-tint-text)}
+.status-icon.error{background:var(--red-tint,#fdecec);color:var(--red-tint-text,#a12222)}
+.status-card h1{font-size:20px;margin:0 0 10px}
+.status-card p{margin:0 0 20px}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html" aria-label="ScoutMatch Startseite"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="index.html">Start</a>
+      <a href="fuer-spieler.html">Für Spieler</a>
+      <a href="fuer-vereine.html">Für Vereine</a>
+      <a href="preise.html">Preise</a>
+      <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+      <a href="login.html">Einloggen</a>
+      <a href="registrieren.html" class="cta">Registrieren</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<main class="wrap-narrow">
+  <div class="card status-card reveal" id="card">
+    <div class="status-icon" id="icon">…</div>
+    <h1 id="title">E-Mail wird bestätigt …</h1>
+    <p id="text">Einen Moment bitte.</p>
+    <a class="btn primary" href="login.html" id="cta" style="display:none">Zum Login</a>
+  </div>
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html" style="margin-bottom:10px"><span class="dot"></span>ScoutMatch</a>
+        <p style="max-width:280px;font-size:13.5px;margin-top:10px">Die Plattform, die Spieler und Vereine miteinander verbindet.</p>
+      </div>
+      <div>
+        <h5>Plattform</h5>
+        <a href="fuer-spieler.html">Für Spieler</a>
+        <a href="fuer-vereine.html">Für Vereine</a>
+        <a href="preise.html">Preise</a>
+      </div>
+      <div>
+        <h5>Unternehmen</h5>
+        <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+        <a href="kontakt.html">Kontakt</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script src="assets/api.js"></script>
+<script>
+(function () {
+  var token = new URLSearchParams(location.search).get('token');
+  var icon = document.getElementById('icon');
+  var title = document.getElementById('title');
+  var text = document.getElementById('text');
+  var cta = document.getElementById('cta');
+
+  function fail(message) {
+    icon.className = 'status-icon error';
+    icon.textContent = '✕';
+    title.textContent = 'Bestätigung fehlgeschlagen';
+    text.textContent = message;
+    cta.style.display = 'inline-flex';
+  }
+
+  if (!token) { fail('Kein gültiger Bestätigungslink.'); return; }
+
+  ScoutMatchAPI.post('/api/auth/verify-email', { token: token }).then(function (res) {
+    if (!res.ok) { fail(res.data.error || 'Der Link ist ungültig oder abgelaufen.'); return; }
+    icon.className = 'status-icon ok';
+    icon.textContent = '✓';
+    title.textContent = 'E-Mail-Adresse bestätigt';
+    text.textContent = 'Deine E-Mail-Adresse wurde erfolgreich bestätigt.';
+    cta.style.display = 'inline-flex';
+  }).catch(function () {
+    fail('Der Server ist gerade nicht erreichbar.');
+  });
+})();
+</script>
+</body>
+</html>

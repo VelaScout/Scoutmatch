@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScoutMatch – Willkommen</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+main.wrap-narrow{padding:0 0 70px;max-width:680px}
+
+/* Farbiger Hero-Block: Navy + blauer Farbverlauf, statt einer weißen Seite
+   mit einer kleinen dunklen Box – das ist der "mehr Farbe"-Teil. */
+.welcome-hero{
+  background:var(--navy);border-radius:0 0 28px 28px;padding:52px 32px 46px;margin:0 0 -20px;
+  color:#fff;text-align:center;position:relative;overflow:hidden;
+}
+.welcome-hero::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at 12% 0%, rgba(255,255,255,.16), transparent 50%),
+             radial-gradient(circle at 88% 100%, rgba(47,111,237,.55), transparent 55%);
+}
+.welcome-hero > *{position:relative}
+.welcome-ball{font-size:44px;display:inline-block;margin:0 0 14px;animation:wBounce 1.6s ease-in-out infinite}
+@keyframes wBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@media (prefers-reduced-motion: reduce){.welcome-ball{animation:none}}
+.welcome-hero h1{color:#fff;font-size:26px;margin:0 0 8px}
+.welcome-hero p{color:rgba(255,255,255,.78);margin:0 0 20px;font-size:15px}
+.plan-pill{
+  display:inline-flex;align-items:center;gap:8px;background:var(--blue);color:#fff;
+  padding:9px 18px;border-radius:999px;font-weight:800;font-size:13.5px;
+}
+
+.welcome-next{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:34px 30px;margin:0 20px;
+  --text:#161c26;--muted:#5b6472;color:var(--text);}
+.welcome-next .section-label{margin-top:0}
+.welcome-steps{display:flex;flex-direction:column;gap:14px;margin:16px 0 26px}
+.welcome-step{display:flex;gap:14px;align-items:flex-start}
+.welcome-step .check{
+  flex-shrink:0;width:28px;height:28px;border-radius:9px;background:var(--blue-tint);color:var(--blue-tint-text);
+  display:flex;align-items:center;justify-content:center;font-weight:800;
+}
+.welcome-step p{margin:0;font-size:14.5px;color:var(--text)}
+.welcome-cta{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  background:var(--blue);border-color:var(--blue);
+}
+.welcome-cta:hover{background:var(--blue-2);border-color:var(--blue-2)}
+
+@media(max-width:600px){
+  .welcome-hero{border-radius:0 0 20px 20px;padding:40px 20px 38px}
+  .welcome-next{margin:0 12px;padding:26px 20px}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="index.html"><span class="dot"></span>ScoutMatch</a>
+    <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
+      <a href="index.html">Start</a>
+      <a href="fuer-spieler.html">Für Spieler</a>
+      <a href="fuer-vereine.html">Für Vereine</a>
+      <a href="preise.html">Preise</a>
+      <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+      <a href="login.html">Einloggen</a>
+      <a href="registrieren.html" class="cta">Registrieren</a>
+    </nav>
+    <button class="mobile-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="siteNav">☰</button>
+  </div>
+</header>
+
+<main class="wrap-narrow">
+  <div class="welcome-hero reveal">
+    <div class="welcome-ball">⚽</div>
+    <h1 id="wTitle">Willkommen bei ScoutMatch!</h1>
+    <p id="wLead">Schön, dass du dabei bist.</p>
+    <div class="plan-pill" id="planPill" style="display:none"></div>
+  </div>
+
+  <div class="welcome-next reveal">
+    <div class="section-label">So geht's weiter</div>
+    <div class="welcome-steps" id="wNextSteps"></div>
+    <a class="btn primary welcome-cta" id="wCta" href="index.html">Weiter zu meinem Bereich →</a>
+  </div>
+</main>
+
+<footer class="footer-main">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html" style="margin-bottom:10px"><span class="dot"></span>ScoutMatch</a>
+        <p style="max-width:280px;font-size:13.5px;margin-top:10px">Die Plattform, die Spieler und Vereine miteinander verbindet.</p>
+      </div>
+      <div>
+        <h5>Plattform</h5>
+        <a href="fuer-spieler.html">Für Spieler</a>
+        <a href="fuer-vereine.html">Für Vereine</a>
+        <a href="preise.html">Preise</a>
+      </div>
+      <div>
+        <h5>Unternehmen</h5>
+        <a href="ueber-scoutmatch.html">Über ScoutMatch</a>
+        <a href="kontakt.html">Kontakt</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ScoutMatch. Alle Rechte vorbehalten.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script src="assets/api.js"></script>
+<script>
+(function () {
+  var PLAN_LABELS = {
+    'free': 'Player Basic', 'pro-monthly': 'Player Pro (monatlich)', 'pro-yearly': 'Player Pro (jährlich)',
+    'flex': 'ScoutMatch Flex', 'winter': 'Winter Scout Pass', 'summer': 'Summer Scout Pass', '365': 'ScoutMatch 365'
+  };
+  var plan = new URLSearchParams(location.search).get('plan');
+
+  ScoutMatchAPI.requireRole(['player', 'club']).then(function (info) {
+    if (!info) return;
+
+    var firstName = (info.name || '').split(' ')[0];
+    document.getElementById('wTitle').textContent = firstName
+      ? 'Willkommen bei ScoutMatch, ' + firstName + '!'
+      : 'Willkommen bei ScoutMatch!';
+
+    var isClub = info.role === 'club';
+    document.getElementById('wLead').textContent = isClub
+      ? 'Dein Vereinskonto ist eingerichtet – hier ein kurzer Überblick, wie es weitergeht.'
+      : 'Dein Spielerprofil ist eingerichtet – hier ein kurzer Überblick, wie es weitergeht.';
+
+    if (plan && PLAN_LABELS[plan]) {
+      var pill = document.getElementById('planPill');
+      pill.textContent = 'Ausgewählt: ' + PLAN_LABELS[plan];
+      pill.style.display = 'inline-flex';
+    }
+
+    var steps = isClub
+      ? [
+          'Dein Vereinskonto wird von einem Admin geprüft und freigegeben.',
+          'Danach kannst du die Spielersuche mit allen Filtern nutzen.',
+          'Speichere interessante Spieler als Favoriten und sende Kontaktanfragen.'
+        ]
+      : [
+          'Fülle dein Spielerprofil vollständig aus (Position, Verein, Statistiken, Videos).',
+          'Beantrage bei Bedarf eine Verifizierung deiner Angaben.',
+          'Sobald dein Profil sichtbar ist, können Vereine dich finden und kontaktieren.'
+        ];
+    document.getElementById('wNextSteps').innerHTML = steps.map(function (s, i) {
+      return '<div class="welcome-step"><div class="check">' + (i + 1) + '</div><p>' + s + '</p></div>';
+    }).join('');
+
+    var dashboardHref = isClub ? 'vereins-dashboard.html' : 'spieler-dashboard.html';
+    document.getElementById('wCta').setAttribute('href', dashboardHref);
+    document.getElementById('wCta').textContent = (isClub ? 'Weiter zum Vereins-Dashboard' : 'Weiter zu meinem Spielerbereich') + ' →';
+  });
+})();
+</script>
+</body>
+</html>
