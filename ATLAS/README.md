@@ -1,30 +1,37 @@
 # ATLAS – Advanced Thinking, Learning & Assistance System
 
-Ihr persönlicher KI-Assistent für das iPhone. **Phase 1:** native SwiftUI-App mit Claude als „Gehirn“, Spracheingabe, Sprachausgabe, Gesprächsmodus und Gesprächsverlauf.
+Ihr persönlicher KI-Assistent für **iPhone und Mac** – eine native SwiftUI-App mit Claude als „Gehirn“.
 
-> Ausgelegt für: iPhone 15 Pro oder neuer · iOS 26 · Mac mit Apple-Chip · Claude API
-> (Die App läuft ab iOS 17.)
+> Ausgelegt für: iPhone 15 Pro oder neuer mit iOS 26 · MacBook mit Apple-Chip · Claude API
+> Mindestversionen: iOS 17 und macOS 14 (Sonoma)
 
 ---
 
-## Was Phase 1 kann
+## Was ATLAS kann
 
-| Funktion | Stand |
+| Bereich | Funktionen |
 |---|---|
-| Auf den ATLAS-Kern oder das Mikrofon tippen und sprechen | ✅ |
-| Automatische Pausenerkennung: ATLAS merkt, wann Sie fertig sind | ✅ |
-| Antwort von Claude, satzweise gestreamt, damit ATLAS schnell zu sprechen beginnt | ✅ |
-| Gesprächsmodus: nach jeder Antwort hört ATLAS automatisch weiter zu | ✅ |
-| Unterbrechen: während ATLAS spricht, tippen Sie, und er hört sofort zu | ✅ |
-| Gespräch beenden mit „Danke, das ist alles“ oder dem Stopp-Knopf | ✅ |
-| Deutsch und britisches Englisch, wählbare Stimme | ✅ |
-| Internetrecherche (Wetter, Nachrichten …) über die Websuche von Claude | ✅ |
-| Gesprächsverlauf: ansehen, fortsetzen, löschen | ✅ |
-| Tastatureingabe für ruhige Umgebungen | ✅ |
-| API-Schlüssel verschlüsselt in der iOS-Keychain | ✅ |
-| Animierter, auf Ihre Stimme reagierender ATLAS-Kern | ✅ (das Gesicht folgt in Phase 2) |
+| **Gesicht** | Animiertes, weiß-silbernes, halbtransparentes Gesicht mit eisblauen Augen: Blinzeln, Blickkontakt, Kopfbewegung, Mundbewegung synchron zu den gesprochenen Wörtern, eigene Mimik für Zuhören, Nachdenken, Sprechen und Hinweise. Alternativ ein sparsamer Energiekern. |
+| **Sprache** | Sprechen statt Tippen, automatische Pausenerkennung, Gesprächsmodus, Unterbrechen per Tippen, Deutsch und britisches Englisch, wählbare Stimme. |
+| **Wake-Word** | Bei geöffneter App „Atlas“ sagen → „Ja, Sir?“. Oder direkt: „Atlas, wie wird das Wetter morgen?“. Die Erkennung läuft ausschließlich auf dem Gerät. |
+| **Siri & Kurzbefehle** | „Siri, starte ATLAS“, „Siri, frag ATLAS“ (Antwort ohne App-Öffnen), „Siri, ATLAS Tagesübersicht“, „Siri, plane morgen mit ATLAS“. Auf den Action-Button legbar. |
+| **Intelligenz** | Fragen, Internetrecherche, Texte, Analysen, Studium und Lernen, Finanzrechnungen, Strategien, verständliche Erklärungen. Modell wählbar (Opus, Sonnet, Haiku). |
+| **Kalender** | „Was steht heute an?“, „Trag mir Freitag 14 Uhr Zahnarzt ein.“ |
+| **Erinnerungen & Listen** | „Erinnere mich morgen um 8 Uhr an mein Training.“, „Setz Milch und Eier auf die Einkaufsliste.“, „Das Training ist erledigt.“ |
+| **Kontakte & Nachrichten** | „Bereite eine Nachricht an meine Frau vor …“ → Entwurf mit Bestätigung, **Sie** senden ihn selbst. |
+| **Standort & Karten** | „Zeig mir den Weg nach Hamburg.“, „Wie wird das Wetter hier?“ |
+| **Fotos & Dokumente** | Foto aufnehmen oder auswählen → „Analysiere dieses Foto.“; PDF auswählen → „Fasse mir diese PDF zusammen.“ |
+| **Gedächtnis** | „Merk dir, dass meine Frau Anna heißt.“ – ansehen, bearbeiten, löschen unter *Einstellungen → Gedächtnis*. |
+| **Tagesplanung** | „Organisiere meinen morgigen Tag.“ – ATLAS liest Termine und Aufgaben und schlägt einen Plan vor. |
+| **Proaktiv** | Morgendliche Tagesübersicht und abendlicher Rückblick per Mitteilung (einschaltbar). |
+| **Transparenz** | Berechtigungsübersicht, Aktivitätsprotokoll aller ausgeführten Aktionen, Gesprächsverlauf, Datenschutzhinweise. |
+| **Mac** | Dieselbe App läuft nativ auf dem MacBook – mit Menü „ATLAS“ und Tastenkürzeln (⌘L sprechen, ⌘. beenden). |
 
-Noch **nicht** in Phase 1: Wake-Word „Atlas“, Siri und Kurzbefehle (Phase 3), Kalender, Erinnerungen, Fotos, Dateien (Phase 4), dauerhaftes Gedächtnis (Phase 5). ATLAS weiß das und sagt es Ihnen ehrlich, statt etwas vorzutäuschen.
+### Ehrliche Grenzen (Vorgaben von Apple)
+- **Kein „Atlas“-Rufen bei geschlossener App oder gesperrtem Bildschirm.** Apple erlaubt Drittanbieter-Apps kein dauerhaftes Mithören im Hintergrund. Dafür: „Siri, starte ATLAS“ oder der Action-Button.
+- **Nachrichten werden nie automatisch gesendet.** ATLAS öffnet einen fertigen Entwurf; Sie tippen auf Senden.
+- **Proaktive Übersichten** kommen als Mitteilung zur gewählten Zeit; erstellt werden sie beim Antippen, mit aktuellen Daten. Dauerhafte Hintergrundarbeit ist auf dem iPhone nicht erlaubt.
+- **Apple Watch** ist noch nicht enthalten (siehe `docs/ARCHITEKTUR.md`).
 
 ---
 
@@ -33,119 +40,164 @@ Noch **nicht** in Phase 1: Wake-Word „Atlas“, Siri und Kurzbefehle (Phase 3)
 ### A1. Xcode installieren
 1. Öffnen Sie auf dem Mac den **App Store** und suchen Sie nach **Xcode**.
 2. Installieren Sie Xcode (ca. 10–15 GB, das dauert eine Weile).
-3. Starten Sie Xcode einmal. Wenn gefragt wird, welche Plattformen installiert werden sollen, wählen Sie **iOS** aus und bestätigen.
-4. Sie brauchen **Xcode 26** oder neuer (für iOS 26 auf Ihrem iPhone). Prüfen: Menü *Xcode → About Xcode*.
+3. Starten Sie Xcode einmal. Wählen Sie bei der Frage nach Plattformen **iOS** und **macOS** aus.
+4. Sie brauchen **Xcode 26** oder neuer. Prüfen: Menü *Xcode → About Xcode*.
 
 ### A2. Apple-ID in Xcode anmelden
 1. In Xcode: Menü **Xcode → Settings… → Accounts**.
-2. Unten links auf **+** → **Apple ID** → mit Ihrer normalen Apple-ID anmelden.
+2. Unten links auf **+** → **Apple ID** → mit Ihrer Apple-ID anmelden.
 3. Es erscheint ein „Personal Team“. Das reicht für den Anfang – kostenlos.
 
 > **Kostenlos vs. Apple Developer Program (99 €/Jahr):**
-> Mit dem kostenlosen „Personal Team“ läuft die App **7 Tage**, danach müssen Sie sie aus Xcode erneut aufs iPhone spielen (1 Klick). Mit dem bezahlten Programm läuft sie 1 Jahr, und später können wir TestFlight und iCloud-Synchronisierung nutzen. Für Phase 1 genügt kostenlos.
+> Kostenlos läuft die App auf dem iPhone **7 Tage**, danach erneut aus Xcode starten (1 Klick). Mit dem bezahlten Programm läuft sie ein Jahr, und Sie können die **iCloud-Synchronisierung** zwischen iPhone und Mac aktivieren (Teil E).
 
 ### A3. Den Code auf den Mac holen
-**Variante 1 – ohne Kenntnisse (ZIP):**
-1. Öffnen Sie das Repository auf GitHub im Browser.
-2. Wählen Sie oben links den Branch **`claude/atlas-iphone-app-su9dj1`**.
-3. Klicken Sie auf **Code → Download ZIP** und entpacken Sie die Datei, z. B. in den Ordner *Dokumente*.
+**Variante 1 – ZIP:** Entpacken Sie die ZIP-Datei `ATLAS…zip`, z. B. in den Ordner *Dokumente*.
 
-**Variante 2 – mit Terminal (empfohlen für spätere Updates):**
+**Variante 2 – GitHub (für spätere Updates):**
 ```bash
 cd ~/Documents
 git clone https://github.com/velascout/scoutmatch.git
 cd scoutmatch
 git checkout claude/atlas-iphone-app-su9dj1
 ```
-Spätere Updates holen Sie dann mit `git pull`.
+Updates später mit `git pull`.
 
 ### A4. iPhone vorbereiten
-1. iPhone per USB-C-Kabel mit dem Mac verbinden, entsperren und **„Diesem Computer vertrauen“** bestätigen.
-2. Auf dem iPhone: **Einstellungen → Datenschutz & Sicherheit → Entwicklermodus** einschalten. Das iPhone startet neu; danach bestätigen Sie mit **Einschalten**.
-   *(Der Schalter erscheint erst, nachdem das iPhone einmal mit Xcode verbunden war. Falls er fehlt: erst Schritt B ausführen, dann wiederkommen.)*
+1. iPhone per Kabel mit dem Mac verbinden, entsperren, **„Diesem Computer vertrauen“** bestätigen.
+2. Auf dem iPhone: **Einstellungen → Datenschutz & Sicherheit → Entwicklermodus** einschalten und neu starten.
+   *(Der Schalter erscheint erst, nachdem das iPhone einmal mit Xcode verbunden war.)*
 
 ---
 
-## Teil B – App bauen und aufs iPhone bringen
+## Teil B – App bauen
 
-1. Öffnen Sie im Finder den Ordner `ATLAS` und doppelklicken Sie auf **`ATLAS.xcodeproj`**.
-2. Klicken Sie links in der Seitenleiste ganz oben auf das blaue Projektsymbol **ATLAS**.
-3. Wählen Sie in der Mitte unter *TARGETS* **ATLAS** und dann oben den Reiter **Signing & Capabilities**.
-4. Häkchen bei **Automatically manage signing** setzen.
-5. Bei **Team** Ihr „Personal Team“ (Ihr Name) auswählen.
-6. Bei **Bundle Identifier** steht `de.atlas.assistant.BITTE-AENDERN`. Ersetzen Sie das durch etwas Eindeutiges, z. B. `de.IhrNachname.atlas` (nur Buchstaben, Zahlen, Punkte, Bindestriche).
-7. Oben in der Mitte der Xcode-Leiste: als Ziel Ihr **iPhone** auswählen (nicht einen Simulator).
-8. Auf den **▶︎ Play-Knopf** klicken (oder ⌘R). Der erste Build dauert 1–2 Minuten.
-9. Beim ersten Mal meldet das iPhone „Nicht vertrauenswürdiger Entwickler“:
-   **Einstellungen → Allgemein → VPN & Geräteverwaltung →** Ihre Apple-ID → **Vertrauen**. Dann in Xcode erneut ▶︎ drücken.
+### B1. Projekt einrichten (einmalig)
+1. Im Finder den Ordner `ATLAS` öffnen und **`ATLAS.xcodeproj`** doppelklicken.
+2. Links oben auf das blaue Projektsymbol **ATLAS** klicken → in der Mitte unter *TARGETS* **ATLAS** wählen → Reiter **Signing & Capabilities**.
+3. **Automatically manage signing** anhaken.
+4. **Team:** Ihr „Personal Team“ wählen.
+5. **Bundle Identifier:** `de.atlas.assistant.BITTE-AENDERN` ersetzen durch etwas Eigenes, z. B. `de.IhrNachname.atlas`.
 
-ATLAS startet jetzt auf Ihrem iPhone. 🎉
+### B2. Auf dem iPhone
+1. Oben in der Xcode-Leiste als Ziel Ihr **iPhone** wählen.
+2. **▶︎** klicken (⌘R). Erster Build: 1–2 Minuten.
+3. Beim ersten Mal: iPhone → **Einstellungen → Allgemein → VPN & Geräteverwaltung →** Ihre Apple-ID → **Vertrauen**, dann erneut ▶︎.
+
+### B3. Auf dem MacBook
+1. Oben in der Xcode-Leiste als Ziel **My Mac** wählen.
+2. **▶︎** klicken. ATLAS öffnet sich als Fenster.
+3. Für dauerhafte Nutzung: Menü **Product → Archive** → **Distribute App → Custom → Copy App** → die App in den Ordner *Programme* ziehen. (Alternativ einfach immer über Xcode starten.)
 
 **Häufige Probleme**
 | Meldung | Lösung |
 |---|---|
-| „Failed to register bundle identifier“ | Bundle Identifier ist schon vergeben → anderen Namen wählen (Schritt B6). |
-| „Signing requires a development team“ | Team in Schritt B5 auswählen. |
-| „Developer Mode disabled“ | Schritt A4.2 ausführen. |
-| iPhone wird nicht angezeigt | Kabel prüfen, iPhone entsperren, „Vertrauen“ bestätigen; Xcode → *Window → Devices and Simulators*. |
-| Build-Fehler im Code | Fehlermeldung (rotes Symbol links, Reiter „Issue Navigator“) kopieren und mir schicken. |
+| „Failed to register bundle identifier“ | Bundle Identifier ist vergeben → anderen Namen wählen (B1.5). |
+| „Signing requires a development team“ | Team wählen (B1.4). |
+| „Developer Mode disabled“ | Schritt A4.2. |
+| Mac: Mikrofon-/Kalenderzugriff funktioniert nicht | Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon bzw. Kalender → ATLAS erlauben. |
+| Build-Fehler im Code | Fehlermeldung (Issue Navigator, rotes Symbol links) kopieren und mir schicken – ich behebe das sofort. |
 
 ---
 
 ## Teil C – Claude API einrichten
 
-1. Gehen Sie auf **https://console.anthropic.com** und erstellen Sie ein Konto (bzw. melden Sie sich an).
-2. **Guthaben aufladen:** *Settings → Billing* → z. B. 10 $ einzahlen. Die API wird nach Verbrauch abgerechnet, ein Abo ist nicht nötig.
-3. **Ausgabenlimit setzen (empfohlen):** *Settings → Limits* → monatliches Limit, z. B. 20 $. So kann nie mehr ausgegeben werden.
-4. **Schlüssel erstellen:** *Settings → API Keys → Create Key* → Name „ATLAS iPhone“ → Schlüssel kopieren (beginnt mit `sk-ant-…`). Er wird nur einmal angezeigt.
-5. Am bequemsten: Schlüssel z. B. per AirDrop/Notizen aufs iPhone bringen, in ATLAS beim ersten Start einfügen und **„Speichern und beginnen“** tippen. Anschließend die Notiz wieder löschen.
+1. **https://console.anthropic.com** → Konto erstellen bzw. anmelden.
+2. **Guthaben:** *Settings → Billing* → z. B. 10 $ einzahlen (Abrechnung nach Verbrauch, kein Abo).
+3. **Ausgabenlimit (empfohlen):** *Settings → Limits* → z. B. 20 $ im Monat.
+4. **Schlüssel:** *Settings → API Keys → Create Key* → „ATLAS“ → kopieren (beginnt mit `sk-ant-…`, wird nur einmal angezeigt).
+5. Beim ersten Start von ATLAS einfügen → **„Speichern und beginnen“**. Auf dem Mac ein zweites Mal eingeben (der Schlüssel verlässt das jeweilige Gerät nie).
 
-### Was kostet das?
-Richtwerte pro gesprochener Frage und Antwort (kurze Antworten, Gesprächsverlauf wächst mit):
-
-| Modell | ca. Kosten pro Frage | Charakter |
+### Kosten (Richtwerte)
+| Modell | ca. pro einfache Frage | Charakter |
 |---|---|---|
 | Claude Opus 5.5 (Standard) | ~1 Cent | intelligentestes Modell |
 | Claude Sonnet 5.5 | ~0,5 Cent | ausgewogen |
 | Claude Haiku 5.5 | < 0,1 Cent | am schnellsten, günstigsten |
 
-Mit **Internetrecherche** kommen ca. 1 Cent pro Suche plus die gelesenen Suchergebnisse hinzu (ein paar Cent). Bei 30 Fragen am Tag liegen Sie mit Opus grob bei 5–15 € im Monat. Aktuelle Preise: https://www.anthropic.com/pricing
+Aufgaben mit Kalender/Erinnerungen brauchen 2–3 Anfragen (~2–4 Cent), Internetrecherche ca. 1 Cent pro Suche plus gelesene Inhalte, Fotos ~1–2 Cent, PDFs je nach Länge (10 Seiten ~5–10 Cent). Mit 30 Fragen am Tag liegen Sie mit Opus grob bei **10–25 € im Monat**; mit Sonnet etwa die Hälfte. Aktuelle Preise: https://www.anthropic.com/pricing
 
 ### Sicherheit des Schlüssels
-- Der Schlüssel steht **nicht im Code** und nicht auf GitHub.
-- Er liegt verschlüsselt in der **iOS-Keychain**, nur auf diesem iPhone (`WhenUnlockedThisDeviceOnly`), nicht in Backups.
-- Er wird ausschließlich per HTTPS direkt an `api.anthropic.com` gesendet.
-- Wenn Sie den Verdacht haben, dass er bekannt wurde: in der Anthropic-Konsole löschen und neu erstellen.
-- Für eine spätere Veröffentlichung im App Store oder für mehrere Nutzer würden wir einen kleinen eigenen Server dazwischenschalten, damit der Schlüssel das Gerät gar nicht erst erreicht. Für Ihre persönliche App ist die Keychain-Lösung angemessen.
+- Steht **nicht im Code** und nicht auf GitHub.
+- Liegt verschlüsselt im Schlüsselbund des Geräts (iPhone: nur dieses Gerät, nicht in Backups).
+- Wird ausschließlich per HTTPS direkt an `api.anthropic.com` gesendet.
+- Bei Verdacht: in der Anthropic-Konsole löschen und neu erstellen.
 
 ---
 
 ## Teil D – Schritt-für-Schritt-Tests
 
-Bitte gehen Sie die Tests der Reihe nach durch und notieren Sie, was nicht wie erwartet funktioniert.
+Bitte der Reihe nach testen und notieren, was nicht wie erwartet funktioniert.
 
-| # | Test | So geht's | Erwartetes Ergebnis |
-|---|---|---|---|
-| 1 | Start | App öffnen | Dunkler Bildschirm, leuchtender blauer ATLAS-Kern, Statusanzeige „ATLAS · Bereit“. Beim allerersten Start erscheint die Schlüssel-Eingabe. |
-| 2 | Schlüssel | Schlüssel einfügen → Speichern | Eingabe verschwindet. In *Einstellungen → Claude API* steht „API-Schlüssel ist sicher gespeichert“. |
-| 3 | Berechtigungen | Auf den Mikrofon-Knopf tippen | iOS fragt nach **Spracherkennung** und **Mikrofon** → beide erlauben. |
-| 4 | Zuhören | Erneut tippen, sagen: „Wer bist du?“ | Status „Hört zu“, roter Punkt, Mikrofon-Knopf rot, der Kern reagiert auf Ihre Lautstärke, Ihr Text erscheint live. |
-| 5 | Pausenerkennung | Nach dem Satz einfach schweigen | Nach ca. 1,4 s: „Denkt nach“ → ATLAS antwortet laut, stellt sich vor und spricht Sie mit „Sir“ an. |
-| 6 | Gesprächsmodus | Nach der Antwort nichts tippen | ATLAS hört automatisch wieder zu (roter Punkt). Fragen Sie: „Und was kannst du?“ – er bezieht sich auf das vorherige Gespräch. |
-| 7 | Gespräch beenden | Sagen: „Danke, das ist alles.“ | ATLAS: „Sehr wohl, Sir.“ → Status „Bereit“, Mikrofon aus. |
-| 8 | Stille | Mikrofon antippen und 8 s nichts sagen | ATLAS hört von selbst wieder auf. |
-| 9 | Unterbrechen | Eine lange Frage stellen („Erkläre mir ausführlich die Relativitätstheorie“) und während der Antwort auf den Kern tippen | ATLAS verstummt sofort und hört zu. |
-| 10 | Internet | „Wie wird das Wetter morgen in Hamburg?“ | Nach etwas längerer Denkzeit eine aktuelle Wettervorhersage. |
-| 11 | Ehrlichkeit | „Erinnere mich morgen um 8 Uhr an mein Training.“ | ATLAS erklärt höflich, dass er Erinnerungen noch nicht anlegen kann (kommt in Phase 4), und behauptet **nicht**, es getan zu haben. |
-| 12 | Tastatur | Tastatur-Symbol → „Rechne 15 % von 2.340 €“ → Senden | Antwort wird gesprochen und angezeigt (351 €). |
-| 13 | Englisch | *Einstellungen → Sprache: English (UK)* → „What time is it?“ | Antwort auf Englisch mit britischer Stimme. Danach zurück auf Deutsch stellen. |
-| 14 | Stimme | *Einstellungen → Stimme* wählen → „Stimme probehören“ | Begrüßung in der gewählten Stimme. |
-| 15 | Verlauf | Uhr-Symbol oben links | Liste Ihrer Gespräche; Gespräch öffnen → „Fortsetzen“ funktioniert; Wischen nach links löscht. |
-| 16 | Fehlerfall | Flugmodus an → Frage stellen | Verständliche Fehlermeldung, App stürzt nicht ab. Flugmodus wieder aus. |
-| 17 | Falscher Schlüssel | *Einstellungen → Schlüssel entfernen* → falschen Schlüssel `sk-ant-test` speichern → Frage stellen | Meldung „Der API-Schlüssel wurde abgelehnt …“. Danach richtigen Schlüssel wieder eintragen. |
-| 18 | Datenschutz | App in den Hintergrund schicken, während ATLAS zuhört | Das Mikrofon geht nicht heimlich weiter (kein oranger/roter Punkt in der iOS-Statusleiste). |
+### D1. Grundfunktionen
+| # | Test | Erwartet |
+|---|---|---|
+| 1 | App öffnen | Dunkler Bildschirm, ATLAS-Gesicht blinzelt und bewegt leicht den Kopf. Beim ersten Start Schlüssel-Eingabe. |
+| 2 | Schlüssel speichern | *Einstellungen → Claude API*: „sicher gespeichert“. |
+| 3 | Mikrofon antippen | Fragen nach **Spracherkennung** und **Mikrofon** → erlauben. |
+| 4 | „Wer bist du?“ | Status „Hört zu“, Augen weit geöffnet, Text erscheint live. Nach der Pause „Denkt nach“ (Blick nach oben), dann spricht ATLAS mit Mundbewegung. |
+| 5 | Gesprächsmodus | Nach der Antwort hört ATLAS automatisch weiter zu. |
+| 6 | „Danke, das ist alles.“ | „Sehr wohl, Sir.“ → Bereit. |
+| 7 | Unterbrechen | Lange Frage stellen, während der Antwort aufs Gesicht tippen → ATLAS verstummt und hört zu. |
+| 8 | Tastatur | Tastatur-Symbol → „Rechne 15 % von 2.340 €“ → 351 €. |
+| 9 | Darstellung | *Einstellungen → Darstellung → Energiekern* → Kern statt Gesicht. Zurückstellen. |
 
-**Tipp für eine natürlichere Stimme:** iPhone-Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen → Deutsch bzw. Englisch → eine Stimme mit **Premium** oder **Erweitert** herunterladen (für den britischen Butler-Klang: Englisch (UK) „Daniel“). Danach in ATLAS unter *Einstellungen → Stimme* auswählen.
+### D2. Wake-Word & Siri
+| # | Test | Erwartet |
+|---|---|---|
+| 10 | Ohr-Symbol oben rechts antippen | Status „Wartet auf ‚Atlas‘“, hellblauer Punkt. |
+| 11 | „Atlas.“ | „Ja, Sir?“ → hört zu. |
+| 12 | „Atlas, wie spät ist es?“ | Antwortet direkt ohne Zwischenfrage. |
+| 13 | App in den Hintergrund | Mikrofon aus (kein oranger Punkt). Beim Zurückkehren wieder Bereitschaft. |
+| 14 | „Siri, starte ATLAS“ | ATLAS öffnet sich und hört sofort zu. *(Beim ersten Mal kann Siri bis zu einigen Minuten brauchen, bis sie die neuen Befehle kennt.)* |
+| 15 | „Siri, frag ATLAS“ → „Was ist die Hauptstadt von Kanada?“ | Siri liest die Antwort vor, ohne die App zu öffnen. |
+| 16 | Kurzbefehle-App → „ATLAS starten“ | Aktion vorhanden; auf dem iPhone 15 Pro: *Einstellungen → Action-Button → Kurzbefehl → ATLAS starten*. |
+
+### D3. iPhone-Funktionen
+| # | Test | Erwartet |
+|---|---|---|
+| 17 | „Was steht heute in meinem Kalender?“ | Frage nach Kalenderzugriff → erlauben; ATLAS nennt Ihre Termine. Status zeigt „Prüft Ihren Kalender“. |
+| 18 | „Trag mir morgen um 15 Uhr Kaffee mit Max ein.“ | Termin steht im Kalender; Eintrag in *Einstellungen → Aktivitäten*. |
+| 19 | „Erinnere mich morgen an meinen Termin.“ | ATLAS fragt nach der Uhrzeit. „Um 8 Uhr.“ → Erinnerung angelegt. |
+| 20 | „Setz Milch, Eier und Brot auf die Einkaufsliste.“ | Liste „Einkaufsliste“ mit drei Einträgen in Apple Erinnerungen. |
+| 21 | „Zeig mir den Weg nach Hamburg.“ | Apple Karten öffnet die Route. |
+| 22 | „Wie wird das Wetter hier morgen?“ | Standortfrage → erlauben; Wetter für Ihren Ort. |
+| 23 | „Bereite eine Nachricht an [Name aus Kontakten] vor, dass ich später komme.“ | Bestätigungskarte mit Entwurf. „Ja“ sagen → Nachrichten-App öffnet sich mit Text; **nichts wird automatisch gesendet**. |
+| 24 | + → Foto aufnehmen → „Was siehst du?“ | Beschreibung des Fotos. |
+| 25 | + → PDF oder Datei → PDF wählen → „Fasse sie zusammen.“ | Kurze Zusammenfassung. |
+
+### D4. Gedächtnis, Aufgaben, Proaktiv
+| # | Test | Erwartet |
+|---|---|---|
+| 26 | „Merk dir, dass ich montags und donnerstags trainiere.“ | Eintrag unter *Einstellungen → Gedächtnis*. |
+| 27 | Neues Gespräch (Uhr-Symbol → Neues Gespräch) → „Wann trainiere ich?“ | ATLAS weiß es. |
+| 28 | „Vergiss das mit dem Training.“ | Bestätigungskarte → „Ja“ → Eintrag gelöscht. |
+| 29 | Häkchen-Symbol oben links | Termine heute/morgen, offene Erinnerungen; antippen hakt ab. |
+| 30 | „Organisiere meinen morgigen Tag.“ | Plan mit Uhrzeiten auf Basis Ihrer Termine und Aufgaben. |
+| 31 | *Einstellungen → Proaktive Unterstützung → Morgendliche Tagesübersicht* für in 2 Minuten einstellen | Mitteilung kommt; Antippen öffnet ATLAS mit Tagesübersicht. |
+| 32 | *Einstellungen → Berechtigungen* | Übersicht aller Freigaben mit Erklärung. |
+
+### D5. Mac
+| # | Test | Erwartet |
+|---|---|---|
+| 33 | Ziel „My Mac“ → ▶︎ | ATLAS-Fenster mit Gesicht. |
+| 34 | ⌘L, Frage stellen | Wie auf dem iPhone; Mikrofon-Freigabe beim ersten Mal. |
+| 35 | Menü **ATLAS → Tagesübersicht** | Übersicht wird gesprochen. |
+
+**Tipp für eine natürlichere Stimme:** iPhone: Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen → Deutsch bzw. Englisch → eine **Premium**- oder **Erweitert**-Stimme laden (britischer Butler: Englisch (UK) „Daniel“). Mac: Systemeinstellungen → Bedienungshilfen → Gesprochene Inhalte → Systemstimme → Stimmen verwalten. Danach in ATLAS unter *Einstellungen → Stimme* wählen.
+
+---
+
+## Teil E – Optional: iCloud-Synchronisierung iPhone ⇄ Mac
+
+Gespräche, Gedächtnis und Aktivitäten können automatisch zwischen iPhone und Mac synchronisiert werden. Voraussetzung: **Apple Developer Program** (bezahlt).
+
+1. Xcode → Target **ATLAS** → **Signing & Capabilities** → **+ Capability** → **iCloud**.
+2. Unter *Services* **CloudKit** anhaken, bei *Containers* auf **+** → `iCloud.de.IhrNachname.atlas`.
+3. **+ Capability** → **Background Modes** → **Remote notifications** anhaken (nur iPhone).
+4. App neu auf iPhone **und** Mac installieren. Beide Geräte mit derselben Apple-ID in iCloud angemeldet.
+
+Der Code ist dafür bereits vorbereitet – mehr ist nicht nötig. Der API-Schlüssel wird bewusst **nicht** synchronisiert.
 
 ---
 
@@ -153,30 +205,24 @@ Bitte gehen Sie die Tests der Reihe nach durch und notieren Sie, was nicht wie e
 
 ```
 ATLAS/
-├── ATLAS.xcodeproj               Xcode-Projekt (Doppelklick zum Öffnen)
+├── ATLAS.xcodeproj               Xcode-Projekt (iPhone + Mac)
+├── Config/
+│   ├── Info.plist                Begründungstexte für Berechtigungen
+│   └── ATLAS-macOS.entitlements  Mac-Sandbox-Freigaben
 ├── README.md                     Diese Anleitung
-├── docs/ARCHITEKTUR.md           Technische Planung & Fahrplan Phase 1–6
+├── docs/ARCHITEKTUR.md           Technische Planung & Fahrplan
 └── ATLAS/                        Quellcode
-    ├── App/ATLASApp.swift        Einstiegspunkt der App
+    ├── App/                      Einstieg, Siri/Kurzbefehle, Anfrage-Router
     ├── Core/
-    │   ├── AI/
-    │   │   ├── AIProvider.swift      Austauschbare KI-Schnittstelle
-    │   │   ├── ClaudeProvider.swift  Claude API (Streaming, Websuche)
-    │   │   └── Persona.swift         Persönlichkeit von ATLAS
-    │   ├── Conversation/
-    │   │   └── ConversationEngine.swift  Zuhören → Denken → Sprechen
-    │   ├── Speech/
-    │   │   ├── SpeechRecognizer.swift    Spracherkennung (auf dem Gerät)
-    │   │   ├── SpeechSynthesizer.swift   Sprachausgabe, Satz-Streaming
-    │   │   └── AudioSessionManager.swift
-    │   ├── Persistence/Models.swift      Gesprächsverlauf (SwiftData)
-    │   ├── Security/KeychainStore.swift  Sichere Schlüsselablage
-    │   └── Settings/AppSettings.swift    Einstellungen
-    ├── UI/
-    │   ├── Main/MainView.swift           Startbildschirm
-    │   ├── Main/AtlasCoreView.swift      Animierter ATLAS-Kern
-    │   ├── Settings/SettingsView.swift
-    │   ├── History/HistoryView.swift
-    │   └── Onboarding/OnboardingView.swift
-    └── Assets.xcassets               App-Symbol & Farben
+    │   ├── AI/                   Claude-Anbindung, Persönlichkeit, Anhänge
+    │   ├── Conversation/         Gesprächssteuerung (Wake-Word, Zuhören, Antworten)
+    │   ├── Speech/               Spracherkennung & Sprachausgabe
+    │   ├── Tools/                Kalender, Erinnerungen, Kontakte, Standort, Karten, Nachrichten, Gedächtnis
+    │   ├── Proactive/            Tagesübersicht per Mitteilung
+    │   ├── Persistence/          Verlauf, Gedächtnis, Aktivitäten (SwiftData)
+    │   ├── Security/             Schlüsselbund
+    │   ├── Settings/             Einstellungen
+    │   └── Platform/             Unterschiede iPhone/Mac
+    ├── UI/                       Gesicht, Startbildschirm, Einstellungen, Gedächtnis, Aufgaben …
+    └── Assets.xcassets           App-Symbol (iPhone + Mac)
 ```

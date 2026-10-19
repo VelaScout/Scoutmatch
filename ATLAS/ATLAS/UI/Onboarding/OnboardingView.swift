@@ -10,8 +10,8 @@ struct OnboardingView: View {
             Color.black.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    AtlasCoreView(state: .idle, inputLevel: 0, spokenWordCount: 0)
-                        .frame(height: 180)
+                    AtlasFaceView(state: .idle, inputLevel: 0, spokenWordCount: 0, spokenWordLength: 0, speechRate: 0.5)
+                        .frame(height: 220)
                         .frame(maxWidth: .infinity)
 
                     Text("Guten Tag.\nIch bin ATLAS.")
@@ -22,11 +22,11 @@ struct OnboardingView: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         SecureField("sk-ant-…", text: $apiKey)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+                            .atlasNoAutocapitalization()
+                            .textFieldStyle(.plain)
                             .padding(14)
                             .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-                        Text("Der Schlüssel wird ausschließlich verschlüsselt in der Keychain dieses iPhones gespeichert und nur direkt an Anthropic gesendet.")
+                        Text("Der Schlüssel wird ausschließlich verschlüsselt im Schlüsselbund dieses Geräts gespeichert und nur direkt an Anthropic gesendet.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }

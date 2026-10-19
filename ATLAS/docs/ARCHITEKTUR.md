@@ -1,80 +1,92 @@
-# ATLAS – Technische Planung
+# ATLAS – Technische Planung & Stand
+
+![ATLAS-Gesicht: Bereit, Hört zu, Denkt nach, Spricht](gesicht-vorschau.png)
 
 ## Zielsystem
-- **Gerät:** iPhone 15 Pro oder neuer, iOS 26 (Mindestversion der App: iOS 17)
-- **Entwicklung:** Mac mit Apple-Chip, Xcode 26, Swift/SwiftUI
+- **Geräte:** iPhone 15 Pro oder neuer (iOS 26) und MacBook mit Apple-Chip – **eine** gemeinsame SwiftUI-App
+- **Mindestversionen:** iOS 17, macOS 14
+- **Entwicklung:** Xcode 26, Swift, SwiftUI, SwiftData
 - **KI:** Claude API (Anthropic), austauschbar über das Protokoll `AIProvider`
 
-## Architektur (Phase 1)
+## Architektur
 
 ```
- ┌──────────── SwiftUI-Oberfläche ────────────┐
- │ MainView · AtlasCoreView · Settings · Verlauf │
- └───────────────▲──────────────┬──────────────┘
-                 │ beobachtet    │ Aktionen
-        ┌────────┴──────────────▼────────┐
-        │       ConversationEngine        │  Zustand: Bereit → Hört zu → Denkt nach → Spricht
-        └──┬──────────┬──────────┬───────┘
-           │          │          │
-  SpeechRecognizer  AIProvider  SpeechSynthesizer
-  (Speech, on-device) │ (Claude)  (AVSpeechSynthesizer, satzweise)
-                      │
-               KeychainStore (API-Schlüssel) · SwiftData (Verlauf)
+ ┌───────────────────── SwiftUI-Oberfläche ─────────────────────┐
+ │ AtlasFaceView · MainView · Einstellungen · Gedächtnis ·        │
+ │ Aufgaben · Berechtigungen · Aktivitäten · Verlauf              │
+ └──────────────▲───────────────────────────┬─────────────────────┘
+                │ beobachtet                 │ Aktionen
+   Siri/Kurzbefehle ─► IntentRouter ─► ┌──────▼──────────────┐ ◄─ Mitteilungen (Tagesübersicht)
+                                       │ ConversationEngine   │  Bereitschaft („Atlas“) → Zuhören →
+                                       │                      │  Denken (+ Werkzeuge) → Sprechen
+                                       └──┬───────┬───────┬───┘
+                                          │       │       │
+                       SpeechRecognizer   │   AIProvider  │  SpeechSynthesizer
+                       (on-device)        │   (Claude)    │  (satzweise, Wort-Takt → Mund)
+                                          │       │
+                                          │   AtlasToolbox ── EventKit · Contacts · CoreLocation ·
+                                          │   (mit Bestätigung)  Apple Karten · Nachrichten/Mail · Gedächtnis
+                                          │
+                         SwiftData: Verlauf · Gedächtnis · Aktivitäten (iCloud-fähig) · Schlüsselbund: API-Schlüssel
 ```
 
-**Warum so?**
-- **Streaming + Satz-Zerlegung:** Claude liefert die Antwort Stück für Stück. Sobald ein Satz vollständig ist, wird er gesprochen – die gefühlte Antwortzeit sinkt deutlich.
-- **Spracherkennung auf dem Gerät:** schneller, privater, keine Zusatzkosten.
-- **Mikrofon aus, während ATLAS spricht:** verhindert, dass ATLAS sich selbst hört. Unterbrechen erfolgt in Phase 1 per Tippen; „Sprach-Unterbrechung“ (Barge-in mit Echounterdrückung) folgt in Phase 3.
-- **`AIProvider`-Protokoll:** OpenAI, ein lokales Modell oder ein eigener Server lassen sich ergänzen, ohne den Rest der App zu ändern.
-- **Denkblöcke werden nicht gespeichert:** ATLAS schickt nur den Text des Gesprächs zurück. Das hält Anfragen klein und robust.
-- **Modell-Voreinstellung:** Claude Opus 5.5 mit Denktiefe „Schnell“ (`effort: low`) – hohe Intelligenz bei kurzer Antwortzeit. Bei fälschlicher Ablehnung springt serverseitig automatisch ein Ausweichmodell ein (`fallbacks: "default"`).
+**Wichtige Entscheidungen**
+- **Streaming + Satz-Zerlegung:** Sobald ein Satz fertig ist, spricht ATLAS ihn – geringe gefühlte Wartezeit.
+- **Werkzeuge über Claude Tool Use:** Claude entscheidet, wann Kalender, Erinnerungen usw. gebraucht werden; ATLAS führt sie lokal aus und schickt nur das Ergebnis zurück. Werkzeug-Eingaben werden gestreamt (`eager_input_streaming`) und vor der Ausführung geprüft.
+- **Sensible Aktionen:** Nachrichten und Löschen im Gedächtnis erfordern immer eine Bestätigung (Karte + „Ja/Nein“ per Stimme). Nachrichten werden nie automatisch gesendet.
+- **Wake-Word:** Kontinuierliche Spracherkennung ausschließlich **auf dem Gerät**, nur im Vordergrund; die Erkennung startet etwa jede Minute neu (Systemgrenze). Im Hintergrund wird das Mikrofon immer abgeschaltet.
+- **Gesicht:** SwiftUI `Canvas` mit 60 fps, pausiert automatisch, wenn die App nicht sichtbar ist; respektiert „Bewegung reduzieren“. Mundbewegung aus den Wort-Ereignissen der Sprachausgabe (Wortlänge → Silben).
+- **Gedächtnis:** Nur ausdrücklich Gespeichertes; wird bei jeder Anfrage in die Systemanweisung eingefügt; vollständig einsehbar, bearbeitbar, löschbar.
+- **Denkblöcke:** Innerhalb eines Werkzeug-Durchlaufs werden sie unverändert zurückgegeben (Pflicht); zwischen Gesprächszügen speichert ATLAS nur den Text. Das hält Anfragen klein und robust.
+- **Ausweichmodell:** Bei fälschlicher Ablehnung übernimmt serverseitig automatisch ein anderes Modell (`fallbacks: "default"`).
+- **Mac:** Native macOS-App aus demselben Code (keine Catalyst-Kopie); Unterschiede gekapselt in `Core/Platform/Platform.swift`; Sandbox-Freigaben in `Config/ATLAS-macOS.entitlements`.
+- **iCloud:** Alle Datenmodelle sind CloudKit-kompatibel. Sobald die iCloud-Capability aktiviert ist (bezahltes Entwicklerkonto), synchronisiert SwiftData automatisch und Ende-zu-Ende in Ihrem privaten iCloud.
 
 ## Bewertung der KI-Optionen
 
 | Option | Vorteile | Nachteile | Entscheidung |
 |---|---|---|---|
-| Claude API | Sehr gutes Deutsch, starkes Denken, Bildanalyse, PDF-Verständnis, Websuche, Werkzeugnutzung | Laufende Kosten, Internet nötig | **Hauptmodell** |
-| OpenAI API | Ebenfalls stark, eigene Sprach-Modelle | Zweiter Anbieter, zweite Abrechnung | Optional später |
-| Lokales Modell (Apple Foundation Models, iOS 26) | Kostenlos, offline, privat | Deutlich weniger leistungsfähig | Später für einfache Aufgaben/Offline |
-| Hybrid | Beste Mischung | Mehr Komplexität | Ziel ab Phase 5 |
+| Claude API | Sehr gutes Deutsch, starkes Denken, Bild- und PDF-Verständnis, Websuche, Werkzeugnutzung | Laufende Kosten, Internet nötig | **Hauptmodell** |
+| OpenAI API | Ebenfalls stark | Zweiter Anbieter, zweite Abrechnung | Über `AIProvider` nachrüstbar |
+| Lokales Modell (Apple Foundation Models, iOS 26) | Kostenlos, offline, privat | Deutlich schwächer, keine Websuche | Später für einfache Offline-Fragen |
+| Hybrid | Beste Mischung | Mehr Komplexität | Möglicher nächster Schritt |
 
-## Was iOS erlaubt – und was nicht
+## Was Apple erlaubt – und was nicht
 
-| Wunsch | Realität | Unser Weg |
+| Wunsch | Realität | Umsetzung in ATLAS |
 |---|---|---|
-| „Atlas“ rufen, App geöffnet | ✅ erlaubt | Phase 3: lokale Wake-Word-Erkennung im Vordergrund |
-| „Atlas“ rufen, App geschlossen / Bildschirm aus | ❌ Apple erlaubt keinen dauerhaften Mikrofonzugriff im Hintergrund für Drittanbieter-Apps | „Siri, starte Atlas“, Kurzbefehl, Action-Button (iPhone 15 Pro+), Sperrbildschirm-/Kontrollzentrum-Steuerelement |
-| Siri-Integration | ✅ über App Intents | Phase 3: „Siri, frag Atlas …“, „Siri, starte Atlas“ |
-| Kalender, Erinnerungen | ✅ EventKit, mit Erlaubnis | Phase 4 |
-| Kontakte, Fotos, Dateien, Kamera, Standort, Karten | ✅ mit Erlaubnis | Phase 4 |
-| Nachrichten selbst senden | ⚠️ nur über den System-Dialog, Nutzer bestätigt | Phase 4: ATLAS bereitet vor, Sie tippen „Senden“ |
-| Dauerhaft im Hintergrund arbeiten | ❌ | Lokale Benachrichtigungen, Background Tasks (vom System geplant), optional eigener Server |
+| „Atlas“ rufen, App geöffnet | ✅ | Wake-Word im Vordergrund (Ohr-Symbol) |
+| „Atlas“ rufen, App geschlossen / gesperrt | ❌ kein Dauer-Mikrofon im Hintergrund | „Siri, starte ATLAS“, Action-Button, Kurzbefehle |
+| Siri-Integration | ✅ App Intents | Starten, Fragen (Antwort ohne App), Tagesübersicht, Morgen planen |
+| Kalender, Erinnerungen, Kontakte, Standort | ✅ mit Erlaubnis | Werkzeuge in `Core/Tools` |
+| Fotos, Kamera, Dateien | ✅ Auswahl durch Nutzer | Anhänge (Foto, Kamera, PDF) |
+| Nachrichten selbst senden | ⚠️ nur durch Nutzer | Entwurf + Bestätigung, Senden durch Nutzer |
+| Dauerhafte Hintergrundarbeit | ❌ | Mitteilungen zur gewählten Uhrzeit; Übersicht beim Öffnen |
 
-## Fahrplan
+## Stand der Phasen
 
-**Phase 1 – Grundlegende App** ✅ *(dieser Stand)*
-SwiftUI-App, Claude-Anbindung mit Streaming und Websuche, Spracheingabe/-ausgabe, Gesprächsmodus, Pausenerkennung, Unterbrechen, Verlauf, Einstellungen, sichere Schlüsselablage.
+| Phase | Inhalt | Stand |
+|---|---|---|
+| 1 | SwiftUI-App, Claude, Sprachgespräche | ✅ |
+| 2 | Animiertes Gesicht, Mimik, Mundbewegung, Sprachausgabe | ✅ (2D, GPU-gezeichnet) |
+| 3 | Wake-Word im Vordergrund, Siri, Kurzbefehle, Action-Button | ✅ |
+| 4 | Kalender, Erinnerungen, Kontakte, Karten, Standort, Fotos, Kamera, PDFs, Nachrichtenentwürfe | ✅ |
+| 5 | Gedächtnis, Aufgabenübersicht, Tagesplanung, Tagesübersicht/Rückblick, Aktivitätsprotokoll | ✅ |
+| 6 | Mac-App, iCloud-Synchronisierung vorbereitet | ✅ Mac · ⚙️ iCloud nach Aktivierung der Capability |
 
-**Phase 2 – Visuelle Persönlichkeit**
-Animiertes 2D-Gesicht (SwiftUI Canvas/Metal-Shader): weiß-silberne, halbtransparente Haut, eisblaue leuchtende Augen, Blinzeln, Blickbewegung, Kopfbewegung, Mundbewegung synchron zu den gesprochenen Wörtern (bereits vorbereitet über `spokenWordCount`), Ausdrücke je Zustand. Danach optional 3D-Kopf mit RealityKit (USDZ-Modell mit Blendshapes).
+## Mögliche nächste Schritte
+- **3D-Kopf mit RealityKit:** USDZ-Modell mit Blendshapes (Augen, Lider, Kiefer); die Engine-Signale (Zustand, Pegel, Wörter) sind bereits vorhanden.
+- **Apple Watch:** Watch-App mit „ATLAS fragen“ per Diktat und Tagesübersicht (eigenes watchOS-Target, nutzt die gleiche Claude-Anbindung).
+- **Widget / Steuerelement:** Kontrollzentrum- und Sperrbildschirm-Knopf „ATLAS starten“ (WidgetKit-Erweiterung).
+- **Premium-Stimme:** Optional eine Cloud-Stimme (z. B. ElevenLabs/OpenAI TTS) für einen noch natürlicheren britischen Butler.
+- **Eigener Server:** Für Push-basierte Hinweise (z. B. „In 30 Minuten losfahren“) und um den API-Schlüssel ganz vom Gerät zu nehmen.
+- **Lokales Modell** für einfache Fragen ohne Internet.
 
-**Phase 3 – Sprachaktivierung**
-Wake-Word „Atlas“ bei geöffneter App (kontinuierliche On-Device-Erkennung, energiesparend), Antwort „Ja, Sir?“, Sprach-Unterbrechung mit Echounterdrückung, App Intents für Siri und Kurzbefehle, Action-Button-Unterstützung.
-
-**Phase 4 – iPhone-Integration**
-Werkzeuge (Claude Tool Use) für Kalender, Erinnerungen, Kontakte, Karten/Route, Fotos & Kamera (Bildanalyse), Dateien & PDF-Zusammenfassung, Einkaufslisten, Nachrichtenentwürfe. Jede sensible Aktion mit Bestätigung.
-
-**Phase 5 – Gedächtnis & intelligente Aufgaben**
-Kontrollierbares Gedächtnis (SwiftData, verschlüsselt): Ziele, Projekte, Routinen, Vorlieben – ansehen, bearbeiten, löschen. Tagesplanung („Organisiere meinen morgigen Tag“), Morgenübersicht per Benachrichtigung, Aufgabenübersicht, Aktivitätsprotokoll.
-
-**Phase 6 – Erweiterung**
-Synchronisierung über iCloud/CloudKit (Ende-zu-Ende-verschlüsselt) zu Mac und Apple Watch, optionaler eigener Server für proaktive Funktionen und Schlüsselschutz.
-
-## Sicherheit & Datenschutz (durchgehend)
-- Mikrofon nur sichtbar aktiv (roter Punkt + roter Knopf), nie im Hintergrund.
-- Berechtigungen erst bei Bedarf und mit Begründung.
-- API-Schlüssel nur in der Keychain.
-- Gesprächsverlauf lokal; jederzeit löschbar.
+## Sicherheit & Datenschutz
+- Mikrofon nur sichtbar aktiv (roter bzw. hellblauer Punkt, System-Mikrofonanzeige), nie im Hintergrund.
+- Wake-Word-Erkennung nur auf dem Gerät; nichts verlässt das Gerät, bevor „Atlas“ gesagt wurde.
+- Berechtigungen erst bei Bedarf, mit Begründung; Übersicht unter *Einstellungen → Berechtigungen*.
+- API-Schlüssel nur im Schlüsselbund, nie im Code, nie synchronisiert.
+- Aktivitätsprotokoll jeder ausgeführten Aktion.
+- Sensible Aktionen nur nach Bestätigung.
 - Transparenz in den Einstellungen, welche Daten an Anthropic gehen.
-- Riskante Aktionen (Senden, Löschen, Käufe) nur nach ausdrücklicher Bestätigung.

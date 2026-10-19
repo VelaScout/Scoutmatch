@@ -39,12 +39,17 @@ struct HistoryView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        .contextMenu {
+                            Button("Löschen", role: .destructive) { delete(conversation) }
+                        }
                     }
-                    .onDelete(perform: delete)
+                    .onDelete { offsets in
+                        for index in offsets { delete(conversations[index]) }
+                    }
                 }
             }
             .navigationTitle("Verlauf")
-            .navigationBarTitleDisplayMode(.inline)
+            .atlasInlineTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fertig") { dismiss() }
@@ -54,12 +59,10 @@ struct HistoryView: View {
         .preferredColorScheme(.dark)
     }
 
-    private func delete(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(conversations[index])
-        }
-        try? modelContext.save()
+    private func delete(_ conversation: ConversationRecord) {
         engine.startNewConversation()
+        modelContext.delete(conversation)
+        try? modelContext.save()
     }
 }
 
@@ -85,7 +88,7 @@ struct ConversationDetailView: View {
             .padding()
         }
         .navigationTitle(conversation.startedAt.formatted(date: .abbreviated, time: .shortened))
-        .navigationBarTitleDisplayMode(.inline)
+        .atlasInlineTitle()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Fortsetzen", action: onResume)

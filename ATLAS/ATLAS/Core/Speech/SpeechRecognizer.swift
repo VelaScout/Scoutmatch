@@ -10,6 +10,7 @@ final class SpeechRecognizer {
         case notAuthorized
         case unavailable
         case noMicrophone
+        case onDeviceUnavailable
 
         var errorDescription: String? {
             switch self {
@@ -19,6 +20,8 @@ final class SpeechRecognizer {
                 return "Die Spracherkennung ist gerade nicht verfügbar."
             case .noMicrophone:
                 return "Es wurde kein Mikrofon gefunden."
+            case .onDeviceUnavailable:
+                return "Für das Wake-Word „Atlas“ wird Spracherkennung direkt auf dem Gerät benötigt. Bitte laden Sie in den Systemeinstellungen die Diktiersprache herunter oder schalten Sie das Wake-Word aus."
             }
         }
     }
@@ -49,7 +52,9 @@ final class SpeechRecognizer {
 
     // MARK: - Start / Stopp
 
-    func start(language: AtlasLanguage) throws {
+    /// - Parameter requireOnDevice: Für das Wake-Word muss die Erkennung auf dem Gerät laufen,
+    ///   damit im Bereitschaftsmodus kein Ton das Gerät verlässt.
+    func start(language: AtlasLanguage, requireOnDevice: Bool = false) throws {
         stop()
 
         guard SFSpeechRecognizer.authorizationStatus() == .authorized,
@@ -61,12 +66,16 @@ final class SpeechRecognizer {
             throw RecognizerError.unavailable
         }
 
+        if requireOnDevice && !recognizer.supportsOnDeviceRecognition {
+            throw RecognizerError.onDeviceUnavailable
+        }
+
         try AudioSessionManager.activate()
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.addsPunctuation = true
-        request.taskHint = .dictation
+        request.taskHint = requireOnDevice ? .search : .dictation
         if recognizer.supportsOnDeviceRecognition {
             // Datenschutz und geringere Verzögerung: Audio verlässt das iPhone nicht.
             request.requiresOnDeviceRecognition = true

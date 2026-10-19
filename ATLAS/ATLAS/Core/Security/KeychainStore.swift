@@ -2,8 +2,9 @@ import Foundation
 import Security
 
 /// Speichert Geheimnisse (z. B. den API-Schlüssel) verschlüsselt in der iOS-Keychain.
-/// `WhenUnlockedThisDeviceOnly`: nur lesbar, wenn das iPhone entsperrt ist,
+/// iPhone: `WhenUnlockedThisDeviceOnly` – nur lesbar, wenn das iPhone entsperrt ist,
 /// und wird weder in Backups noch auf andere Geräte übertragen.
+/// Mac: Schlüsselbund des angemeldeten Benutzers.
 enum KeychainStore {
     private static let service = "ATLAS.secrets"
 
@@ -15,13 +16,15 @@ enum KeychainStore {
     static func save(_ value: String, for key: Key) -> Bool {
         let data = Data(value.utf8)
         delete(key)
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key.rawValue,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             kSecValueData as String: data,
         ]
+        #if os(iOS)
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        #endif
         return SecItemAdd(query as CFDictionary, nil) == errSecSuccess
     }
 

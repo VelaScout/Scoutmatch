@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ATLAS benötigt das Mikrofon, damit Sie mit ihm sprechen können. Das Mikrofon ist nur aktiv, solange ATLAS sichtbar zuhört oder auf „Atlas“ wartet.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>ATLAS wandelt Ihre gesprochenen Anweisungen in Text um, um sie zu verstehen. Wenn möglich, geschieht dies direkt auf dem Gerät.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>ATLAS liest Ihre Termine für Tagesübersichten und Planungen und trägt auf Ihren Wunsch neue Termine ein.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>ATLAS liest Ihre Termine für Tagesübersichten und Planungen und trägt auf Ihren Wunsch neue Termine ein.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>ATLAS liest, erstellt und erledigt auf Ihren Wunsch Erinnerungen, Aufgaben und Listen wie die Einkaufsliste.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>ATLAS liest, erstellt und erledigt auf Ihren Wunsch Erinnerungen, Aufgaben und Listen wie die Einkaufsliste.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>ATLAS sucht Telefonnummern und E-Mail-Adressen, um auf Ihren Wunsch Nachrichtenentwürfe vorzubereiten.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ATLAS nutzt Ihren Standort nur bei Bedarf, zum Beispiel für das Wetter vor Ort oder Routen.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>ATLAS nutzt Ihren Standort nur bei Bedarf, zum Beispiel für das Wetter vor Ort oder Routen.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ATLAS nutzt die Kamera, wenn Sie ein Foto zur Analyse aufnehmen möchten.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ATLAS greift nur auf Fotos zu, die Sie zur Analyse auswählen.</string>
+</dict>
+</plist>

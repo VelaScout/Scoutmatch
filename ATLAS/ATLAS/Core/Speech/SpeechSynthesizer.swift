@@ -7,8 +7,9 @@ import Foundation
 final class SpeechSynthesizer: NSObject {
     /// Alle eingereihten Sätze wurden gesprochen.
     var onFinishedAll: (() -> Void)?
-    /// Wird bei jedem gesprochenen Wort ausgelöst – Grundlage für Mundbewegungen.
-    var onWord: (() -> Void)?
+    /// Wird bei jedem gesprochenen Wort mit dessen Buchstabenzahl ausgelöst –
+    /// Grundlage für die Mundbewegungen des Gesichts.
+    var onWord: ((Int) -> Void)?
 
     private let synthesizer = AVSpeechSynthesizer()
     private var queued: Set<ObjectIdentifier> = []
@@ -96,7 +97,8 @@ extension SpeechSynthesizer: AVSpeechSynthesizerDelegate {
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
                                        willSpeakRangeOfSpeechString characterRange: NSRange,
                                        utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.onWord?() }
+        let length = characterRange.length
+        Task { @MainActor in self.onWord?(length) }
     }
 }
 

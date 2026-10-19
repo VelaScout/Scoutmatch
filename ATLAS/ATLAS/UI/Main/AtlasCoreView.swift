@@ -1,18 +1,18 @@
 import SwiftUI
 
-/// Der animierte ATLAS-Kern (Phase 1).
-/// In Phase 2 wird er durch das animierte Gesicht ersetzt – die Eingänge
-/// (Zustand, Mikrofonpegel, gesprochene Wörter) bleiben dieselben.
+/// Der animierte ATLAS-Kern – alternative, besonders sparsame Darstellung
+/// (Einstellungen → Darstellung). Standard ist das Gesicht (`AtlasFaceView`).
 struct AtlasCoreView: View {
     let state: ConversationEngine.State
     let inputLevel: Float
     let spokenWordCount: Int
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var smoothedLevel: Double = 0
     @State private var lastWordDate = Date.distantPast
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: scenePhase != .active)) { timeline in
             Canvas { context, size in
                 draw(in: &context, size: size, time: timeline.date)
             }
@@ -37,7 +37,7 @@ struct AtlasCoreView: View {
 
     private func energy(at date: Date, t: Double) -> Double {
         switch state {
-        case .listening:
+        case .listening, .confirming:
             return 0.15 + smoothedLevel * 0.85
         case .speaking:
             let sinceWord = date.timeIntervalSince(lastWordDate)
@@ -45,6 +45,8 @@ struct AtlasCoreView: View {
             return 0.3 + 0.45 * kick + 0.1 * (sin(t * 11) * 0.5 + 0.5)
         case .thinking:
             return 0.3 + 0.1 * sin(t * 4)
+        case .standby:
+            return 0.12 + 0.06 * (sin(t * 2) * 0.5 + 0.5)
         case .idle, .error:
             return 0.08 + 0.05 * (sin(t * 1.4) * 0.5 + 0.5)
         }

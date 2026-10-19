@@ -48,6 +48,20 @@ enum AtlasEffort: String, CaseIterable, Identifiable {
     }
 }
 
+/// Darstellung von ATLAS auf dem Startbildschirm.
+enum AtlasAppearance: String, CaseIterable, Identifiable {
+    case face, core
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .face: return "Gesicht"
+        case .core: return "Energiekern (sparsam)"
+        }
+    }
+}
+
 /// Alle Benutzereinstellungen. Werden in UserDefaults gespeichert –
 /// der API-Schlüssel liegt NICHT hier, sondern in der Keychain.
 @MainActor
@@ -65,6 +79,18 @@ final class AppSettings {
     var webSearchEnabled: Bool { didSet { defaults.set(webSearchEnabled, forKey: Keys.webSearch) } }
     var conversationMode: Bool { didSet { defaults.set(conversationMode, forKey: Keys.conversationMode) } }
     var silenceTimeout: Double { didSet { defaults.set(silenceTimeout, forKey: Keys.silenceTimeout) } }
+    var appearance: AtlasAppearance { didSet { defaults.set(appearance.rawValue, forKey: Keys.appearance) } }
+    /// „Atlas“ rufen, solange die App geöffnet ist.
+    var wakeWordEnabled: Bool { didSet { defaults.set(wakeWordEnabled, forKey: Keys.wakeWord) } }
+    /// Zugriff auf Kalender, Erinnerungen, Kontakte, Karten usw.
+    var toolsEnabled: Bool { didSet { defaults.set(toolsEnabled, forKey: Keys.tools) } }
+    /// Dauerhaftes Gedächtnis verwenden.
+    var memoryEnabled: Bool { didSet { defaults.set(memoryEnabled, forKey: Keys.memory) } }
+    var morningBriefingEnabled: Bool { didSet { defaults.set(morningBriefingEnabled, forKey: Keys.morningEnabled) } }
+    /// Minuten nach Mitternacht
+    var morningBriefingMinutes: Int { didSet { defaults.set(morningBriefingMinutes, forKey: Keys.morningMinutes) } }
+    var eveningReviewEnabled: Bool { didSet { defaults.set(eveningReviewEnabled, forKey: Keys.eveningEnabled) } }
+    var eveningReviewMinutes: Int { didSet { defaults.set(eveningReviewMinutes, forKey: Keys.eveningMinutes) } }
 
     init() {
         // Lokale Variable, da `self` vor der Initialisierung aller Eigenschaften nicht genutzt werden darf.
@@ -80,6 +106,14 @@ final class AppSettings {
             Keys.webSearch: true,
             Keys.conversationMode: true,
             Keys.silenceTimeout: 1.4,
+            Keys.appearance: AtlasAppearance.face.rawValue,
+            Keys.wakeWord: false,
+            Keys.tools: true,
+            Keys.memory: true,
+            Keys.morningEnabled: false,
+            Keys.morningMinutes: 7 * 60,
+            Keys.eveningEnabled: false,
+            Keys.eveningMinutes: 20 * 60 + 30,
         ])
         addressAsSir = defaults.bool(forKey: Keys.addressAsSir)
         userName = defaults.string(forKey: Keys.userName) ?? ""
@@ -91,7 +125,18 @@ final class AppSettings {
         webSearchEnabled = defaults.bool(forKey: Keys.webSearch)
         conversationMode = defaults.bool(forKey: Keys.conversationMode)
         silenceTimeout = defaults.double(forKey: Keys.silenceTimeout)
+        appearance = AtlasAppearance(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .face
+        wakeWordEnabled = defaults.bool(forKey: Keys.wakeWord)
+        toolsEnabled = defaults.bool(forKey: Keys.tools)
+        memoryEnabled = defaults.bool(forKey: Keys.memory)
+        morningBriefingEnabled = defaults.bool(forKey: Keys.morningEnabled)
+        morningBriefingMinutes = defaults.integer(forKey: Keys.morningMinutes)
+        eveningReviewEnabled = defaults.bool(forKey: Keys.eveningEnabled)
+        eveningReviewMinutes = defaults.integer(forKey: Keys.eveningMinutes)
     }
+
+    /// Anrede für kurze feste Sätze, z. B. „Ja, Sir?“
+    var sirSuffix: String { addressAsSir ? ", Sir" : "" }
 
     private enum Keys {
         static let addressAsSir = "addressAsSir"
@@ -104,5 +149,13 @@ final class AppSettings {
         static let webSearch = "webSearchEnabled"
         static let conversationMode = "conversationMode"
         static let silenceTimeout = "silenceTimeout"
+        static let appearance = "appearance"
+        static let wakeWord = "wakeWordEnabled"
+        static let tools = "toolsEnabled"
+        static let memory = "memoryEnabled"
+        static let morningEnabled = "morningBriefingEnabled"
+        static let morningMinutes = "morningBriefingMinutes"
+        static let eveningEnabled = "eveningReviewEnabled"
+        static let eveningMinutes = "eveningReviewMinutes"
     }
 }
