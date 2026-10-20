@@ -25,6 +25,7 @@ struct AtlasHologramView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.displayScale) private var displayScale
 
     @State private var smoothedLevel: Double = 0
     @State private var lastWordDate = Date.distantPast
@@ -33,6 +34,9 @@ struct AtlasHologramView: View {
     @State private var dragPitch: Double = 0
     @State private var dragStart: (yaw: Double, pitch: Double)?
     @State private var intro: Intro?
+    /// Die Start-Sequenz ist vorbereitet (oder entfällt). Bis dahin bleibt der Bildschirm
+    /// schwarz – sonst würde der Kern kurz aufblitzen und dann von der Sequenz verdrängt.
+    @State private var introPrepared = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -44,8 +48,12 @@ struct AtlasHologramView: View {
                 .drawingGroup()
             }
             .task(id: geometry.size) {
-                guard showsIntro, intro == nil, !reduceMotion, geometry.size.width > 10 else { return }
-                intro = Intro.make(size: geometry.size, layout: Self.layout(for: geometry.size))
+                guard !introPrepared, geometry.size.width > 10 else { return }
+                if showsIntro, !reduceMotion {
+                    intro = Intro.make(size: geometry.size, layout: Self.layout(for: geometry.size),
+                                       scale: Double(displayScale))
+                }
+                introPrepared = true
             }
         }
         .simultaneousGesture(
@@ -254,6 +262,8 @@ struct AtlasHologramView: View {
         let ay = t * 0.16 * spin + dragYaw
         let ax = 0.38 + sin(t * 0.11) * 0.12 * motion + dragPitch
 
+        if showsIntro, !reduceMotion, !introPrepared { return }
+
         var ctx = context
         ctx.blendMode = .plusLighter
 
@@ -263,7 +273,8 @@ struct AtlasHologramView: View {
             effects = intro.draw(&ctx, date: date, t: t, ay: ay, ax: ax, layout: base)
         }
         if effects.shake > 0 {
-            ctx.translateBy(x: sin(t * 97) * effects.shake * 0.5, y: cos(t * 83) * effects.shake * 0.5)
+            // Weiches, abklingendes Beben statt Zittern
+            ctx.translateBy(x: sin(t * 38) * effects.shake, y: cos(t * 31) * effects.shake * 0.6)
         }
 
         if effects.reveal > 0 {
@@ -619,7 +630,6 @@ extension AtlasHologramView {
         struct Flyer {
             let theta0, omega, radius, phase, phase2, size, delay, tx, ty: Double
             let sphereIndex: Int
-            var sx = 0.0, sy = 0.0
         }
 
         struct Effects {
@@ -634,26 +644,28 @@ extension AtlasHologramView {
         static var end: Double { fly + form + hold + dissolve }
         static let subtitle = "ADVANCED THINKING · LEARNING & ASSISTANCE SYSTEM"
 
-        private(set) var flyers: [Flyer]
+        let flyers: [Flyer]
+        /// Fertig gerenderter, leuchtender Schriftzug – einmal berechnet statt in jedem Bild.
+        let wordImage: Image?
         let fontSize: Double
         let wordTop, wordBottom: Double
         let cx, cy, halfW, halfH, width: Double
         let start = Date.now
 
         @MainActor
-        static func make(size: CGSize, layout L: Layout) -> Intro {
+        static func make(size: CGSize, layout L: Layout, scale: Double) -> Intro {
             let width = Double(size.width), height = Double(size.height)
             var fontSize = min(height * 0.22, 260)
             if let measured = textPoints(fontSize: fontSize, step: 1000)?.width, measured > width * 0.92 {
                 fontSize *= width * 0.92 / measured
             }
-            let step = max(2, (fontSize / 34).rounded())
+            let step = max(2, (fontSize / 30).rounded())
             let sample = textPoints(fontSize: fontSize, step: step)
             let targets = sample?.points ?? []
             let textHeight = sample?.height ?? fontSize * 1.3
 
             let random = AtlasHologramView.seeded(17)
-            let count = min(3200, max(targets.count, 1800))
+            let count = min(2400, max(targets.count, 1600))
             var list: [Flyer] = []
             list.reserveCapacity(count)
             for i in 0..<count {
@@ -676,15 +688,23 @@ extension AtlasHologramView {
                     ty: L.cy + target.1 + (random() - 0.5) * step * 0.5,
                     sphereIndex: (i * 7) % AtlasHologramView.sphere.count))
             }
-            var intro = Intro(flyers: list, fontSize: fontSize,
-                              wordTop: L.cy - textHeight / 2, wordBottom: L.cy + textHeight / 2,
-                              cx: width / 2, cy: height / 2, halfW: width * 0.62, halfH: height * 0.62, width: width)
-            for i in intro.flyers.indices {
-                let p = intro.flyPosition(intro.flyers[i], fly)
-                intro.flyers[i].sx = p.x
-                intro.flyers[i].sy = p.y
-            }
-            return intro
+            let wordRenderer = ImageRenderer(content:
+                Text("A.T.L.A.S.")
+                    .font(AtlasHologramView.displayFont(size: fontSize))
+                    .foregroundStyle(LinearGradient(stops: [
+                        .init(color: .white, location: 0.2),
+                        .init(color: AtlasHologramView.iceColor, location: 0.47),
+                        .init(color: AtlasHologramView.blue, location: 0.55),
+                        .init(color: AtlasHologramView.iceColor, location: 0.8),
+                    ], startPoint: .top, endPoint: .bottom))
+                    .shadow(color: AtlasHologramView.blue.opacity(0.9), radius: fontSize * 0.3)
+                    .padding(fontSize * 0.7))
+            wordRenderer.scale = max(1, scale)
+            let wordImage = wordRenderer.cgImage.map { Image(decorative: $0, scale: max(1, scale)) }
+
+            return Intro(flyers: list, wordImage: wordImage, fontSize: fontSize,
+                         wordTop: L.cy - textHeight / 2, wordBottom: L.cy + textHeight / 2,
+                         cx: width / 2, cy: height / 2, halfW: width * 0.62, halfH: height * 0.62, width: width)
         }
 
         /// Rastert den Schriftzug und liefert Punktpositionen relativ zur Mitte sowie die Textmaße.
@@ -733,12 +753,21 @@ extension AtlasHologramView {
             return (x, y)
         }
 
-        /// Zusammenschießen zum Schriftzug mit leichter Krümmung.
-        private func formPosition(_ f: Flyer, _ u: Double) -> (x: Double, y: Double) {
-            let k = AtlasHologramView.easeInOut(min(1, max(0, u)))
-            let dx = f.tx - f.sx, dy = f.ty - f.sy
-            let curl = sin(min(1, max(0, u)) * .pi) * 0.25
-            return (f.sx + dx * k - dy * curl, f.sy + dy * k + dx * curl)
+        /// Fortschritt 0…1 des Zusammenschießens für einen Punkt (leicht gestaffelt).
+        private func formProgress(_ f: Flyer, _ e: Double) -> Double {
+            let global = min(1, max(0, (e - Self.fly) / Self.form))
+            return min(1, max(0, (global - f.delay * 0.6) / (1 - f.delay * 0.6)))
+        }
+
+        /// Zusammenschießen zum Schriftzug: Der Punkt fliegt auf seiner Bahn weiter und wird
+        /// dabei sanft zum Ziel gezogen – keine Vollbremsung beim Übergang, weiche Landung.
+        private func formPosition(_ f: Flyer, _ e: Double) -> (x: Double, y: Double) {
+            let u = formProgress(f, e)
+            let p = flyPosition(f, e)
+            let k = AtlasHologramView.easeInOut(u)
+            let dx = f.tx - p.x, dy = f.ty - p.y
+            let curl = sin(u * .pi) * 0.18
+            return (p.x + dx * k - dy * curl, p.y + dy * k + dx * curl)
         }
 
         /// Zeichnet die Sequenz und liefert Einblendung des Kerns, Beben und Blitz.
@@ -752,22 +781,22 @@ extension AtlasHologramView {
             let bucketCount = 6
             var buckets = [Path](repeating: Path(), count: bucketCount)
             var widths = [Double](repeating: 0, count: bucketCount)
-            let formU = min(1, max(0, (e - Self.fly) / Self.form))
-            let fadeIn = min(1, e / 0.5)
+            let fadeIn = min(1, e / 0.8)
             for f in flyers {
                 var a: Double, size = f.size
                 var head: (x: Double, y: Double), tail: (x: Double, y: Double)?
+                let twinkle = (0.35 + 0.4 * pow(sin(t * 3 + f.phase), 2)) * fadeIn
                 if e < Self.fly {
                     // Phase 1: lange, schwungvolle Flugbahnen mit Leuchtspuren
                     head = flyPosition(f, e)
                     tail = flyPosition(f, max(0, e - 0.16))
-                    a = (0.35 + 0.4 * pow(sin(t * 3 + f.phase), 2)) * fadeIn
+                    a = twinkle
                 } else if e < Self.holdStart {
-                    // Phase 2: zusammenschießen zum Schriftzug
-                    let u = min(1, max(0, (formU - f.delay * 0.6) / (1 - f.delay * 0.6)))
-                    head = formPosition(f, u)
-                    tail = formPosition(f, u - 0.06)
-                    a = 0.5 + 0.5 * u
+                    // Phase 2: zusammenschießen zum Schriftzug – Spuren und Helligkeit gehen fließend über
+                    let u = formProgress(f, e)
+                    head = formPosition(f, e)
+                    tail = formPosition(f, e - 0.16 * (1 - 0.75 * u))
+                    a = twinkle + (1 - twinkle) * u
                     size = f.size * (1 + 0.5 * u)
                 } else if e < Self.dissolveStart {
                     // Phase 3: Schriftzug steht und flimmert leicht
@@ -810,8 +839,8 @@ extension AtlasHologramView {
             // Einschlag beim Einrasten des Schriftzugs
             let lock = e - Self.holdStart
             if lock >= 0, lock < 1.2 {
-                effects.flash = exp(-lock * 6) * 0.55
-                effects.shake = exp(-lock * 9) * 7
+                effects.flash = exp(-lock * 5) * 0.35
+                effects.shake = exp(-lock * 6) * 2.5
                 let k = lock / 1.2
                 let radius = 30 + k * hypot(width, halfH / 0.62) * 0.7
                 ctx.stroke(Path(ellipseIn: CGRect(x: L.cx - radius, y: L.cy - radius, width: radius * 2, height: radius * 2)),
@@ -829,8 +858,7 @@ extension AtlasHologramView {
                 effects.reveal = max(0, min(1, (k - 0.55) / 0.45))
                 let ignition = e - (Self.dissolveStart + Self.dissolve * 0.6)
                 if ignition > 0 {
-                    effects.flash = max(effects.flash, exp(-ignition * 5) * 0.7)
-                    effects.shake = max(effects.shake, exp(-ignition * 10) * 5)
+                    effects.flash = max(effects.flash, exp(-ignition * 4) * 0.4)
                 }
             }
             return effects
@@ -843,30 +871,19 @@ extension AtlasHologramView {
             let lockIn = min(1, (e - Self.holdStart + 0.15) / 0.3)
             let out = e < Self.dissolveStart ? 1 : max(0, 1 - (e - Self.dissolveStart) / 0.5)
             let alpha = lockIn * out
-            let jitter = e < Self.holdStart + 0.5 ? exp(-(e - Self.holdStart) * 6) * 6 : 0
-            let word = ctx.resolve(
-                Text("A.T.L.A.S.")
-                    .font(AtlasHologramView.displayFont(size: fontSize))
-                    .foregroundStyle(LinearGradient(stops: [
-                        .init(color: .white, location: 0.2),
-                        .init(color: AtlasHologramView.iceColor, location: 0.47),
-                        .init(color: AtlasHologramView.blue, location: 0.55),
-                        .init(color: AtlasHologramView.iceColor, location: 0.8),
-                    ], startPoint: .top, endPoint: .bottom)))
+            let settle = max(0, min(1, (e - Self.holdStart) / 0.5))
+            let jitter = 4 * (1 - settle) * (1 - settle)
+            guard let wordImage else { return }
             let y = (wordTop + wordBottom) / 2
 
-            var glow = ctx
-            glow.addFilter(.shadow(color: AtlasHologramView.blue.opacity(0.9), radius: fontSize * 0.35))
-            glow.opacity = 0.55 * alpha
-            glow.draw(word, at: CGPoint(x: cx - jitter - 2, y: y), anchor: .center)
-
-            var shifted = ctx
-            shifted.opacity = 0.35 * alpha
-            shifted.draw(word, at: CGPoint(x: cx + jitter + 2, y: y), anchor: .center)
-
+            if jitter > 0.05 {
+                var shifted = ctx
+                shifted.opacity = 0.3 * alpha
+                shifted.draw(wordImage, at: CGPoint(x: cx + jitter, y: y), anchor: .center)
+            }
             var solid = ctx
-            solid.opacity = 0.8 * alpha
-            solid.draw(word, at: CGPoint(x: cx, y: y), anchor: .center)
+            solid.opacity = 0.9 * alpha
+            solid.draw(wordImage, at: CGPoint(x: cx - jitter * 0.3, y: y), anchor: .center)
         }
 
         private func drawScanAndSubtitle(_ ctx: inout GraphicsContext, e: Double, t: Double, L: Layout) {
