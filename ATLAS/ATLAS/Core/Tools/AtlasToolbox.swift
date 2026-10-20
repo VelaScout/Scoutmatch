@@ -23,6 +23,13 @@ final class AtlasToolbox: ToolExecuting {
 
     /// Wird von der Gesprächssteuerung gesetzt: zeigt die Bestätigung an und liefert die Antwort.
     var confirm: ((ConfirmationRequest) async -> Bool)?
+    /// Wird von der Gesprächssteuerung gesetzt: öffnet eine Ansicht der App.
+    var openScreen: ((AppScreen) -> Void)?
+    /// Geräte-Werkzeuge, die in den Einstellungen abgeschaltet werden können.
+    private static let deviceToolNames: Set<String> = [
+        "get_calendar_events", "create_calendar_event", "list_reminders", "create_reminder", "complete_reminder",
+        "search_contacts", "get_current_location", "show_route", "prepare_message",
+    ]
 
     init(modelContext: ModelContext, settings: AppSettings) {
         self.modelContext = modelContext
@@ -31,8 +38,13 @@ final class AtlasToolbox: ToolExecuting {
 
     func execute(name: String, inputJSON: Data) async -> ToolResult {
         let input = (try? JSONSerialization.jsonObject(with: inputJSON) as? [String: Any]) ?? [:]
+        if Self.deviceToolNames.contains(name), !settings.toolsEnabled {
+            return ToolResult(content: "Die Geräte-Funktionen sind ausgeschaltet. Der Nutzer kann sie mit „Schalte die Geräte-Funktionen ein“ aktivieren.", isError: true)
+        }
         let result: ToolResult
         switch name {
+        case "open_view": result = openView(input)
+        case "change_setting": result = await changeSetting(input)
         case "get_calendar_events": result = await getCalendarEvents(input)
         case "create_calendar_event": result = await createCalendarEvent(input)
         case "list_reminders": result = await listReminders(input)
@@ -278,6 +290,81 @@ final class AtlasToolbox: ToolExecuting {
         let items = (try? modelContext.fetch(FetchDescriptor<MemoryItem>(sortBy: [SortDescriptor(\.createdAt)]))) ?? []
         guard !items.isEmpty else { return ToolResult(content: "Das Gedächtnis ist leer.") }
         return ToolResult(content: items.map { "[\($0.category)] \($0.content)" }.joined(separator: "\n"))
+    }
+
+    // MARK: - App-Steuerung
+
+    private func openView(_ input: [String: Any]) -> ToolResult {
+        guard let raw = input["view"] as? String, let screen = AppScreen(rawValue: raw), screen != .onboarding else {
+            return ToolResult(content: "Unbekannte Ansicht.", isError: true)
+        }
+        openScreen?(screen)
+        return ToolResult(content: "Geöffnet: \(raw). Sag dazu nur einen sehr kurzen Satz.")
+    }
+
+    private func changeSetting(_ input: [String: Any]) async -> ToolResult {
+        guard let setting = input["setting"] as? String, let rawValue = input["value"] as? String else {
+            return ToolResult(content: "Einstellung oder Wert fehlt.", isError: true)
+        }
+        let value = rawValue.lowercased().trimmingCharacters(in: .whitespaces)
+        let on = ["on", "an", "ein", "true", "ja", "yes", "1"].contains(value)
+        let off = ["off", "aus", "false", "nein", "no", "0"].contains(value)
+        func flag(_ apply: (Bool) -> Void) -> ToolResult? {
+            guard on || off else { return ToolResult(content: "Bitte on oder off angeben.", isError: true) }
+            apply(on)
+            return nil
+        }
+        var error: ToolResult?
+        switch setting {
+        case "wake_word": error = flag { settings.wakeWordEnabled = $0 }
+        case "conversation_mode": error = flag { settings.conversationMode = $0 }
+        case "address_sir": error = flag { settings.addressAsSir = $0 }
+        case "web_search": error = flag { settings.webSearchEnabled = $0 }
+        case "premium_voice":
+            if on && !KeychainStore.has(.elevenLabsAPIKey) {
+                openScreen?(.settings)
+                return ToolResult(content: "Für die Premium-Stimme fehlt noch der ElevenLabs-Schlüssel. Die Einstellungen wurden geöffnet, damit der Nutzer ihn eintragen kann.", isError: true)
+            }
+            error = flag { settings.premiumVoiceEnabled = $0 }
+        case "device_tools": error = flag { settings.toolsEnabled = $0 }
+        case "memory": error = flag { settings.memoryEnabled = $0 }
+        case "speech_rate":
+            switch value {
+            case "slower", "langsamer": settings.speechRate = max(0.35, settings.speechRate - 0.05)
+            case "faster", "schneller": settings.speechRate = min(0.65, settings.speechRate + 0.05)
+            default: settings.speechRate = 0.5
+            }
+        case "language":
+            settings.language = value.hasPrefix("en") ? .britishEnglish : .german
+        case "model":
+            if value.contains("haiku") { settings.model = .haiku }
+            else if value.contains("sonnet") { settings.model = .sonnet }
+            else { settings.model = .opus }
+        case "appearance":
+            settings.appearance = (value.contains("minimal") || value.contains("schlicht")) ? .core : .hologram
+        case "morning_briefing", "evening_review":
+            let isMorning = setting == "morning_briefing"
+            if let minutes = Self.minutes(from: value) {
+                if isMorning { settings.morningBriefingMinutes = minutes; settings.morningBriefingEnabled = true }
+                else { settings.eveningReviewMinutes = minutes; settings.eveningReviewEnabled = true }
+            } else {
+                error = flag { enabled in
+                    if isMorning { settings.morningBriefingEnabled = enabled } else { settings.eveningReviewEnabled = enabled }
+                }
+            }
+            await ProactiveScheduler.reschedule(settings: settings)
+        default:
+            return ToolResult(content: "Unbekannte Einstellung: \(setting)", isError: true)
+        }
+        if let error { return error }
+        log("Einstellung geändert", "\(setting) → \(rawValue)")
+        return ToolResult(content: "Erledigt: \(setting) = \(rawValue).")
+    }
+
+    private static func minutes(from text: String) -> Int? {
+        let parts = text.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2, (0..<24).contains(parts[0]), (0..<60).contains(parts[1]) else { return nil }
+        return parts[0] * 60 + parts[1]
     }
 
     // MARK: - Hilfen

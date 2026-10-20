@@ -59,6 +59,10 @@ enum Persona {
             abilities = "Der Zugriff auf Kalender, Erinnerungen, Kontakte und andere Funktionen des Geräts ist in den Einstellungen ausgeschaltet. Behaupte niemals, eine solche Aktion ausgeführt zu haben."
         }
 
+        let appControl = """
+        Die App von ATLAS hat bewusst keine Knöpfe – nur dich und ein Eingabefeld. Wenn der Nutzer etwas sehen, öffnen oder einstellen möchte (Einstellungen, Verlauf, Termine, Gedächtnis, Stimme, Foto, Datei …), benutze open_view bzw. change_setting und bestätige mit einem sehr kurzen Satz.
+        """
+
         let memory: String
         if c.memoryEnabled {
             let entries = c.memories.isEmpty ? "(noch keine Einträge)" : c.memories.map { "- \($0)" }.joined(separator: "\n")
@@ -92,6 +96,8 @@ enum Persona {
         \(research)
 
         \(abilities)
+
+        \(appControl)
 
         \(memory)
 

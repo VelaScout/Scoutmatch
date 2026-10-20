@@ -2,17 +2,17 @@ import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Startbildschirm: ATLAS steht im Mittelpunkt, möglichst wenig Text.
+/// Startbildschirm: nur ATLAS. Der Kern füllt den ganzen Bildschirm, unten liegt eine
+/// schlanke Leiste zum Tippen oder Sprechen. Alles andere – Einstellungen, Verlauf,
+/// Aufgaben, Fotos – öffnet ATLAS auf Zuruf („Öffne die Einstellungen“).
+/// Notausgang: langes Drücken auf den Kern öffnet die Einstellungen.
 struct MainView: View {
     @Environment(ConversationEngine.self) private var engine
     @Environment(AppSettings.self) private var settings
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var router = IntentRouter.shared
-    @State private var showSettings = false
-    @State private var showHistory = false
-    @State private var showTasks = false
-    @State private var showKeyboard = false
+    @State private var sheet: AppScreen?
     @State private var showOnboarding = false
     @State private var showPhotoPicker = false
     @State private var showFileImporter = false
@@ -20,6 +20,8 @@ struct MainView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var attachmentError: String?
     @State private var typedText = ""
+    @State private var captionVisible = false
+    @State private var captionHideTask: Task<Void, Never>?
     @FocusState private var textFieldFocused: Bool
 
     var body: some View {
@@ -27,15 +29,14 @@ struct MainView: View {
             background
 
             VStack(spacing: 0) {
-                topBar
-                Spacer(minLength: 0)
                 atlasVisual
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
                     .onTapGesture { engine.primaryAction() }
-                Spacer(minLength: 0)
-                transcriptArea
+                    .onLongPressGesture(minimumDuration: 0.6) { sheet = .settings }
+                    .overlay(alignment: .bottom) { caption }
                 attachmentChips
-                bottomBar
+                inputBar
             }
 
             if let request = engine.pendingConfirmation {
@@ -47,9 +48,9 @@ struct MainView: View {
         }
         .animation(.spring(duration: 0.35), value: engine.pendingConfirmation)
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showSettings) { SettingsView().atlasSheetSize() }
-        .sheet(isPresented: $showHistory) { HistoryView().atlasSheetSize() }
-        .sheet(isPresented: $showTasks) { TasksView().atlasSheetSize() }
+        .sheet(item: $sheet) { screen in
+            sheetContent(for: screen).atlasSheetSize()
+        }
         .atlasFullScreenCover(isPresented: $showOnboarding) { OnboardingView() }
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.pdf, .image]) { result in
@@ -87,6 +88,10 @@ struct MainView: View {
             processPendingRequest()
         }
         .onChange(of: router.sequence) { _, _ in processPendingRequest() }
+        .onChange(of: engine.screenRequestSequence) { _, _ in
+            if let screen = engine.screenRequest { open(screen) }
+        }
+        .onChange(of: engine.state) { _, newState in updateCaption(for: newState) }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
@@ -101,7 +106,7 @@ struct MainView: View {
         .onChange(of: settings.wakeWordEnabled) { _, _ in engine.wakeWordSettingChanged() }
     }
 
-    // MARK: - Bausteine
+    // MARK: - ATLAS
 
     @ViewBuilder
     private var atlasVisual: some View {
@@ -112,185 +117,176 @@ struct MainView: View {
                               spokenWordCount: engine.spokenWordCount,
                               spokenWordLength: engine.spokenWordLength,
                               speechRate: settings.speechRate)
-                .aspectRatio(1, contentMode: .fit)
         case .core:
             AtlasCoreView(state: engine.state,
                           inputLevel: engine.inputLevel,
                           spokenWordCount: engine.spokenWordCount)
                 .aspectRatio(1, contentMode: .fit)
-                .padding(.horizontal, 12)
+                .padding(24)
         }
     }
 
     private var background: some View {
-        ZStack {
-            Color.black
-            RadialGradient(colors: [settings.appearance == .hologram
-                                    ? Color(red: 0.12, green: 0.06, blue: 0.02)
-                                    : Color(red: 0.05, green: 0.16, blue: 0.28), .black],
-                           center: .center, startRadius: 20, endRadius: 560)
-        }
-        .ignoresSafeArea()
+        RadialGradient(colors: [Color(red: 0.11, green: 0.055, blue: 0.02), Color(red: 0.04, green: 0.02, blue: 0.008), .black],
+                       center: UnitPoint(x: 0.5, y: 0.42), startRadius: 10, endRadius: 700)
+            .ignoresSafeArea()
     }
 
-    private var topBar: some View {
-        HStack(spacing: 18) {
-            Button { showHistory = true } label: {
-                Image(systemName: "clock.arrow.circlepath")
-            }
-            .accessibilityLabel("Gesprächsverlauf")
-
-            Button { showTasks = true } label: {
-                Image(systemName: "checklist")
-            }
-            .accessibilityLabel("Aufgaben und Termine")
-
-            Spacer()
-
-            StatusPill(state: engine.state, detail: engine.statusDetail)
-
-            Spacer()
-
-            Button { settings.wakeWordEnabled.toggle() } label: {
-                Image(systemName: settings.wakeWordEnabled ? "ear.fill" : "ear")
-            }
-            .accessibilityLabel(settings.wakeWordEnabled ? "Wake-Word ausschalten" : "Wake-Word „Atlas“ einschalten")
-
-            Button { showSettings = true } label: {
-                Image(systemName: "gearshape")
-            }
-            .accessibilityLabel("Einstellungen")
+    /// Dezenter Untertitel: was Sie sagen bzw. was ATLAS antwortet – blendet sich von selbst aus.
+    private var caption: some View {
+        let text: String
+        switch engine.state {
+        case .listening, .confirming: text = engine.liveTranscript
+        case .error(let message): text = message
+        default: text = engine.statusDetail ?? engine.responseText
         }
-        .buttonStyle(.plain)
-        .font(.title3)
-        .foregroundStyle(.white.opacity(0.75))
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
+        return Text(text)
+            .font(.callout)
+            .foregroundStyle(.white.opacity(0.82))
+            .multilineTextAlignment(.center)
+            .lineLimit(3)
+            .shadow(color: .black, radius: 8)
+            .padding(.horizontal, 28)
+            .padding(.bottom, 10)
+            .opacity(captionVisible && !text.isEmpty ? 1 : 0)
+            .animation(.easeInOut(duration: 0.5), value: captionVisible)
+            .allowsHitTesting(false)
     }
 
-    private var transcriptArea: some View {
-        VStack(spacing: 10) {
-            if !engine.liveTranscript.isEmpty {
-                Text(engine.liveTranscript)
-                    .font(.callout)
-                    .foregroundStyle(.white.opacity(0.55))
-                    .lineLimit(2)
+    private func updateCaption(for state: ConversationEngine.State) {
+        captionHideTask?.cancel()
+        switch state {
+        case .idle, .standby:
+            captionHideTask = Task {
+                try? await Task.sleep(for: .seconds(4))
+                guard !Task.isCancelled else { return }
+                captionVisible = false
             }
-            if !engine.responseText.isEmpty {
-                ScrollView {
-                    Text(engine.responseText)
-                        .font(.body)
-                        .foregroundStyle(.white.opacity(0.9))
-                        .frame(maxWidth: .infinity)
-                        .textSelection(.enabled)
-                }
-                .frame(maxHeight: 130)
-                .scrollIndicators(.hidden)
-            }
+        default:
+            captionVisible = true
         }
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, 28)
-        .animation(.easeInOut(duration: 0.2), value: engine.liveTranscript)
     }
+
+    // MARK: - Eingabeleiste
 
     @ViewBuilder
     private var attachmentChips: some View {
         if !engine.attachments.isEmpty {
-            ScrollView(.horizontal) {
-                HStack {
-                    ForEach(engine.attachments) { attachment in
-                        HStack(spacing: 6) {
-                            Image(systemName: attachment.symbol)
-                            Text(attachment.name).lineLimit(1)
-                            Button { engine.removeAttachment(attachment) } label: {
-                                Image(systemName: "xmark.circle.fill")
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Anhang entfernen")
+            HStack {
+                ForEach(engine.attachments) { attachment in
+                    HStack(spacing: 6) {
+                        Image(systemName: attachment.symbol)
+                        Text(attachment.name).lineLimit(1)
+                        Button { engine.removeAttachment(attachment) } label: {
+                            Image(systemName: "xmark.circle.fill")
                         }
-                        .font(.caption)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.white.opacity(0.1), in: Capsule())
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Anhang entfernen")
                     }
+                    .font(.caption)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.white.opacity(0.08), in: Capsule())
                 }
-                .padding(.horizontal, 20)
             }
-            .scrollIndicators(.hidden)
             .foregroundStyle(.white.opacity(0.85))
-            .padding(.top, 8)
+            .padding(.bottom, 8)
         }
     }
 
-    private var bottomBar: some View {
-        VStack(spacing: 12) {
-            if showKeyboard {
-                HStack {
-                    TextField("Nachricht an ATLAS", text: $typedText)
-                        .textFieldStyle(.plain)
-                        .focused($textFieldFocused)
-                        .submitLabel(.send)
-                        .onSubmit(sendTyped)
-                    Button(action: sendTyped) {
-                        Image(systemName: "arrow.up.circle.fill").font(.title2)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(typedText.trimmingCharacters(in: .whitespaces).isEmpty && engine.attachments.isEmpty)
-                }
-                .padding(12)
-                .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-                .padding(.horizontal, 20)
-            }
+    private var inputBar: some View {
+        HStack(spacing: 8) {
+            TextField("Mit ATLAS sprechen …", text: $typedText)
+                .textFieldStyle(.plain)
+                .focused($textFieldFocused)
+                .submitLabel(.send)
+                .onSubmit(sendTyped)
+                .padding(.leading, 18)
 
-            HStack(spacing: 28) {
-                Menu {
-                    Button { showPhotoPicker = true } label: { Label("Foto auswählen", systemImage: "photo") }
-                    #if os(iOS)
-                    Button { showCamera = true } label: { Label("Foto aufnehmen", systemImage: "camera") }
-                    #endif
-                    Button { showFileImporter = true } label: { Label("PDF oder Datei", systemImage: "doc") }
-                } label: {
-                    Image(systemName: "plus.circle")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .menuIndicator(.hidden)
-                .accessibilityLabel("Foto oder Dokument anhängen")
-
-                Button {
-                    showKeyboard.toggle()
-                    textFieldFocused = showKeyboard
-                } label: {
-                    Image(systemName: showKeyboard ? "keyboard.chevron.compact.down" : "keyboard")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Tastatur")
-
-                MicButton(state: engine.state) { engine.primaryAction() }
-
-                Button { engine.stopAll() } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .disabled((engine.state == .idle || engine.state == .standby) && !engine.isInConversation)
-                .accessibilityLabel("Gespräch beenden")
-                .keyboardShortcut(.escape, modifiers: [])
-
-                Color.clear.frame(width: 44, height: 44)
+            Button { engine.primaryAction() } label: {
+                Image(systemName: micSymbol)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(micActive ? .white : Self.amber)
+                    .frame(width: 40, height: 40)
+                    .background(micActive ? Color.red.opacity(0.85) : Color.clear, in: Circle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white.opacity(0.75))
+            .accessibilityLabel(micActive ? "Zuhören beenden" : "Sprechen")
+
+            if !typedText.trimmingCharacters(in: .whitespaces).isEmpty || !engine.attachments.isEmpty {
+                Button(action: sendTyped) {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 40, height: 40)
+                        .background(Self.amber, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Senden")
+                .transition(.scale.combined(with: .opacity))
+            }
         }
-        .padding(.top, 12)
-        .padding(.bottom, 16)
+        .padding(5)
+        .foregroundStyle(.white)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(Self.amber.opacity(0.25), lineWidth: 1))
+        .frame(maxWidth: 560)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 10)
+        .animation(.easeOut(duration: 0.2), value: typedText.isEmpty)
+        #if os(macOS)
+        .onExitCommand { engine.stopAll() }
+        #endif
+    }
+
+    private static let amber = Color(red: 1.0, green: 0.7, blue: 0.28)
+
+    private var micActive: Bool { engine.state == .listening || engine.state == .confirming }
+
+    private var micSymbol: String {
+        switch engine.state {
+        case .listening, .confirming: return "waveform"
+        case .thinking, .speaking: return "stop.fill"
+        default: return "mic.fill"
+        }
     }
 
     private func sendTyped() {
         let text = typedText
         typedText = ""
+        textFieldFocused = false
         engine.send(text: text)
+    }
+
+    // MARK: - Ansichten auf Zuruf
+
+    private func open(_ screen: AppScreen) {
+        switch screen {
+        case .photoPicker: showPhotoPicker = true
+        case .fileImporter: showFileImporter = true
+        case .camera:
+            #if os(iOS)
+            showCamera = true
+            #else
+            showPhotoPicker = true
+            #endif
+        case .onboarding: showOnboarding = true
+        default: sheet = screen
+        }
+    }
+
+    @ViewBuilder
+    private func sheetContent(for screen: AppScreen) -> some View {
+        switch screen {
+        case .settings: SettingsView()
+        case .history: HistoryView()
+        case .tasks: TasksView()
+        case .memory: SheetContainer { MemoryView() }
+        case .permissions: SheetContainer { PermissionsView() }
+        case .activity: SheetContainer { ActivityView() }
+        case .voiceStudio: SheetContainer { VoiceStudioView() }
+        default: EmptyView()
+        }
     }
 
     private func handleImportedFile(_ result: Result<URL, Error>) {
@@ -310,69 +306,21 @@ struct MainView: View {
     }
 }
 
-/// Kleine Statusanzeige oben in der Mitte.
-struct StatusPill: View {
-    let state: ConversationEngine.State
-    var detail: String?
+/// Rahmen für Ansichten, die ATLAS als eigenes Blatt öffnet (mit „Fertig“-Knopf).
+private struct SheetContainer<Content: View>: View {
+    @Environment(\.dismiss) private var dismiss
+    @ViewBuilder let content: () -> Content
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(color)
-                .frame(width: 7, height: 7)
-            Text(detail ?? "ATLAS · \(state.label)")
-                .font(.caption.weight(.medium))
-                .tracking(1.0)
-                .lineLimit(1)
+        NavigationStack {
+            content()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fertig") { dismiss() }
+                    }
+                }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(.white.opacity(0.07), in: Capsule())
-        .foregroundStyle(.white.opacity(0.8))
-    }
-
-    private var color: Color {
-        switch state {
-        case .idle: return .gray
-        case .standby: return Color(red: 0.55, green: 0.86, blue: 1.0)
-        case .listening, .confirming: return .red   // Mikrofon aktiv – immer deutlich sichtbar
-        case .thinking: return .cyan
-        case .speaking: return .blue
-        case .error: return .orange
-        }
-    }
-}
-
-/// Großer Mikrofon-Knopf; rot, solange ATLAS zuhört.
-struct MicButton: View {
-    let state: ConversationEngine.State
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(isListening ? Color.red.opacity(0.85) : Color.white.opacity(0.12))
-                Circle()
-                    .stroke(Color(red: 0.55, green: 0.85, blue: 1.0).opacity(0.6), lineWidth: 1)
-                Image(systemName: symbol)
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 72, height: 72)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isListening ? "Zuhören beenden" : "Mit ATLAS sprechen")
-    }
-
-    private var isListening: Bool { state == .listening || state == .confirming }
-
-    private var symbol: String {
-        switch state {
-        case .listening, .confirming: return "waveform"
-        case .thinking, .speaking: return "hand.raised.fill"
-        default: return "mic.fill"
-        }
+        .preferredColorScheme(.dark)
     }
 }
 

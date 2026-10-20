@@ -62,6 +62,10 @@ final class ConversationEngine {
     private(set) var attachments: [Attachment] = []
     /// Offene Bestätigung (Nachricht öffnen, Gedächtnis löschen …).
     private(set) var pendingConfirmation: ConfirmationRequest?
+    /// Ansicht, die ATLAS auf Zuruf öffnen soll (die Oberfläche hat bewusst keine Knöpfe).
+    private(set) var screenRequest: AppScreen?
+    /// Zählt hoch, damit dieselbe Ansicht auch zweimal hintereinander geöffnet werden kann.
+    private(set) var screenRequestSequence = 0
 
     // MARK: - Abhängigkeiten
 
@@ -109,6 +113,7 @@ final class ConversationEngine {
         self.modelContext = modelContext
         self.toolbox = AtlasToolbox(modelContext: modelContext, settings: settings)
 
+        toolbox.openScreen = { [weak self] screen in self?.requestScreen(screen) }
         toolbox.confirm = { [weak self] request in
             guard let self else { return false }
             return await self.requestConfirmation(request)
@@ -178,6 +183,7 @@ final class ConversationEngine {
         recognizer.stop()
         interrupt()
         liveTranscript = trimmed
+        if attachments.isEmpty, handleLocalCommand(trimmed) { return }
         respond(to: trimmed)
     }
 
@@ -200,6 +206,40 @@ final class ConversationEngine {
         }
         responseText = record.sortedMessages.last(where: { !$0.isUser })?.text ?? ""
         goIdle()
+    }
+
+    // MARK: - Ansichten auf Zuruf
+
+    func requestScreen(_ screen: AppScreen) {
+        screenRequest = screen
+        screenRequestSequence += 1
+    }
+
+    /// Offensichtliche Befehle wie „Öffne die Einstellungen“ sofort ausführen –
+    /// ohne Umweg über das Sprachmodell. Alles andere beantwortet Claude.
+    private func handleLocalCommand(_ text: String) -> Bool {
+        let t = normalize(text)
+        let wantsOpen = ["öffne", "öffnen", "zeig", "zeige", "geh zu", "open", "show"].contains { t.contains($0) }
+        guard wantsOpen else { return false }
+        let map: [(keys: [String], screen: AppScreen)] = [
+            (["stimmen studio", "stimmenstudio", "eigene stimme", "voice studio"], .voiceStudio),
+            (["einstellung", "settings"], .settings),
+            (["verlauf", "history", "gespräche"], .history),
+            (["gedächtnis", "memory"], .memory),
+            (["berechtigung", "permission"], .permissions),
+            (["aktivität", "protokoll", "activity"], .activity),
+            (["aufgaben", "to do", "todo", "aufgabenliste"], .tasks),
+            (["kamera", "camera"], .camera),
+            (["foto", "bild", "photo"], .photoPicker),
+            (["datei", "pdf", "dokument", "file"], .fileImporter),
+        ]
+        guard let match = map.first(where: { entry in entry.keys.contains { t.contains($0) } }) else { return false }
+        requestScreen(match.screen)
+        state = .speaking
+        streamFinished = true
+        responseText = match.screen.confirmation
+        say(match.screen.confirmation)
+        return true
     }
 
     // MARK: - Anhänge
@@ -407,6 +447,7 @@ final class ConversationEngine {
         }
 
         Haptics.light()
+        if handleLocalCommand(spoken) { return }
         respond(to: spoken)
     }
 
@@ -498,10 +539,10 @@ final class ConversationEngine {
             effort: settings.effort.rawValue,
             systemPrompt: Persona.systemPrompt(Persona.context(settings: settings, memories: memories)),
             webSearch: settings.webSearchEnabled,
-            toolDefinitionsJSON: toolsOn ? ToolCatalog.definitionsJSON(memoryEnabled: settings.memoryEnabled) : nil
+            toolDefinitionsJSON: ToolCatalog.definitionsJSON(memoryEnabled: settings.memoryEnabled, deviceTools: toolsOn)
         )
         let turns = trimmedHistory()
-        let tools: (any ToolExecuting)? = toolsOn ? toolbox : nil
+        let tools: (any ToolExecuting)? = toolbox
         let premiumVoice = settings.premiumVoiceConfig != nil
 
         generation += 1

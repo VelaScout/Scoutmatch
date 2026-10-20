@@ -26,6 +26,7 @@ Ihr persönlicher KI-Assistent für **iPhone und Mac** – eine native SwiftUI-A
 | **Proaktiv** | Morgendliche Tagesübersicht und abendlicher Rückblick per Mitteilung (einschaltbar). |
 | **Transparenz** | Berechtigungsübersicht, Aktivitätsprotokoll aller ausgeführten Aktionen, Gesprächsverlauf, Datenschutzhinweise. |
 | **Mac** | Dieselbe App läuft nativ auf dem MacBook – mit Menü „ATLAS“ und Tastenkürzeln (⌘L sprechen, ⌘. beenden). |
+| **Bedienung** | Keine Knöpfe: Der Kern füllt den Bildschirm, unten nur eine Leiste zum Tippen oder Sprechen. Alles andere per Zuruf – „Öffne die Einstellungen“, „Sprich langsamer“, „Schalte das Wake-Word ein“, „Mach ein Foto“. Notausgang: lange auf den Kern drücken öffnet die Einstellungen. |
 
 ### Ehrliche Grenzen (Vorgaben von Apple)
 - **Kein „Atlas“-Rufen bei geschlossener App oder gesperrtem Bildschirm.** Apple erlaubt Drittanbieter-Apps kein dauerhaftes Mithören im Hintergrund. Dafür: „Siri, starte ATLAS“ oder der Action-Button.
@@ -142,20 +143,20 @@ Bitte der Reihe nach testen und notieren, was nicht wie erwartet funktioniert.
 ### D1. Grundfunktionen
 | # | Test | Erwartet |
 |---|---|---|
-| 1 | App öffnen | Dunkler Bildschirm, bernsteinfarbener 3D-Kern mit HUD, der sich langsam dreht. Beim ersten Start Schlüssel-Eingabe. |
-| 2 | Schlüssel speichern | *Einstellungen → Claude API*: „sicher gespeichert“. |
-| 3 | Mikrofon antippen | Fragen nach **Spracherkennung** und **Mikrofon** → erlauben. |
+| 1 | App öffnen | Nur der bernsteinfarbene 3D-Kern füllt den Bildschirm, unten eine schlanke Leiste. Mit dem Finger lässt sich der Kern drehen. Beim ersten Start Schlüssel-Eingabe. |
+| 2 | Schlüssel speichern | Lange auf den Kern drücken → Einstellungen → *Claude API*: „sicher gespeichert“. |
+| 3 | Mikrofon in der Leiste antippen (oder auf den Kern) | Fragen nach **Spracherkennung** und **Mikrofon** → erlauben. |
 | 4 | „Wer bist du?“ | Status „Hört zu“, das Klangfeld des Kerns folgt Ihrer Stimme, Text erscheint live. Nach der Pause „Denkt nach“ (Kern dreht schneller, Analyse-Strahl), dann spricht ATLAS – der Kern pulsiert und sendet Schallwellen aus. |
 | 5 | Gesprächsmodus | Nach der Antwort hört ATLAS automatisch weiter zu. |
 | 6 | „Danke, das ist alles.“ | „Sehr wohl, Sir.“ → Bereit. |
 | 7 | Unterbrechen | Lange Frage stellen, während der Antwort auf den Kern tippen → ATLAS verstummt und hört zu. |
-| 8 | Tastatur | Tastatur-Symbol → „Rechne 15 % von 2.340 €“ → 351 €. |
-| 9 | Darstellung | *Einstellungen → Darstellung*: ATLAS-Kern (3D, Standard) oder schlichte, besonders sparsame Darstellung. |
+| 8 | Tippen | In die Leiste „Rechne 15 % von 2.340 €“ → 351 €. |
+| 9 | „Öffne die Einstellungen.“ | ATLAS bestätigt und öffnet die Einstellungen. Ebenso: „Zeig mir meinen Verlauf“, „Öffne mein Gedächtnis“, „Öffne das Stimmen-Studio“. |
 
 ### D2. Wake-Word & Siri
 | # | Test | Erwartet |
 |---|---|---|
-| 10 | Ohr-Symbol oben rechts antippen | Status „Wartet auf ‚Atlas‘“, hellblauer Punkt. |
+| 10 | „Schalte das Wake-Word ein.“ | ATLAS bestätigt; der Kern wartet nun auf „Atlas“. |
 | 11 | „Atlas.“ | „Ja, Sir?“ → hört zu. |
 | 12 | „Atlas, wie spät ist es?“ | Antwortet direkt ohne Zwischenfrage. |
 | 13 | App in den Hintergrund | Mikrofon aus (kein oranger Punkt). Beim Zurückkehren wieder Bereitschaft. |
@@ -173,19 +174,19 @@ Bitte der Reihe nach testen und notieren, was nicht wie erwartet funktioniert.
 | 21 | „Zeig mir den Weg nach Hamburg.“ | Apple Karten öffnet die Route. |
 | 22 | „Wie wird das Wetter hier morgen?“ | Standortfrage → erlauben; Wetter für Ihren Ort. |
 | 23 | „Bereite eine Nachricht an [Name aus Kontakten] vor, dass ich später komme.“ | Bestätigungskarte mit Entwurf. „Ja“ sagen → Nachrichten-App öffnet sich mit Text; **nichts wird automatisch gesendet**. |
-| 24 | + → Foto aufnehmen → „Was siehst du?“ | Beschreibung des Fotos. |
-| 25 | + → PDF oder Datei → PDF wählen → „Fasse sie zusammen.“ | Kurze Zusammenfassung. |
+| 24 | „Mach ein Foto.“ → Foto aufnehmen → „Was siehst du?“ | Beschreibung des Fotos. |
+| 25 | „Öffne eine Datei.“ → PDF wählen → „Fasse sie zusammen.“ | Kurze Zusammenfassung. |
 
 ### D4. Gedächtnis, Aufgaben, Proaktiv
 | # | Test | Erwartet |
 |---|---|---|
 | 26 | „Merk dir, dass ich montags und donnerstags trainiere.“ | Eintrag unter *Einstellungen → Gedächtnis*. |
-| 27 | Neues Gespräch (Uhr-Symbol → Neues Gespräch) → „Wann trainiere ich?“ | ATLAS weiß es. |
+| 27 | „Zeig mir meinen Verlauf“ → Neues Gespräch → „Wann trainiere ich?“ | ATLAS weiß es. |
 | 28 | „Vergiss das mit dem Training.“ | Bestätigungskarte → „Ja“ → Eintrag gelöscht. |
-| 29 | Häkchen-Symbol oben links | Termine heute/morgen, offene Erinnerungen; antippen hakt ab. |
+| 29 | „Zeig mir meine Aufgaben.“ | Termine heute/morgen, offene Erinnerungen; antippen hakt ab. |
 | 30 | „Organisiere meinen morgigen Tag.“ | Plan mit Uhrzeiten auf Basis Ihrer Termine und Aufgaben. |
-| 31 | *Einstellungen → Proaktive Unterstützung → Morgendliche Tagesübersicht* für in 2 Minuten einstellen | Mitteilung kommt; Antippen öffnet ATLAS mit Tagesübersicht. |
-| 32 | *Einstellungen → Berechtigungen* | Übersicht aller Freigaben mit Erklärung. |
+| 31 | „Schick mir die Tagesübersicht jeden Morgen um 7:00.“ | ATLAS stellt es ein; zur Uhrzeit kommt eine Mitteilung, Antippen öffnet die Übersicht. |
+| 32 | „Öffne die Berechtigungen.“ | Übersicht aller Freigaben mit Erklärung. |
 
 ### D5. Mac
 | # | Test | Erwartet |

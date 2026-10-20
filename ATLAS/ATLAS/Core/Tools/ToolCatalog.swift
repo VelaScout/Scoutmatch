@@ -3,8 +3,11 @@ import Foundation
 /// Beschreibung aller Werkzeuge, die ATLAS dem Sprachmodell anbietet.
 /// Die Beschreibungen sagen dem Modell genau, WANN es ein Werkzeug benutzen soll.
 enum ToolCatalog {
-    static func definitionsJSON(memoryEnabled: Bool) -> Data? {
-        var tools = baseTools
+    /// - Parameter deviceTools: Kalender, Erinnerungen, Kontakte usw. (abschaltbar);
+    ///   die App-Steuerung ist immer verfügbar – sie ersetzt die Knöpfe der Oberfläche.
+    static func definitionsJSON(memoryEnabled: Bool, deviceTools: Bool) -> Data? {
+        var tools = appTools
+        if deviceTools { tools += baseTools }
         if memoryEnabled { tools += memoryTools }
         return try? JSONSerialization.data(withJSONObject: tools)
     }
@@ -24,6 +27,8 @@ enum ToolCatalog {
         case "remember": return "Merkt sich das"
         case "forget": return "Vergisst das"
         case "list_memories": return "Durchsucht das Gedächtnis"
+        case "open_view": return "Öffnet die Ansicht"
+        case "change_setting": return "Ändert die Einstellung"
         default: return "Arbeitet"
         }
     }
@@ -113,6 +118,28 @@ enum ToolCatalog {
                 "subject": string("Betreff (nur E-Mail, optional)."),
                 "body": string("Text der Nachricht."),
             ], required: ["channel", "body"]),
+        ],
+    ]
+
+    /// App-Steuerung per Sprache – die App hat bewusst kaum Knöpfe.
+    private static let appTools: [[String: Any]] = [
+        [
+            "name": "open_view",
+            "description": "Öffnet eine Ansicht der ATLAS-App. Die App hat bewusst keine Knöpfe – benutze dies immer, wenn der Nutzer etwas sehen, öffnen oder einstellen möchte: Einstellungen, Gesprächsverlauf, Termine/Aufgaben, Gedächtnis, Berechtigungen, Aktivitätsprotokoll, Stimmen-Studio (eigene Stimme), Foto auswählen, Foto aufnehmen (Kamera) oder eine Datei/PDF auswählen.",
+            "input_schema": object([
+                "view": ["type": "string", "enum": ["settings", "history", "tasks", "memory", "permissions", "activity", "voiceStudio", "photoPicker", "camera", "fileImporter"],
+                         "description": "Die zu öffnende Ansicht."],
+            ], required: ["view"]),
+        ],
+        [
+            "name": "change_setting",
+            "description": "Ändert eine Einstellung von ATLAS direkt per Zuruf, z. B. „schalte das Wake-Word ein“, „sprich schneller“, „nenn mich nicht mehr Sir“, „antworte auf Englisch“, „nimm das schnellste Modell“. Bestätige danach kurz, was geändert wurde.",
+            "input_schema": object([
+                "setting": ["type": "string",
+                            "enum": ["wake_word", "conversation_mode", "address_sir", "web_search", "premium_voice", "device_tools", "memory", "speech_rate", "language", "model", "appearance", "morning_briefing", "evening_review"],
+                            "description": "Welche Einstellung."],
+                "value": string("Neuer Wert: on/off für Schalter; slower/faster/normal für speech_rate; de/en für language; opus/sonnet/haiku für model; core/minimal für appearance; für morning_briefing/evening_review on/off oder eine Uhrzeit HH:MM."),
+            ], required: ["setting", "value"]),
         ],
     ]
 

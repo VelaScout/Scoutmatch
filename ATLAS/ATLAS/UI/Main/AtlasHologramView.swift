@@ -22,6 +22,10 @@ struct AtlasHologramView: View {
     @State private var smoothedLevel: Double = 0
     @State private var lastWordDate = Date.distantPast
     @State private var lastWordDuration: Double = 0.3
+    /// Drehung per Finger bzw. Maus (zusätzlich zur Eigenrotation).
+    @State private var dragYaw: Double = 0
+    @State private var dragPitch: Double = 0
+    @State private var dragStart: (yaw: Double, pitch: Double)?
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: scenePhase != .active)) { timeline in
@@ -29,6 +33,16 @@ struct AtlasHologramView: View {
                 draw(in: &context, size: size, date: timeline.date)
             }
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 8)
+                .onChanged { value in
+                    let start = dragStart ?? (yaw: dragYaw, pitch: dragPitch)
+                    dragStart = start
+                    dragYaw = start.yaw + Double(value.translation.width) * 0.006
+                    dragPitch = min(1.2, max(-1.2, start.pitch + Double(value.translation.height) * 0.006))
+                }
+                .onEnded { _ in dragStart = nil }
+        )
         .onChange(of: inputLevel) { _, newValue in
             smoothedLevel = smoothedLevel * 0.6 + Double(newValue) * 0.4
         }
@@ -129,11 +143,12 @@ struct AtlasHologramView: View {
                                                   wordDuration: lastWordDuration, wordLength: spokenWordLength)
         let en = energy(t: t, envelope: envelope)
         let spin = (state == .thinking ? 2.4 : 1.0) * motion
-        let side = Double(min(size.width, size.height))
+        // Hochformat: die äußeren Ringe dürfen über den Rand laufen, damit die Kugel möglichst groß ist.
+        let side = min(Double(size.width) * 1.32, Double(size.height) - 20)
         // Pulsieren beim Sprechen: Silbenrhythmus plus sanftes Grundpulsieren
         let pulse = state == .speaking ? envelope : 0
         let speakPulse = state == .speaking ? 0.012 * (0.5 + 0.5 * sin(t * 7)) : 0
-        let R = side * 0.285 * (1 + 0.065 * pulse + speakPulse)
+        let R = side * 0.29 * (1 + 0.065 * pulse + speakPulse)
         let unit = side / 400
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
 
@@ -149,14 +164,14 @@ struct AtlasHologramView: View {
             ]),
             center: center, startRadius: 0, endRadius: R * 1.6))
 
-        let ay = t * 0.16 * spin
-        let ax = 0.38 + sin(t * 0.11) * 0.12 * motion
+        let ay = t * 0.16 * spin + dragYaw
+        let ax = 0.38 + sin(t * 0.11) * 0.12 * motion + dragPitch
         drawSphere(&ctx, center: center, R: R, unit: unit, t: t, en: en, ay: ay, ax: ax)
         drawGreatCircles(&ctx, center: center, R: R, unit: unit, t: t, en: en, spin: spin, ay: ay, ax: ax)
         if state == .speaking {
             drawSoundWaves(&ctx, center: center, R: R, unit: unit, sinceWord: date.timeIntervalSince(lastWordDate))
         }
-        drawHUD(&ctx, center: center, R: R, unit: unit, t: t, en: en, spin: spin)
+        drawHUD(&ctx, center: center, R: R, unit: unit, t: t, en: en, spin: spin, bounds: size)
     }
 
     private func drawSphere(_ ctx: inout GraphicsContext, center: CGPoint, R: Double, unit: Double,
@@ -237,7 +252,7 @@ struct AtlasHologramView: View {
     }
 
     private func drawHUD(_ ctx: inout GraphicsContext, center: CGPoint, R: Double, unit: Double,
-                         t: Double, en: Double, spin: Double) {
+                         t: Double, en: Double, spin: Double, bounds: CGSize) {
         let cx = Double(center.x), cy = Double(center.y)
         ctx.stroke(circle(center, R * 1.22), with: .color(amber.opacity(0.16)), lineWidth: 0.7 * unit)
 
@@ -314,8 +329,10 @@ struct AtlasHologramView: View {
         var text = ctx
         text.blendMode = .normal
         let fontSize = max(8, 8.5 * unit)
-        let left = cx - segmentR - 4 * unit, right = cx + segmentR + 4 * unit
-        let top = cy - segmentR - 2 * unit, bottom = cy + segmentR + 4 * unit
+        // Beschriftungen bleiben immer im sichtbaren Bereich
+        let width = Double(bounds.width), height = Double(bounds.height)
+        let left = max(14, cx - segmentR - 4 * unit), right = min(width - 14, cx + segmentR + 4 * unit)
+        let top = max(18, cy - segmentR - 2 * unit), bottom = min(height - 10, cy + segmentR + 4 * unit)
         let frequency = String(format: "%.1f HZ", 120 + en * 260 + sin(t * 3) * 6)
         let sync = String(format: "SYNC %.1f%%", 99.2 + sin(t * 0.7) * 0.5)
         let labelColor = amber.opacity(0.62)
