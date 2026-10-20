@@ -1,6 +1,14 @@
 import AVFoundation
 import Foundation
 
+/// Anbieter der Premium-Stimme.
+enum PremiumProvider: String, CaseIterable, Identifiable, Sendable {
+    case elevenLabs, openAI
+
+    var id: String { rawValue }
+    var displayName: String { self == .openAI ? "OpenAI" : "ElevenLabs" }
+}
+
 /// Premium-Stimme über ElevenLabs: eine KI-Stimme, die wie ein echter Mensch klingt.
 ///
 /// Jeder Abschnitt wird als Strom geladen (rohes PCM, 24 kHz) und schon abgespielt, während
@@ -13,7 +21,16 @@ final class PremiumVoice: NSObject {
         var voiceID: String
         /// Turbo v2.5: mehrsprachig, deutlich kürzere Ladezeit – A.T.L.A.S. beginnt schneller zu sprechen.
         var model = "eleven_turbo_v2_5"
+        var provider: PremiumProvider = .elevenLabs
+        /// Nur OpenAI: wie die Stimme sprechen soll (Ton, Tempo, Stimmung).
+        var instructions = ""
     }
+
+    /// Eingebaute OpenAI-Stimmen (laut OpenAI klingen „cedar“ und „marin“ am natürlichsten).
+    static let openAIVoices = ["cedar", "marin", "ash", "ballad", "coral", "echo", "sage", "verse",
+                               "alloy", "fable", "onyx", "nova", "shimmer"]
+
+    static let defaultOpenAIStyle = "Sprich entspannt, warm und locker – wie ein guter Freund, der gern hilft. Natürliche, lebendige Betonung, ruhiges Tempo, kleine Pausen wo sie passen. Fremdsprachige Wörter akzentfrei in ihrer Originalsprache."
 
     /// Bekannte Stimmen aus der ElevenLabs-Bibliothek (frei wählbar, eigene ID möglich).
     static let presets: [(name: String, id: String)] = [
@@ -32,7 +49,10 @@ final class PremiumVoice: NSObject {
         AsyncThrowingStream { continuation in
             let task = Task.detached(priority: .userInitiated) {
                 do {
-                    guard let request = streamRequest(text: text, config: config, previousText: previousText) else {
+                    let built = config.provider == .openAI
+                        ? openAIRequest(text: text, config: config, format: "pcm")
+                        : streamRequest(text: text, config: config, previousText: previousText)
+                    guard let request = built else {
                         throw StreamError.invalidRequest
                     }
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
@@ -91,6 +111,29 @@ final class PremiumVoice: NSObject {
         return request
     }
 
+    /// OpenAI-Sprachausgabe; „pcm“ liefert genau unser Format (24 kHz, 16 Bit, Mono) als Strom.
+    nonisolated private static func openAIRequest(text: String, config: Config, format: String) -> URLRequest? {
+        let voice = config.voiceID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !voice.isEmpty, let url = URL(string: "https://api.openai.com/v1/audio/speech") else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var body: [String: Any] = [
+            "model": "gpt-4o-mini-tts",
+            "input": text,
+            // Eigene, aus Hörproben erstellte Stimmen haben eine ID wie „voice_…“.
+            "voice": voice.hasPrefix("voice_") ? ["id": voice] as Any : voice as Any,
+            "response_format": format,
+        ]
+        if format == "pcm" { body["stream_format"] = "audio" }
+        let style = config.instructions.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !style.isEmpty { body["instructions"] = style }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        return request
+    }
+
     nonisolated private static func body(text: String, config: Config, previousText: String) -> [String: Any] {
         var body: [String: Any] = [
             "text": text,
@@ -134,6 +177,25 @@ final class PremiumVoice: NSObject {
 
     /// Prüft den Schlüssel mit einem kurzen Probesatz; liefert eine Fehlermeldung oder nil.
     static func test(config: Config) async -> String? {
+        if config.provider == .openAI {
+            guard let probe = openAIRequest(text: "Hallo! Alles klar bei Ihnen?", config: config, format: "mp3") else {
+                return "Bitte eine Stimme wählen."
+            }
+            do {
+                let (data, response) = try await URLSession.shared.data(for: probe)
+                switch (response as? HTTPURLResponse)?.statusCode ?? 0 {
+                case 200: return nil
+                case 401: return "Der OpenAI-Schlüssel wurde abgelehnt."
+                case 429: return "Bei OpenAI ist kein Guthaben mehr da oder es kamen zu viele Anfragen (platform.openai.com → Billing)."
+                case let code:
+                    let message = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])
+                        .flatMap { ($0["error"] as? [String: Any])?["message"] as? String } ?? ""
+                    return "OpenAI antwortet mit Fehler \(code). \(message)"
+                }
+            } catch {
+                return "Keine Verbindung zu OpenAI."
+            }
+        }
         guard let probe = Self.request(text: "Guten Tag, Sir.", config: config) else { return "Bitte eine Stimmen-ID angeben." }
         do {
             let (_, response) = try await URLSession.shared.data(for: probe)

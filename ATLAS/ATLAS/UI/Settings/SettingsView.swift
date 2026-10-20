@@ -14,6 +14,8 @@ struct SettingsView: View {
     @State private var previewSpeaker = SpeechSynthesizer()
     @State private var elevenKeyInput = ""
     @State private var hasElevenKey = KeychainStore.has(.elevenLabsAPIKey)
+    @State private var openAIKeyInput = ""
+    @State private var hasOpenAIKey = KeychainStore.has(.openAIAPIKey)
     @State private var premiumTestResult: String?
     @State private var testingPremium = false
 
@@ -70,55 +72,94 @@ struct SettingsView: View {
                 Section {
                     Toggle("Premium-Stimme verwenden", isOn: $settings.premiumVoiceEnabled)
                     if settings.premiumVoiceEnabled {
-                        if hasElevenKey {
-                            Label("ElevenLabs-Schlüssel gespeichert", systemImage: "lock.fill")
-                                .foregroundStyle(.green)
-                        } else {
-                            SecureField("ElevenLabs-API-Schlüssel", text: $elevenKeyInput)
+                        Picker("Anbieter", selection: $settings.premiumProvider) {
+                            ForEach(PremiumProvider.allCases) { Text($0.displayName).tag($0) }
+                        }
+                        if settings.premiumProvider == .openAI {
+                            if hasOpenAIKey {
+                                Label("OpenAI-Schlüssel gespeichert", systemImage: "lock.fill")
+                                    .foregroundStyle(.green)
+                            } else {
+                                SecureField("OpenAI-API-Schlüssel (sk-…)", text: $openAIKeyInput)
+                                    .atlasNoAutocapitalization()
+                                Button("Schlüssel speichern") {
+                                    KeychainStore.save(openAIKeyInput.trimmingCharacters(in: .whitespacesAndNewlines),
+                                                       for: .openAIAPIKey)
+                                    openAIKeyInput = ""
+                                    hasOpenAIKey = KeychainStore.has(.openAIAPIKey)
+                                }
+                                .disabled(openAIKeyInput.isEmpty)
+                            }
+                            Picker("Stimme", selection: $settings.openAIVoice) {
+                                ForEach(PremiumVoice.openAIVoices, id: \.self) { Text($0.capitalized).tag($0) }
+                                if !PremiumVoice.openAIVoices.contains(settings.openAIVoice) {
+                                    Text("Eigene Stimme").tag(settings.openAIVoice)
+                                }
+                            }
+                            TextField("Eigene Stimmen-ID (voice_…, optional)", text: $settings.openAIVoice)
                                 .atlasNoAutocapitalization()
-                            Button("Schlüssel speichern") {
-                                KeychainStore.save(elevenKeyInput.trimmingCharacters(in: .whitespacesAndNewlines),
-                                                   for: .elevenLabsAPIKey)
-                                elevenKeyInput = ""
-                                hasElevenKey = KeychainStore.has(.elevenLabsAPIKey)
+                                .font(.footnote.monospaced())
+                            TextField("So soll die Stimme sprechen", text: $settings.openAIVoiceStyle, axis: .vertical)
+                                .lineLimit(2...5)
+                            Button(testingPremium ? "Teste …" : "Verbindung testen") { testPremium() }
+                                .disabled(!hasOpenAIKey || testingPremium)
+                            if hasOpenAIKey {
+                                Button("OpenAI-Schlüssel entfernen", role: .destructive) {
+                                    KeychainStore.delete(.openAIAPIKey)
+                                    hasOpenAIKey = false
+                                }
                             }
-                            .disabled(elevenKeyInput.isEmpty)
-                        }
-                        Picker("Stimme", selection: $settings.premiumVoiceID) {
-                            ForEach(PremiumVoice.presets, id: \.id) { Text($0.name).tag($0.id) }
-                            if !PremiumVoice.presets.contains(where: { $0.id == settings.premiumVoiceID }) {
-                                Text("Eigene Stimme").tag(settings.premiumVoiceID)
+                        } else {
+                            if hasElevenKey {
+                                Label("ElevenLabs-Schlüssel gespeichert", systemImage: "lock.fill")
+                                    .foregroundStyle(.green)
+                            } else {
+                                SecureField("ElevenLabs-API-Schlüssel", text: $elevenKeyInput)
+                                    .atlasNoAutocapitalization()
+                                Button("Schlüssel speichern") {
+                                    KeychainStore.save(elevenKeyInput.trimmingCharacters(in: .whitespacesAndNewlines),
+                                                       for: .elevenLabsAPIKey)
+                                    elevenKeyInput = ""
+                                    hasElevenKey = KeychainStore.has(.elevenLabsAPIKey)
+                                }
+                                .disabled(elevenKeyInput.isEmpty)
+                            }
+                            Picker("Stimme", selection: $settings.premiumVoiceID) {
+                                ForEach(PremiumVoice.presets, id: \.id) { Text($0.name).tag($0.id) }
+                                if !PremiumVoice.presets.contains(where: { $0.id == settings.premiumVoiceID }) {
+                                    Text("Eigene Stimme").tag(settings.premiumVoiceID)
+                                }
+                            }
+                            NavigationLink {
+                                VoiceStudioView()
+                            } label: {
+                                Label("Eigene Stimme erschaffen", systemImage: "waveform.badge.plus")
+                            }
+                            .disabled(!hasElevenKey)
+                            TextField("Eigene Stimmen-ID (optional)", text: $settings.premiumVoiceID)
+                                .atlasNoAutocapitalization()
+                                .font(.footnote.monospaced())
+                            Button(testingPremium ? "Teste …" : "Verbindung testen") { testPremium() }
+                                .disabled(!hasElevenKey || testingPremium)
+                            if hasElevenKey {
+                                Button("ElevenLabs-Schlüssel entfernen", role: .destructive) {
+                                    KeychainStore.delete(.elevenLabsAPIKey)
+                                    hasElevenKey = false
+                                }
                             }
                         }
-                        NavigationLink {
-                            VoiceStudioView()
-                        } label: {
-                            Label("Eigene Stimme erschaffen", systemImage: "waveform.badge.plus")
-                        }
-                        .disabled(!hasElevenKey)
-                        TextField("Eigene Stimmen-ID (optional)", text: $settings.premiumVoiceID)
-                            .atlasNoAutocapitalization()
-                            .font(.footnote.monospaced())
-                        Button(testingPremium ? "Teste …" : "Verbindung testen") {
-                            testPremium()
-                        }
-                        .disabled(!hasElevenKey || testingPremium)
                         if let premiumTestResult {
                             Text(premiumTestResult)
                                 .font(.footnote)
                                 .foregroundStyle(premiumTestResult.hasPrefix("✓") ? .green : .orange)
                         }
-                        if hasElevenKey {
-                            Button("ElevenLabs-Schlüssel entfernen", role: .destructive) {
-                                KeychainStore.delete(.elevenLabsAPIKey)
-                                hasElevenKey = false
-                            }
-                        }
                     }
                 } header: {
                     Text("Premium-Stimme")
                 } footer: {
-                    Text("Eine KI-Stimme von ElevenLabs, die wie ein echter Mensch klingt – deutlich geschmeidiger als die Systemstimmen. Benötigt ein Konto auf elevenlabs.io (ab ca. 5 $ im Monat) und einen API-Schlüssel. Die Antworttexte werden dafür an ElevenLabs gesendet. Ohne Verbindung spricht automatisch die Apple-Stimme.")
+                    Text(settings.premiumProvider == .openAI
+                         ? "OpenAI-Stimmen klingen sehr natürlich und sprechen alle Sprachen akzentfrei. Benötigt einen API-Schlüssel von platform.openai.com mit etwas Guthaben (das ChatGPT-Abo zählt nicht; Kosten: etwa 1–2 Cent pro Minute Sprache). Im Feld darunter beschreiben Sie, wie die Stimme sprechen soll. Selbst entworfene Stimmen aus einer Text-Beschreibung lässt OpenAI nur in seinem eigenen Live-Modus zu – hier funktionieren die eingebauten Stimmen und Stimmen aus Hörproben. Die Antworttexte werden dafür an OpenAI gesendet. Ohne Verbindung spricht automatisch die Apple-Stimme."
+                         : "Eine KI-Stimme von ElevenLabs, die wie ein echter Mensch klingt – deutlich geschmeidiger als die Systemstimmen. Benötigt ein Konto auf elevenlabs.io und einen API-Schlüssel (kleines kostenloses Kontingent pro Monat). Die Antworttexte werden dafür an ElevenLabs gesendet. Ohne Verbindung spricht automatisch die Apple-Stimme.")
                 }
 
                 Section {
@@ -260,11 +301,11 @@ struct SettingsView: View {
     }
 
     private func testPremium() {
-        guard let key = KeychainStore.read(.elevenLabsAPIKey) else { return }
+        guard let config = settings.premiumVoiceConfig else { return }
         testingPremium = true
         premiumTestResult = nil
         Task {
-            let error = await PremiumVoice.test(config: PremiumVoice.Config(apiKey: key, voiceID: settings.premiumVoiceID))
+            let error = await PremiumVoice.test(config: config)
             premiumTestResult = error ?? "✓ Verbindung steht – tippen Sie auf „Stimme probehören“."
             testingPremium = false
         }

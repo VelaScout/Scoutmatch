@@ -601,9 +601,9 @@ final class AtlasToolbox: ToolExecuting {
             settings.formalAddress = off ? "" : rawValue.trimmingCharacters(in: .whitespaces)
         case "web_search": error = flag { settings.webSearchEnabled = $0 }
         case "premium_voice":
-            if on && !KeychainStore.has(.elevenLabsAPIKey) {
+            if on && !settings.hasPremiumKey {
                 openScreen?(.settings)
-                return ToolResult(content: "Für die Premium-Stimme fehlt noch der ElevenLabs-Schlüssel. Die Einstellungen wurden geöffnet, damit der Nutzer ihn eintragen kann.", isError: true)
+                return ToolResult(content: "Für die Premium-Stimme fehlt noch der API-Schlüssel (\(settings.premiumProvider.displayName)). Die Einstellungen wurden geöffnet, damit der Nutzer ihn eintragen kann.", isError: true)
             }
             error = flag { settings.premiumVoiceEnabled = $0 }
         case "device_tools": error = flag { settings.toolsEnabled = $0 }

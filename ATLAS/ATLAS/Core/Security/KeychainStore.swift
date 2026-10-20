@@ -13,6 +13,7 @@ enum KeychainStore {
     enum Key: String {
         case anthropicAPIKey = "anthropic-api-key"
         case elevenLabsAPIKey = "elevenlabs-api-key"
+        case openAIAPIKey = "openai-api-key"
         case mailPassword = "mail-app-password"
         case spotifyRefreshToken = "spotify-refresh-token"
     }

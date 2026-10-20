@@ -85,6 +85,10 @@ final class AppSettings {
     /// Premium-Stimme (ElevenLabs) statt Apple-Stimme verwenden.
     var premiumVoiceEnabled: Bool { didSet { defaults.set(premiumVoiceEnabled, forKey: Keys.premiumVoice) } }
     var premiumVoiceID: String { didSet { defaults.set(premiumVoiceID, forKey: Keys.premiumVoiceID) } }
+    var premiumProvider: PremiumProvider { didSet { defaults.set(premiumProvider.rawValue, forKey: Keys.premiumProvider) } }
+    var openAIVoice: String { didSet { defaults.set(openAIVoice, forKey: Keys.openAIVoice) } }
+    /// Wie die OpenAI-Stimme sprechen soll („entspannt, locker …“).
+    var openAIVoiceStyle: String { didSet { defaults.set(openAIVoiceStyle, forKey: Keys.openAIVoiceStyle) } }
     var model: AtlasModel { didSet { defaults.set(model.rawValue, forKey: Keys.model) } }
     var effort: AtlasEffort { didSet { defaults.set(effort.rawValue, forKey: Keys.effort) } }
     var webSearchEnabled: Bool { didSet { defaults.set(webSearchEnabled, forKey: Keys.webSearch) } }
@@ -125,6 +129,9 @@ final class AppSettings {
             Keys.speechRate: 0.5,
             Keys.premiumVoice: false,
             Keys.premiumVoiceID: PremiumVoice.presets[0].id,
+            Keys.premiumProvider: PremiumProvider.elevenLabs.rawValue,
+            Keys.openAIVoice: "cedar",
+            Keys.openAIVoiceStyle: PremiumVoice.defaultOpenAIStyle,
             // Sonnet antwortet spürbar schneller – wichtig für ein flüssiges Gespräch.
             Keys.model: AtlasModel.sonnet.rawValue,
             Keys.effort: AtlasEffort.low.rawValue,
@@ -160,6 +167,9 @@ final class AppSettings {
         speechRate = defaults.double(forKey: Keys.speechRate)
         premiumVoiceEnabled = defaults.bool(forKey: Keys.premiumVoice)
         premiumVoiceID = defaults.string(forKey: Keys.premiumVoiceID) ?? PremiumVoice.presets[0].id
+        premiumProvider = PremiumProvider(rawValue: defaults.string(forKey: Keys.premiumProvider) ?? "") ?? .elevenLabs
+        openAIVoice = defaults.string(forKey: Keys.openAIVoice) ?? "cedar"
+        openAIVoiceStyle = defaults.string(forKey: Keys.openAIVoiceStyle) ?? PremiumVoice.defaultOpenAIStyle
         model = AtlasModel(rawValue: defaults.string(forKey: Keys.model) ?? "") ?? .sonnet
         effort = AtlasEffort(rawValue: defaults.string(forKey: Keys.effort) ?? "") ?? .low
         webSearchEnabled = defaults.bool(forKey: Keys.webSearch)
@@ -181,8 +191,20 @@ final class AppSettings {
 
     /// Zugangsdaten der Premium-Stimme, falls eingeschaltet und ein Schlüssel hinterlegt ist.
     var premiumVoiceConfig: PremiumVoice.Config? {
-        guard premiumVoiceEnabled, let key = KeychainStore.read(.elevenLabsAPIKey), !key.isEmpty else { return nil }
-        return PremiumVoice.Config(apiKey: key, voiceID: premiumVoiceID)
+        guard premiumVoiceEnabled else { return nil }
+        switch premiumProvider {
+        case .elevenLabs:
+            guard let key = KeychainStore.read(.elevenLabsAPIKey), !key.isEmpty else { return nil }
+            return PremiumVoice.Config(apiKey: key, voiceID: premiumVoiceID)
+        case .openAI:
+            guard let key = KeychainStore.read(.openAIAPIKey), !key.isEmpty else { return nil }
+            return PremiumVoice.Config(apiKey: key, voiceID: openAIVoice, provider: .openAI, instructions: openAIVoiceStyle)
+        }
+    }
+
+    /// Ist für den gewählten Anbieter ein Schlüssel hinterlegt?
+    var hasPremiumKey: Bool {
+        KeychainStore.has(premiumProvider == .openAI ? .openAIAPIKey : .elevenLabsAPIKey)
     }
 
     /// Anrede für kurze feste Sätze, z. B. „Ja, Sir?“
@@ -208,6 +230,9 @@ final class AppSettings {
         static let speechRate = "speechRate"
         static let premiumVoice = "premiumVoiceEnabled"
         static let premiumVoiceID = "premiumVoiceID"
+        static let premiumProvider = "premiumProvider"
+        static let openAIVoice = "openAIVoice"
+        static let openAIVoiceStyle = "openAIVoiceStyle"
         static let model = "model"
         static let effort = "effort"
         static let webSearch = "webSearchEnabled"
