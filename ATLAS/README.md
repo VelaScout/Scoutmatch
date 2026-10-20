@@ -23,7 +23,8 @@ Ihr persönlicher KI-Assistent für **iPhone und Mac** – eine native SwiftUI-A
 | **Kontakte & Nachrichten** | „Bereite eine Nachricht an meine Frau vor …“ → Entwurf mit Bestätigung, **Sie** senden ihn selbst. |
 | **Standort & Karten** | „Zeig mir den Weg nach Hamburg.“, „Wie wird das Wetter hier?“ |
 | **Fotos & Dokumente** | Foto aufnehmen oder auswählen → „Analysiere dieses Foto.“; PDF auswählen → „Fasse mir diese PDF zusammen.“ |
-| **Gedächtnis** | „Merk dir, dass meine Frau Anna heißt.“ – ansehen, bearbeiten, löschen unter *Einstellungen → Gedächtnis*. |
+| **Gedächtnis & Lernen** | „Merk dir, dass meine Frau Anna heißt.“ – und von selbst: Nach jedem Gespräch wertet A.T.L.A.S. aus, was er über Ihre Vorlieben, Gewohnheiten, Ziele und wichtigen Personen gelernt hat, und erkennt Muster in dem, was Sie tagsüber von ihm wollen. Gelerntes ist mit ✦ markiert – ansehen, bearbeiten, löschen oder das Lernen abschalten unter *Einstellungen → Gedächtnis*. |
+| **Eigene Meinung** | Gibt klare, begründete Empfehlungen, die er aus Fakten, Tests und Primärquellen selbst bildet und auf Sie zuschneidet – statt Internet-Meinungen nachzuplappern. Trennt Fakten von Einschätzung und sagt, wie sicher er ist. |
 | **Tagesplanung** | „Organisiere meinen morgigen Tag.“ – ATLAS liest Termine und Aufgaben und schlägt einen Plan vor. |
 | **Proaktiv** | Morgendliche Tagesübersicht und abendlicher Rückblick per Mitteilung (einschaltbar). |
 | **Transparenz** | Berechtigungsübersicht, Aktivitätsprotokoll aller ausgeführten Aktionen, Gesprächsverlauf, Datenschutzhinweise. |

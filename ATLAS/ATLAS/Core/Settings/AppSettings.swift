@@ -89,6 +89,8 @@ final class AppSettings {
     var toolsEnabled: Bool { didSet { defaults.set(toolsEnabled, forKey: Keys.tools) } }
     /// Dauerhaftes Gedächtnis verwenden.
     var memoryEnabled: Bool { didSet { defaults.set(memoryEnabled, forKey: Keys.memory) } }
+    /// Nach Gesprächen selbstständig dazulernen (Vorlieben, Gewohnheiten, Ziele …).
+    var autoLearn: Bool { didSet { defaults.set(autoLearn, forKey: Keys.autoLearn) } }
     var morningBriefingEnabled: Bool { didSet { defaults.set(morningBriefingEnabled, forKey: Keys.morningEnabled) } }
     /// Minuten nach Mitternacht
     var morningBriefingMinutes: Int { didSet { defaults.set(morningBriefingMinutes, forKey: Keys.morningMinutes) } }
@@ -121,6 +123,7 @@ final class AppSettings {
             Keys.wakeWord: true,
             Keys.tools: true,
             Keys.memory: true,
+            Keys.autoLearn: true,
             Keys.morningEnabled: false,
             Keys.morningMinutes: 7 * 60,
             Keys.eveningEnabled: false,
@@ -145,6 +148,7 @@ final class AppSettings {
         wakeWordEnabled = defaults.bool(forKey: Keys.wakeWord)
         toolsEnabled = defaults.bool(forKey: Keys.tools)
         memoryEnabled = defaults.bool(forKey: Keys.memory)
+        autoLearn = defaults.bool(forKey: Keys.autoLearn)
         morningBriefingEnabled = defaults.bool(forKey: Keys.morningEnabled)
         morningBriefingMinutes = defaults.integer(forKey: Keys.morningMinutes)
         eveningReviewEnabled = defaults.bool(forKey: Keys.eveningEnabled)
@@ -180,6 +184,7 @@ final class AppSettings {
         static let wakeWord = "wakeWordEnabled"
         static let tools = "toolsEnabled"
         static let memory = "memoryEnabled"
+        static let autoLearn = "autoLearnEnabled"
         static let morningEnabled = "morningBriefingEnabled"
         static let morningMinutes = "morningBriefingMinutes"
         static let eveningEnabled = "eveningReviewEnabled"

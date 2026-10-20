@@ -250,7 +250,7 @@ enum ToolCatalog {
     private static let memoryTools: [[String: Any]] = [
         [
             "name": "remember",
-            "description": "Speichert eine Information dauerhaft im Gedächtnis von A.T.L.A.S. Benutze dies NUR, wenn der Nutzer ausdrücklich darum bittet („merk dir …“, „vergiss nicht, dass …“) oder einem Vorschlag zum Merken zugestimmt hat. Formuliere den Eintrag als kurzen, eigenständigen Satz.",
+            "description": "Speichert eine Information dauerhaft im Gedächtnis von A.T.L.A.S. Benutze dies, wenn der Nutzer darum bittet („merk dir …“), und – sofern laut Systemanweisung selbstständiges Lernen aktiv ist – auch von selbst, wenn du etwas dauerhaft Nützliches über ihn erfährst (Vorliebe, Gewohnheit, Ziel, wichtige Person). Niemals Passwörter oder Zugangsdaten. Formuliere den Eintrag als kurzen, eigenständigen Satz.",
             "input_schema": object([
                 "content": string("Die zu merkende Information als vollständiger Satz, z. B. „Die Frau des Nutzers heißt Anna.“"),
                 "category": ["type": "string", "enum": MemoryCategory.allCases.map(\.rawValue), "description": "Kategorie."],

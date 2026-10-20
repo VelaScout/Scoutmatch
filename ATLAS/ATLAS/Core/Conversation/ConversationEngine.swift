@@ -73,6 +73,8 @@ final class ConversationEngine {
     @ObservationIgnored private let provider: AIProvider
     @ObservationIgnored private let modelContext: ModelContext
     @ObservationIgnored private let toolbox: AtlasToolbox
+    /// Bis zu welchem Beitrag das aktuelle Gespräch schon ausgewertet (gelernt) wurde.
+    @ObservationIgnored private var learnedTurnCount = 0
     @ObservationIgnored private let recognizer = SpeechRecognizer()
     @ObservationIgnored private let synthesizer = SpeechSynthesizer()
 
@@ -190,7 +192,9 @@ final class ConversationEngine {
     /// Neues Gespräch: ATLAS vergisst den bisherigen Gesprächsverlauf (das Gedächtnis bleibt).
     func startNewConversation() {
         haltEverything()
+        learnFromConversation()
         history = []
+        learnedTurnCount = 0
         conversation = nil
         responseText = ""
         attachments = []
@@ -205,6 +209,7 @@ final class ConversationEngine {
             ChatTurn(role: $0.isUser ? .user : .assistant, text: $0.text)
         }
         responseText = record.sortedMessages.last(where: { !$0.isUser })?.text ?? ""
+        learnedTurnCount = history.count
         goIdle()
     }
 
@@ -287,6 +292,7 @@ final class ConversationEngine {
         } else {
             // Kein Mikrofon im Hintergrund – niemals heimlich zuhören.
             haltEverything()
+            learnFromConversation()
         }
     }
 
@@ -301,6 +307,7 @@ final class ConversationEngine {
 
     /// Ruhezustand: mit Wake-Word in Bereitschaft, sonst Mikrofon aus.
     private func goIdle() {
+        learnFromConversation()
         isInConversation = false
         wakeTriggered = false
         if settings.wakeWordEnabled && sceneActive && KeychainStore.has(.anthropicAPIKey) {
@@ -538,7 +545,8 @@ final class ConversationEngine {
         let options = AIRequestOptions(
             model: settings.model.rawValue,
             effort: settings.effort.rawValue,
-            systemPrompt: Persona.systemPrompt(Persona.context(settings: settings, memories: memories)),
+            systemPrompt: Persona.systemPrompt(Persona.context(settings: settings, memories: memories,
+                                                              recentActivity: settings.memoryEnabled ? recentActivity() : [])),
             webSearch: settings.webSearchEnabled,
             toolDefinitionsJSON: ToolCatalog.definitionsJSON(memoryEnabled: settings.memoryEnabled, deviceTools: toolsOn)
         )
@@ -677,6 +685,61 @@ final class ConversationEngine {
     }
 
     // MARK: - Speichern
+
+    /// Wertet das gerade beendete Gespräch im Hintergrund aus und ergänzt das Gedächtnis.
+    private func learnFromConversation() {
+        guard settings.memoryEnabled, settings.autoLearn, history.count - learnedTurnCount >= 2 else { return }
+        let turns = history.dropFirst(learnedTurnCount)
+        learnedTurnCount = history.count
+        let transcript = turns.map { turn -> String in
+            // Kontextzeile mit Datum/Uhrzeit weglassen
+            let text = turn.plainText.split(separator: "\n").filter { !$0.hasPrefix("[Kontext") }.joined(separator: "\n")
+            return "\(turn.role == .user ? "Nutzer" : "A.T.L.A.S."): \(text)"
+        }.joined(separator: "\n")
+        let known = (try? modelContext.fetch(FetchDescriptor<MemoryItem>())) ?? []
+        let knownTexts = known.map(\.content)
+        let provider = self.provider
+        Task { [weak self] in
+            let insights = await LearningService.reflect(transcript: String(transcript.suffix(12_000)),
+                                                         known: knownTexts, provider: provider)
+            self?.apply(insights)
+        }
+    }
+
+    private func apply(_ insights: [LearningService.Insight]) {
+        guard !insights.isEmpty else { return }
+        let items = (try? modelContext.fetch(FetchDescriptor<MemoryItem>())) ?? []
+        for insight in insights {
+            switch insight {
+            case .add(let content, let category):
+                guard !items.contains(where: { $0.content.caseInsensitiveCompare(content) == .orderedSame }) else { continue }
+                modelContext.insert(MemoryItem(content: content, category: category, learned: true))
+                modelContext.insert(ActivityRecord(title: "Dazugelernt", detail: content, succeeded: true))
+            case .replace(let old, let new, let category):
+                if let item = items.first(where: { $0.content == old || $0.content.contains(old) || old.contains($0.content) }) {
+                    item.content = new
+                    item.category = category.rawValue
+                    item.updatedAt = .now
+                    item.learned = true
+                } else {
+                    modelContext.insert(MemoryItem(content: new, category: category, learned: true))
+                }
+                modelContext.insert(ActivityRecord(title: "Gedächtnis aktualisiert", detail: new, succeeded: true))
+            }
+        }
+        try? modelContext.save()
+    }
+
+    /// Die letzten Aktionen mit Wochentag und Uhrzeit – daraus erkennt A.T.L.A.S. Gewohnheiten.
+    private func recentActivity() -> [String] {
+        var descriptor = FetchDescriptor<ActivityRecord>(sortBy: [SortDescriptor(\.date, order: .reverse)])
+        descriptor.fetchLimit = 30
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "de_DE")
+        formatter.dateFormat = "EEE HH:mm"
+        let records = (try? modelContext.fetch(descriptor)) ?? []
+        return records.filter(\.succeeded).map { "\(formatter.string(from: $0.date)) \($0.title): \($0.detail.prefix(80))" }
+    }
 
     private func fetchMemories() -> [String] {
         var descriptor = FetchDescriptor<MemoryItem>(sortBy: [SortDescriptor(\.createdAt)])

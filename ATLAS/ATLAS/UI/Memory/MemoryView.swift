@@ -18,8 +18,10 @@ struct MemoryView: View {
         List {
             Section {
                 Toggle("Gedächtnis verwenden", isOn: $settings.memoryEnabled)
+                Toggle("Selbstständig dazulernen", isOn: $settings.autoLearn)
+                    .disabled(!settings.memoryEnabled)
             } footer: {
-                Text("A.T.L.A.S. merkt sich nur, was Sie ausdrücklich sagen („Merk dir, dass …“) oder hier eintragen. Die Einträge liegen auf Ihrem Gerät und werden bei jeder Anfrage an Claude mitgeschickt, damit A.T.L.A.S. Sie kennt.")
+                Text("A.T.L.A.S. merkt sich, was Sie ihm sagen („Merk dir, dass …“). Mit „Selbstständig dazulernen“ wertet er nach jedem Gespräch aus, was er über Ihre Vorlieben, Gewohnheiten und Ziele erfahren hat – diese Einträge sind mit ✦ markiert. Alles liegt auf Ihrem Gerät, ist hier jederzeit änder- und löschbar und wird bei Anfragen an Claude mitgeschickt, damit A.T.L.A.S. Sie kennt.")
             }
 
             Section("Neuer Eintrag") {
@@ -49,7 +51,7 @@ struct MemoryView: View {
                                 .frame(width: 22)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(item.content).foregroundStyle(.primary)
-                                Text("\(item.category) · \(item.updatedAt.formatted(date: .abbreviated, time: .omitted))")
+                                Text("\(item.learned ? "✦ gelernt · " : "")\(item.category) · \(item.updatedAt.formatted(date: .abbreviated, time: .omitted))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

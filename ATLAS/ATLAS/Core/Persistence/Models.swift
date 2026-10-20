@@ -53,13 +53,16 @@ final class MemoryItem {
     var category: String = MemoryCategory.other.rawValue
     var createdAt: Date = Date.now
     var updatedAt: Date = Date.now
+    /// Von A.T.L.A.S. selbst gelernt (statt vom Nutzer diktiert).
+    var learned: Bool = false
 
-    init(content: String, category: MemoryCategory) {
+    init(content: String, category: MemoryCategory, learned: Bool = false) {
         self.id = UUID()
         self.content = content
         self.category = category.rawValue
         self.createdAt = .now
         self.updatedAt = .now
+        self.learned = learned
     }
 
     var categoryValue: MemoryCategory { MemoryCategory(rawValue: category) ?? .other }
