@@ -597,6 +597,8 @@ final class AtlasToolbox: ToolExecuting {
         case "wake_word": error = flag { settings.wakeWordEnabled = $0 }
         case "conversation_mode": error = flag { settings.conversationMode = $0 }
         case "address_sir": error = flag { settings.addressAsSir = $0 }
+        case "formal_address":
+            settings.formalAddress = off ? "" : rawValue.trimmingCharacters(in: .whitespaces)
         case "web_search": error = flag { settings.webSearchEnabled = $0 }
         case "premium_voice":
             if on && !KeychainStore.has(.elevenLabsAPIKey) {

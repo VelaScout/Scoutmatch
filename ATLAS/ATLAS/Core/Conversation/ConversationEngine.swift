@@ -686,6 +686,62 @@ final class ConversationEngine {
 
     // MARK: - Speichern
 
+    // MARK: - Begrüßung
+
+    /// Kurze Begrüßung beim Öffnen, wie ein persönlicher Butler – höchstens alle drei Stunden.
+    func greetOnLaunch() {
+        guard settings.greetOnLaunch, sceneActive, KeychainStore.has(.anthropicAPIKey),
+              state == .idle || state == .standby else { return }
+        let defaults = UserDefaults.standard
+        let last = defaults.object(forKey: "lastGreeting") as? Date ?? .distantPast
+        guard Date.now.timeIntervalSince(last) > 3 * 3600 else { return }
+        defaults.set(Date.now, forKey: "lastGreeting")
+
+        let text = greetingText()
+        state = .speaking
+        streamFinished = true
+        isInConversation = false
+        listenAfterSpeech = false
+        responseText = text
+        say(text)
+    }
+
+    private func greetingText(now: Date = .now) -> String {
+        let hour = Calendar.current.component(.hour, from: now)
+        let suffix = settings.sirSuffix
+        let name = !suffix.isEmpty ? suffix : (settings.userName.isEmpty ? "" : ", \(settings.userName)")
+        let time = DateFormatter()
+        time.dateFormat = "H:mm"
+        let english = settings.language == .britishEnglish
+
+        let salutation: String
+        switch hour {
+        case 5..<11: salutation = english ? "Good morning" : "Guten Morgen"
+        case 11..<17: salutation = english ? "Good afternoon" : "Guten Tag"
+        case 17..<22: salutation = english ? "Good evening" : "Guten Abend"
+        default: salutation = english ? "Burning the midnight oil" : "Noch so spät auf den Beinen"
+        }
+        var parts = ["\(salutation)\(name).", english ? "It's \(time.string(from: now))." : "Es ist \(time.string(from: now)) Uhr."]
+
+        let calendar = EventKitService.shared
+        if calendar.calendarAuthorized {
+            let upcoming = calendar.events(from: now, days: 1)
+                .filter { !$0.isAllDay && $0.start > now && Calendar.current.isDate($0.start, inSameDayAs: now) }
+            if let next = upcoming.first {
+                parts.append(english
+                    ? "Your next appointment: \(next.title) at \(time.string(from: next.start))."
+                    : "Ihr nächster Termin: \(next.title) um \(time.string(from: next.start)) Uhr.")
+            } else if hour < 17 {
+                parts.append(english ? "Your calendar is clear for the rest of the day." : "Ihr Kalender ist für heute frei.")
+            }
+        }
+        let closings = english
+            ? ["All systems are online.", "How may I be of service?", "At your service."]
+            : ["Alle Systeme sind bereit.", "Womit kann ich dienen?", "Ich stehe zu Ihrer Verfügung."]
+        parts.append(closings.randomElement() ?? closings[0])
+        return parts.joined(separator: " ")
+    }
+
     /// Wertet das gerade beendete Gespräch im Hintergrund aus und ergänzt das Gedächtnis.
     private func learnFromConversation() {
         guard settings.memoryEnabled, settings.autoLearn, history.count - learnedTurnCount >= 2 else { return }

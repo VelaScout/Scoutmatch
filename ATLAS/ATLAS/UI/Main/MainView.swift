@@ -10,6 +10,7 @@ struct MainView: View {
     @Environment(ConversationEngine.self) private var engine
     @Environment(AppSettings.self) private var settings
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var router = IntentRouter.shared
     @State private var sheet: AppScreen?
@@ -93,6 +94,12 @@ struct MainView: View {
         .onAppear {
             showOnboarding = !KeychainStore.has(.anthropicAPIKey)
             processPendingRequest()
+        }
+        .task {
+            // Begrüßung genau dann, wenn der Kern am Ende der Start-Sequenz zündet.
+            let withIntro = settings.appearance == .hologram && !reduceMotion
+            try? await Task.sleep(for: .seconds(withIntro ? 8.9 : 1.2))
+            engine.greetOnLaunch()
         }
         .onChange(of: router.sequence) { _, _ in processPendingRequest() }
         .onChange(of: engine.screenRequestSequence) { _, _ in

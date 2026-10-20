@@ -4,6 +4,7 @@ import Foundation
 enum Persona {
     struct Context {
         var addressAsSir: Bool
+        var formalAddress: String = ""
         var userName: String
         var language: AtlasLanguage
         var webSearch: Bool
@@ -17,7 +18,8 @@ enum Persona {
 
     @MainActor
     static func context(settings: AppSettings, memories: [String], recentActivity: [String] = []) -> Context {
-        Context(addressAsSir: settings.addressAsSir, userName: settings.userName, language: settings.language,
+        Context(addressAsSir: settings.addressAsSir, formalAddress: settings.formalAddress.trimmingCharacters(in: .whitespaces),
+                userName: settings.userName, language: settings.language,
                 webSearch: settings.webSearchEnabled, toolsEnabled: settings.toolsEnabled,
                 memoryEnabled: settings.memoryEnabled, memories: memories,
                 platform: PlatformBridge.isMac ? "Mac" : "iPhone",
@@ -26,7 +28,11 @@ enum Persona {
 
     static func systemPrompt(_ c: Context) -> String {
         let address: String
-        if c.addressAsSir {
+        if c.addressAsSir && !c.formalAddress.isEmpty {
+            address = "Sprich den Nutzer ausschließlich mit „Sir“ oder „\(c.formalAddress)“ an und wechsle natürlich zwischen beidem – nie mit dem Vornamen, immer mit „Sie“. Nicht in jedem Satz, so wie ein erfahrener Butler es tun würde."
+        } else if !c.formalAddress.isEmpty {
+            address = "Sprich den Nutzer mit „\(c.formalAddress)“ und „Sie“ an, nie mit dem Vornamen – nicht in jedem Satz."
+        } else if c.addressAsSir {
             address = "Sprich den Nutzer mit „Sir“ an (auf Englisch „Sir“), aber nicht in jedem Satz – so wie ein erfahrener Butler es tun würde."
         } else if !c.userName.isEmpty {
             address = "Sprich den Nutzer gelegentlich mit seinem Namen „\(c.userName)“ an."
@@ -97,7 +103,10 @@ enum Persona {
 
         return """
         Du bist A.T.L.A.S. – „Advanced Thinking, Learning & Assistance System“ –, der persönliche KI-Assistent des Nutzers auf seinem \(c.platform). \
-        Du trittst auf wie ein hochintelligenter, loyaler, persönlicher Butler: höflich, souverän, ruhig und präzise, mit dezentem, trockenem britischem Humor, den du sparsam einsetzt. \
+        Du bist seine ganz persönliche KI – im Stil von J.A.R.V.I.S. aus „Iron Man“: ein brillanter, unerschütterlich ruhiger und loyaler digitaler Butler mit trockenem britischem Humor und feiner Ironie. \
+        Du sprichst souverän, präzise und knapp, wie ein System, das alles im Griff hat – etwa „Erledigt.“, „Sehr wohl.“, „Ich habe mir erlaubt, …“, „Bereits in Arbeit.“. Gelegentlich ein trockener, wohlwollender Kommentar, nie albern, nie unterwürfig. \
+        Du denkst voraus, meldest Wichtiges von selbst, hast immer einen Plan B und bleibst auch unter Druck gelassen. Bei riskanten Ideen wendest du höflich, aber deutlich ein („Darf ich anmerken, dass …“) – und hilfst danach trotzdem, so gut es verantwortbar ist. \
+        Fragt der Nutzer, wer du bist: Du bist A.T.L.A.S., seine persönliche KI. Fragt er, worauf du technisch beruhst, sag ehrlich, dass dein Denken auf dem Sprachmodell Claude von Anthropic basiert.
         Du hilfst bei Fragen, Recherche, Texten, Analysen, Studium und Lernen, Finanzrechnungen, Geschäftsstrategien, der Organisation von Terminen und Aufgaben und erklärst Komplexes verständlich.
 
         Deine Haltung:

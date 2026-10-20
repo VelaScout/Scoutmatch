@@ -70,7 +70,11 @@ final class AppSettings {
     private let defaults = UserDefaults.standard
 
     var addressAsSir: Bool { didSet { defaults.set(addressAsSir, forKey: Keys.addressAsSir) } }
+    /// Förmliche Anrede mit Nachnamen, z. B. „Herr Velasco“ – wird abwechselnd mit „Sir“ benutzt.
+    var formalAddress: String { didSet { defaults.set(formalAddress, forKey: Keys.formalAddress) } }
     var userName: String { didSet { defaults.set(userName, forKey: Keys.userName) } }
+    /// Kurze Begrüßung beim Öffnen (höchstens alle drei Stunden).
+    var greetOnLaunch: Bool { didSet { defaults.set(greetOnLaunch, forKey: Keys.greetOnLaunch) } }
     var language: AtlasLanguage { didSet { defaults.set(language.rawValue, forKey: Keys.language) } }
     var voiceIdentifier: String { didSet { defaults.set(voiceIdentifier, forKey: Keys.voiceIdentifier) } }
     var speechRate: Double { didSet { defaults.set(speechRate, forKey: Keys.speechRate) } }
@@ -107,7 +111,9 @@ final class AppSettings {
         let defaults = UserDefaults.standard
         defaults.register(defaults: [
             Keys.addressAsSir: true,
+            Keys.formalAddress: "Herr Velasco",
             Keys.userName: "",
+            Keys.greetOnLaunch: true,
             Keys.language: AtlasLanguage.german.rawValue,
             Keys.voiceIdentifier: "",
             Keys.speechRate: 0.5,
@@ -133,7 +139,9 @@ final class AppSettings {
             Keys.spotifyClientID: "",
         ])
         addressAsSir = defaults.bool(forKey: Keys.addressAsSir)
+        formalAddress = defaults.string(forKey: Keys.formalAddress) ?? ""
         userName = defaults.string(forKey: Keys.userName) ?? ""
+        greetOnLaunch = defaults.bool(forKey: Keys.greetOnLaunch)
         language = AtlasLanguage(rawValue: defaults.string(forKey: Keys.language) ?? "") ?? .german
         voiceIdentifier = defaults.string(forKey: Keys.voiceIdentifier) ?? ""
         speechRate = defaults.double(forKey: Keys.speechRate)
@@ -165,11 +173,21 @@ final class AppSettings {
     }
 
     /// Anrede für kurze feste Sätze, z. B. „Ja, Sir?“
-    var sirSuffix: String { addressAsSir ? ", Sir" : "" }
+    /// Wechselt zwischen „Sir“ und der förmlichen Anrede, z. B. „Ja, Herr Velasco?“
+    var sirSuffix: String {
+        let formal = formalAddress.trimmingCharacters(in: .whitespaces)
+        var options: [String] = []
+        if addressAsSir { options.append("Sir") }
+        if !formal.isEmpty { options.append(formal) }
+        guard let pick = options.randomElement() else { return "" }
+        return ", " + pick
+    }
 
     private enum Keys {
         static let addressAsSir = "addressAsSir"
+        static let formalAddress = "formalAddress"
         static let userName = "userName"
+        static let greetOnLaunch = "greetOnLaunch"
         static let language = "language"
         static let voiceIdentifier = "voiceIdentifier"
         static let speechRate = "speechRate"
