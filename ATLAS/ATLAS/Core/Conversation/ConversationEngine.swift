@@ -99,7 +99,10 @@ final class ConversationEngine {
     /// Maximal so viele Beiträge werden an das Modell geschickt (Kosten & Tempo).
     private let maxHistoryTurns = 40
     /// Ohne Sprache wird das Zuhören nach dieser Zeit beendet.
-    private let noSpeechTimeout: Double = 8
+    /// So lange hört A.T.L.A.S. nach einer Antwort weiter zu, ohne dass „Atlas“ nötig ist.
+    private let noSpeechTimeout: Double = 15
+    /// Fehlgeschlagene Starts der Bereitschaft in Folge – für das erneute Versuchen.
+    @ObservationIgnored private var standbyFailures = 0
 
     private let endPhrases: Set<String> = [
         "danke das ist alles", "das ist alles", "das wars", "das war's", "ende", "stopp", "tschüss",
@@ -331,9 +334,19 @@ final class ConversationEngine {
             liveTranscript = ""
             try recognizer.start(language: settings.language, requireOnDevice: true)
             state = .standby
+            standbyFailures = 0
         } catch {
-            settings.wakeWordEnabled = false
-            state = .error(error.localizedDescription)
+            // Nie dauerhaft abschalten (sonst bliebe nur der Knopf): beim ersten Mal kurz Bescheid
+            // geben, dann still im Hintergrund erneut versuchen – z. B. sobald die Spracherkennung bereit ist.
+            standbyFailures += 1
+            state = standbyFailures == 1 ? .error(error.localizedDescription) : .idle
+            let delay = min(30, 2 * Double(standbyFailures))
+            Task {
+                try? await Task.sleep(for: .seconds(delay))
+                guard self.settings.wakeWordEnabled, self.sceneActive, self.state == .idle || self.state.isError else { return }
+                self.state = .idle
+                await self.startStandby()
+            }
         }
     }
 

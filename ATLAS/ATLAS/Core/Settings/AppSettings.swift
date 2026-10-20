@@ -138,6 +138,11 @@ final class AppSettings {
             Keys.mailAddress: "",
             Keys.spotifyClientID: "",
         ])
+        // Einmalig: Ein früher automatisch abgeschaltetes Wake-Word wieder einschalten.
+        if !defaults.bool(forKey: "wakeWordMigrationV2") {
+            defaults.set(true, forKey: Keys.wakeWord)
+            defaults.set(true, forKey: "wakeWordMigrationV2")
+        }
         addressAsSir = defaults.bool(forKey: Keys.addressAsSir)
         formalAddress = defaults.string(forKey: Keys.formalAddress) ?? ""
         userName = defaults.string(forKey: Keys.userName) ?? ""
