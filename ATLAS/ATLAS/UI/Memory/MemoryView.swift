@@ -19,7 +19,7 @@ struct MemoryView: View {
             Section {
                 Toggle("Gedächtnis verwenden", isOn: $settings.memoryEnabled)
             } footer: {
-                Text("ATLAS merkt sich nur, was Sie ausdrücklich sagen („Merk dir, dass …“) oder hier eintragen. Die Einträge liegen auf Ihrem Gerät und werden bei jeder Anfrage an Claude mitgeschickt, damit ATLAS Sie kennt.")
+                Text("A.T.L.A.S. merkt sich nur, was Sie ausdrücklich sagen („Merk dir, dass …“) oder hier eintragen. Die Einträge liegen auf Ihrem Gerät und werden bei jeder Anfrage an Claude mitgeschickt, damit A.T.L.A.S. Sie kennt.")
             }
 
             Section("Neuer Eintrag") {

@@ -8,7 +8,7 @@ struct VoiceStudioView: View {
 
     @State private var description = PremiumVoice.defaultVoiceDescription
     @State private var sampleText = PremiumVoice.designSampleText
-    @State private var voiceName = "ATLAS"
+    @State private var voiceName = "A.T.L.A.S."
     @State private var previews: [PremiumVoice.DesignedPreview] = []
     @State private var selectedID: String?
     @State private var playingID: String?
@@ -33,7 +33,7 @@ struct VoiceStudioView: View {
                 TextField("Beschreibung", text: $description, axis: .vertical)
                     .lineLimit(4...10)
             } header: {
-                Text("1 · So soll ATLAS klingen")
+                Text("1 · So soll A.T.L.A.S. klingen")
             } footer: {
                 Text("Auf Englisch beschrieben gelingt es am zuverlässigsten. Ändern Sie Alter, Wärme, Tempo, Akzent – zum Beispiel „deeper“, „more energetic“ oder „slightly American“.")
             }
@@ -91,7 +91,7 @@ struct VoiceStudioView: View {
                     Button {
                         save()
                     } label: {
-                        Label(isWorking ? "Wird gespeichert …" : "Als ATLAS-Stimme verwenden", systemImage: "checkmark.seal")
+                        Label(isWorking ? "Wird gespeichert …" : "Als A.T.L.A.S.-Stimme verwenden", systemImage: "checkmark.seal")
                     }
                     .disabled(isWorking || voiceName.trimmingCharacters(in: .whitespaces).isEmpty)
                 } header: {
@@ -163,7 +163,7 @@ struct VoiceStudioView: View {
                 settings.premiumVoiceID = voiceID
                 settings.premiumVoiceEnabled = true
                 savedVoiceID = voiceID
-                message = "✓ ATLAS spricht ab sofort mit dieser Stimme."
+                message = "✓ A.T.L.A.S. spricht ab sofort mit dieser Stimme."
             } catch {
                 message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }

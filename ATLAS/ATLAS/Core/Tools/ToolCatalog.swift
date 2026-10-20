@@ -110,7 +110,7 @@ enum ToolCatalog {
         ],
         [
             "name": "prepare_message",
-            "description": "Bereitet eine SMS/iMessage oder E-Mail vor. Der Nutzer sieht den Entwurf, muss ihn bestätigen und sendet ihn dann selbst – ATLAS sendet nie selbstständig. Benutze dies bei „schreib …“, „bereite eine Nachricht an … vor“. Ermittle die Nummer oder Adresse vorher mit search_contacts.",
+            "description": "Bereitet eine SMS/iMessage oder E-Mail vor. Der Nutzer sieht den Entwurf, muss ihn bestätigen und sendet ihn dann selbst – A.T.L.A.S. sendet nie selbstständig. Benutze dies bei „schreib …“, „bereite eine Nachricht an … vor“. Ermittle die Nummer oder Adresse vorher mit search_contacts.",
             "input_schema": object([
                 "channel": ["type": "string", "enum": ["message", "email"], "description": "message = SMS/iMessage, email = E-Mail."],
                 "recipient_name": string("Name des Empfängers."),
@@ -125,7 +125,7 @@ enum ToolCatalog {
     private static let appTools: [[String: Any]] = [
         [
             "name": "open_view",
-            "description": "Öffnet eine Ansicht der ATLAS-App. Die App hat bewusst keine Knöpfe – benutze dies immer, wenn der Nutzer etwas sehen, öffnen oder einstellen möchte: Einstellungen, Gesprächsverlauf, Termine/Aufgaben, Gedächtnis, Berechtigungen, Aktivitätsprotokoll, Stimmen-Studio (eigene Stimme), Foto auswählen, Foto aufnehmen (Kamera) oder eine Datei/PDF auswählen.",
+            "description": "Öffnet eine Ansicht der A.T.L.A.S.-App. Die App hat bewusst keine Knöpfe – benutze dies immer, wenn der Nutzer etwas sehen, öffnen oder einstellen möchte: Einstellungen, Gesprächsverlauf, Termine/Aufgaben, Gedächtnis, Berechtigungen, Aktivitätsprotokoll, Stimmen-Studio (eigene Stimme), Foto auswählen, Foto aufnehmen (Kamera) oder eine Datei/PDF auswählen.",
             "input_schema": object([
                 "view": ["type": "string", "enum": ["settings", "history", "tasks", "memory", "permissions", "activity", "voiceStudio", "photoPicker", "camera", "fileImporter"],
                          "description": "Die zu öffnende Ansicht."],
@@ -133,7 +133,7 @@ enum ToolCatalog {
         ],
         [
             "name": "change_setting",
-            "description": "Ändert eine Einstellung von ATLAS direkt per Zuruf, z. B. „schalte das Wake-Word ein“, „sprich schneller“, „nenn mich nicht mehr Sir“, „antworte auf Englisch“, „nimm das schnellste Modell“. Bestätige danach kurz, was geändert wurde.",
+            "description": "Ändert eine Einstellung von A.T.L.A.S. direkt per Zuruf, z. B. „schalte das Wake-Word ein“, „sprich schneller“, „nenn mich nicht mehr Sir“, „antworte auf Englisch“, „nimm das schnellste Modell“. Bestätige danach kurz, was geändert wurde.",
             "input_schema": object([
                 "setting": ["type": "string",
                             "enum": ["wake_word", "conversation_mode", "address_sir", "web_search", "premium_voice", "device_tools", "memory", "speech_rate", "language", "model", "appearance", "morning_briefing", "evening_review"],
@@ -146,7 +146,7 @@ enum ToolCatalog {
     private static let memoryTools: [[String: Any]] = [
         [
             "name": "remember",
-            "description": "Speichert eine Information dauerhaft im Gedächtnis von ATLAS. Benutze dies NUR, wenn der Nutzer ausdrücklich darum bittet („merk dir …“, „vergiss nicht, dass …“) oder einem Vorschlag zum Merken zugestimmt hat. Formuliere den Eintrag als kurzen, eigenständigen Satz.",
+            "description": "Speichert eine Information dauerhaft im Gedächtnis von A.T.L.A.S. Benutze dies NUR, wenn der Nutzer ausdrücklich darum bittet („merk dir …“, „vergiss nicht, dass …“) oder einem Vorschlag zum Merken zugestimmt hat. Formuliere den Eintrag als kurzen, eigenständigen Satz.",
             "input_schema": object([
                 "content": string("Die zu merkende Information als vollständiger Satz, z. B. „Die Frau des Nutzers heißt Anna.“"),
                 "category": ["type": "string", "enum": MemoryCategory.allCases.map(\.rawValue), "description": "Kategorie."],
@@ -154,14 +154,14 @@ enum ToolCatalog {
         ],
         [
             "name": "forget",
-            "description": "Löscht Einträge aus dem Gedächtnis. Benutze dies, wenn der Nutzer möchte, dass ATLAS etwas vergisst. Der Nutzer muss das Löschen bestätigen.",
+            "description": "Löscht Einträge aus dem Gedächtnis. Benutze dies, wenn der Nutzer möchte, dass A.T.L.A.S. etwas vergisst. Der Nutzer muss das Löschen bestätigen.",
             "input_schema": object([
                 "query": string("Suchbegriff, der die zu löschenden Einträge beschreibt."),
             ], required: ["query"]),
         ],
         [
             "name": "list_memories",
-            "description": "Listet die gespeicherten Gedächtniseinträge auf. Benutze dies, wenn der Nutzer fragt, was ATLAS über ihn weiß.",
+            "description": "Listet die gespeicherten Gedächtniseinträge auf. Benutze dies, wenn der Nutzer fragt, was A.T.L.A.S. über ihn weiß.",
             "input_schema": object([:]),
         ],
     ]

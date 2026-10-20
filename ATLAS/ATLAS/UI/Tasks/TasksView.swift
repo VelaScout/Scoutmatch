@@ -18,7 +18,7 @@ struct TasksView: View {
                         engine.handle(.briefing(.morning))
                         dismiss()
                     } label: {
-                        Label("Tagesübersicht von ATLAS", systemImage: "sun.horizon")
+                        Label("Tagesübersicht von A.T.L.A.S.", systemImage: "sun.horizon")
                     }
                     Button {
                         engine.handle(.briefing(.planTomorrow))

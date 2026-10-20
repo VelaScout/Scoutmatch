@@ -34,7 +34,7 @@ struct SettingsView: View {
                 }
 
                 Section("Darstellung") {
-                    Picker("ATLAS zeigen als", selection: $settings.appearance) {
+                    Picker("A.T.L.A.S. zeigen als", selection: $settings.appearance) {
                         ForEach(AtlasAppearance.allCases) { Text($0.displayName).tag($0) }
                     }
                 }
@@ -126,7 +126,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Gespräch")
                 } footer: {
-                    Text("Gesprächsmodus: Nach jeder Antwort hört ATLAS automatisch weiter zu. Beenden mit „Danke, das ist alles“ oder Stopp.\n\nWake-Word: Solange ATLAS geöffnet und im Vordergrund ist, hört er auf „Atlas“. Die Erkennung läuft ausschließlich auf dem Gerät, nichts wird übertragen, bis Sie „Atlas“ sagen. Das Mikrofon-Symbol des Systems bleibt sichtbar. Im Hintergrund oder bei gesperrtem Bildschirm hört ATLAS nicht zu – nutzen Sie dafür „Siri, starte ATLAS“. Kostet etwas mehr Akku.")
+                    Text("Gesprächsmodus: Nach jeder Antwort hört A.T.L.A.S. automatisch weiter zu. Beenden mit „Danke, das ist alles“ oder Stopp.\n\nWake-Word: Solange A.T.L.A.S. geöffnet und im Vordergrund ist, hört er auf „Atlas“. Die Erkennung läuft ausschließlich auf dem Gerät, nichts wird übertragen, bis Sie „Atlas“ sagen. Das Mikrofon-Symbol des Systems bleibt sichtbar. Im Hintergrund oder bei gesperrtem Bildschirm hört A.T.L.A.S. nicht zu – nutzen Sie dafür „Siri, starte A.T.L.A.S.“. Kostet etwas mehr Akku.")
                 }
 
                 Section {
@@ -158,7 +158,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Proaktive Unterstützung")
                 } footer: {
-                    Text("ATLAS schickt Ihnen zur gewählten Zeit eine Mitteilung. Ein Tipp darauf öffnet ATLAS, und er fasst Termine, Aufgaben und – falls gewünscht – das Wetter zusammen. Eine App darf nicht dauerhaft im Hintergrund arbeiten; deshalb entsteht die Übersicht erst beim Öffnen, dafür mit aktuellen Daten.")
+                    Text("A.T.L.A.S. schickt Ihnen zur gewählten Zeit eine Mitteilung. Ein Tipp darauf öffnet A.T.L.A.S., und er fasst Termine, Aufgaben und – falls gewünscht – das Wetter zusammen. Eine App darf nicht dauerhaft im Hintergrund arbeiten; deshalb entsteht die Übersicht erst beim Öffnen, dafür mit aktuellen Daten.")
                 }
 
                 Section {
@@ -247,8 +247,8 @@ struct SettingsView: View {
         engine.stopAll()
         try? AudioSessionManager.activate()
         let text = settings.language == .german
-            ? "Guten Tag\(settings.sirSuffix). Ich bin ATLAS. Wie kann ich Ihnen behilflich sein?"
-            : "Good day\(settings.sirSuffix). I am ATLAS. How may I be of assistance?"
+            ? "Guten Tag\(settings.sirSuffix). Ich bin A.T.L.A.S. Wie kann ich Ihnen behilflich sein?"
+            : "Good day\(settings.sirSuffix). I am A.T.L.A.S. How may I be of assistance?"
         previewSpeaker.stop()
         previewSpeaker.speak(text, voiceIdentifier: settings.voiceIdentifier, language: settings.language,
                              rate: settings.speechRate, premium: settings.premiumVoiceConfig)

@@ -14,7 +14,7 @@ struct OnboardingView: View {
                         .frame(height: 240)
                         .frame(maxWidth: .infinity)
 
-                    Text("Guten Tag.\nIch bin ATLAS.")
+                    Text("Guten Tag.\nIch bin A.T.L.A.S.")
                         .font(.largeTitle.weight(.semibold))
 
                     Text("Um für Sie denken zu können, benötige ich Zugang zu meinem Sprachmodell Claude von Anthropic. Bitte hinterlegen Sie dazu Ihren persönlichen API-Schlüssel.")

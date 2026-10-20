@@ -30,8 +30,8 @@ struct ATLASApp: App {
         .atlasWindowDefaults()
         #if os(macOS)
         .commands {
-            CommandMenu("ATLAS") {
-                Button("Mit ATLAS sprechen") { engine.primaryAction() }
+            CommandMenu("A.T.L.A.S.") {
+                Button("Mit A.T.L.A.S. sprechen") { engine.primaryAction() }
                     .keyboardShortcut("l", modifiers: .command)
                 Button("Gespräch beenden") { engine.stopAll() }
                     .keyboardShortcut(".", modifiers: .command)

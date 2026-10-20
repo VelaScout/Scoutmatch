@@ -127,7 +127,7 @@ struct MainView: View {
     }
 
     private var background: some View {
-        RadialGradient(colors: [Color(red: 0.11, green: 0.055, blue: 0.02), Color(red: 0.04, green: 0.02, blue: 0.008), .black],
+        RadialGradient(colors: [Color(red: 0.02, green: 0.1, blue: 0.25), Color(red: 0.008, green: 0.03, blue: 0.09), .black],
                        center: UnitPoint(x: 0.5, y: 0.42), startRadius: 10, endRadius: 700)
             .ignoresSafeArea()
     }
@@ -196,7 +196,7 @@ struct MainView: View {
 
     private var inputBar: some View {
         HStack(spacing: 8) {
-            TextField("Mit ATLAS sprechen …", text: $typedText)
+            TextField("Mit A.T.L.A.S. sprechen …", text: $typedText)
                 .textFieldStyle(.plain)
                 .focused($textFieldFocused)
                 .submitLabel(.send)
@@ -239,7 +239,7 @@ struct MainView: View {
         #endif
     }
 
-    private static let amber = Color(red: 1.0, green: 0.7, blue: 0.28)
+    private static let amber = Color(red: 0.43, green: 0.82, blue: 1.0) // Eisblau
 
     private var micActive: Bool { engine.state == .listening || engine.state == .confirming }
 

@@ -375,7 +375,7 @@ final class AtlasToolbox: ToolExecuting {
     }
 
     private func denied(_ what: String) -> ToolResult {
-        ToolResult(content: "Kein Zugriff auf \(what). Der Nutzer muss den Zugriff für ATLAS in den Einstellungen erlauben (ATLAS → Einstellungen → Berechtigungen).",
+        ToolResult(content: "Kein Zugriff auf \(what). Der Nutzer muss den Zugriff für A.T.L.A.S. in den Einstellungen erlauben (A.T.L.A.S. → Einstellungen → Berechtigungen).",
                    isError: true)
     }
 

@@ -200,7 +200,7 @@ extension PremiumVoice {
 
     /// Probetext auf Deutsch mit englischen Begriffen – so hören Sie sofort, ob beide Sprachen sauber klingen.
     static let designSampleText = """
-    Guten Abend, Sir. Ich bin ATLAS – das steht für Advanced Thinking, Learning and Assistance System. \
+    Guten Abend, Sir. Ich bin A.T.L.A.S. – das steht für Advanced Thinking, Learning and Assistance System. \
     Ich habe Ihre Termine für morgen geprüft und einen entspannten Plan vorbereitet. \
     Shall we go through it together? Selbstverständlich erinnere ich Sie auch rechtzeitig an Ihr Training.
     """

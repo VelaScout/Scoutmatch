@@ -15,7 +15,7 @@ final class SpeechRecognizer {
         var errorDescription: String? {
             switch self {
             case .notAuthorized:
-                return "Mikrofon oder Spracherkennung sind nicht freigegeben. Bitte erlauben Sie den Zugriff in den iPhone-Einstellungen unter ATLAS."
+                return "Mikrofon oder Spracherkennung sind nicht freigegeben. Bitte erlauben Sie den Zugriff in den iPhone-Einstellungen unter A.T.L.A.S."
             case .unavailable:
                 return "Die Spracherkennung ist gerade nicht verfügbar."
             case .noMicrophone:

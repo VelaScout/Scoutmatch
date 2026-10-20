@@ -14,7 +14,7 @@ struct PermissionsView: View {
     var body: some View {
         List {
             Section {
-                row("Mikrofon", "mic", "Damit Sie mit ATLAS sprechen können.",
+                row("Mikrofon", "mic", "Damit Sie mit A.T.L.A.S. sprechen können.",
                     granted: AVAudioApplication.shared.recordPermission == .granted,
                     undetermined: AVAudioApplication.shared.recordPermission == .undetermined) {
                     _ = await AVAudioApplication.requestRecordPermission()
@@ -56,7 +56,7 @@ struct PermissionsView: View {
             } header: {
                 Text("Geräte-Funktionen")
             } footer: {
-                Text("Fotos und Dateien wählen Sie jeweils selbst aus – dafür braucht ATLAS keinen dauerhaften Zugriff. Bereits abgelehnte Berechtigungen können nur in den Systemeinstellungen geändert werden.")
+                Text("Fotos und Dateien wählen Sie jeweils selbst aus – dafür braucht A.T.L.A.S. keinen dauerhaften Zugriff. Bereits abgelehnte Berechtigungen können nur in den Systemeinstellungen geändert werden.")
             }
 
             Section {

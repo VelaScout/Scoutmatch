@@ -25,7 +25,7 @@ enum ProactiveScheduler {
         if settings.morningBriefingEnabled {
             await add(id: morningID, kind: .morning, minutes: settings.morningBriefingMinutes,
                       title: "Guten Morgen\(settings.sirSuffix).",
-                      body: "Ihre Tagesübersicht ist bereit. Tippen Sie hier, und ATLAS fasst Ihren Tag zusammen.")
+                      body: "Ihre Tagesübersicht ist bereit. Tippen Sie hier, und A.T.L.A.S. fasst Ihren Tag zusammen.")
         }
         if settings.eveningReviewEnabled {
             await add(id: eveningID, kind: .evening, minutes: settings.eveningReviewMinutes,

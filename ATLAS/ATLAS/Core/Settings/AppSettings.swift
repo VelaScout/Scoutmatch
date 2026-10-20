@@ -56,7 +56,7 @@ enum AtlasAppearance: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .hologram: return "ATLAS-Kern (3D)"
+        case .hologram: return "A.T.L.A.S.-Kern (3D)"
         case .core: return "Schlicht (besonders sparsam)"
         }
     }

@@ -24,7 +24,7 @@ struct AtlasCoreView: View {
             lastWordDate = .now
         }
         .accessibilityElement()
-        .accessibilityLabel("ATLAS, \(state.label)")
+        .accessibilityLabel("A.T.L.A.S., \(state.label)")
         .accessibilityAddTraits(.isButton)
     }
 

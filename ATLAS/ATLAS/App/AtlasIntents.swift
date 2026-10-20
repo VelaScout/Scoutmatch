@@ -7,8 +7,8 @@ import Foundation
 
 /// Öffnet ATLAS und beginnt sofort zuzuhören.
 struct StartAtlasIntent: AppIntent {
-    static let title: LocalizedStringResource = "ATLAS starten"
-    static let description = IntentDescription("Öffnet ATLAS und beginnt sofort zuzuhören.")
+    static let title: LocalizedStringResource = "A.T.L.A.S. starten"
+    static let description = IntentDescription("Öffnet A.T.L.A.S. und beginnt sofort zuzuhören.")
     static let openAppWhenRun: Bool = true
 
     @MainActor
@@ -20,10 +20,10 @@ struct StartAtlasIntent: AppIntent {
 
 /// Stellt ATLAS eine Frage, ohne die App zu öffnen – Siri liest die Antwort vor.
 struct AskAtlasIntent: AppIntent {
-    static let title: LocalizedStringResource = "ATLAS fragen"
-    static let description = IntentDescription("Stellt ATLAS eine Frage. Siri liest die Antwort vor.")
+    static let title: LocalizedStringResource = "A.T.L.A.S. fragen"
+    static let description = IntentDescription("Stellt A.T.L.A.S. eine Frage. Siri liest die Antwort vor.")
 
-    @Parameter(title: "Frage", requestValueDialog: IntentDialog("Was möchten Sie ATLAS fragen?"))
+    @Parameter(title: "Frage", requestValueDialog: IntentDialog("Was möchten Sie A.T.L.A.S. fragen?"))
     var question: String
 
     @MainActor
@@ -51,8 +51,8 @@ struct AskAtlasIntent: AppIntent {
 
 /// Öffnet ATLAS mit der morgendlichen Tagesübersicht.
 struct MorningBriefingIntent: AppIntent {
-    static let title: LocalizedStringResource = "ATLAS Tagesübersicht"
-    static let description = IntentDescription("ATLAS fasst Ihre Termine und Aufgaben für heute zusammen.")
+    static let title: LocalizedStringResource = "A.T.L.A.S. Tagesübersicht"
+    static let description = IntentDescription("A.T.L.A.S. fasst Ihre Termine und Aufgaben für heute zusammen.")
     static let openAppWhenRun: Bool = true
 
     @MainActor
@@ -64,8 +64,8 @@ struct MorningBriefingIntent: AppIntent {
 
 /// Öffnet ATLAS und plant den morgigen Tag.
 struct PlanTomorrowIntent: AppIntent {
-    static let title: LocalizedStringResource = "Morgen mit ATLAS planen"
-    static let description = IntentDescription("ATLAS organisiert Ihren morgigen Tag anhand von Kalender und Aufgaben.")
+    static let title: LocalizedStringResource = "Morgen mit A.T.L.A.S. planen"
+    static let description = IntentDescription("A.T.L.A.S. organisiert Ihren morgigen Tag anhand von Kalender und Aufgaben.")
     static let openAppWhenRun: Bool = true
 
     @MainActor
@@ -83,13 +83,13 @@ struct AtlasShortcuts: AppShortcutsProvider {
                               "\(.applicationName) starten",
                               "Öffne \(.applicationName)",
                               "Start \(.applicationName)"],
-                    shortTitle: "ATLAS starten",
+                    shortTitle: "A.T.L.A.S. starten",
                     systemImageName: "waveform.circle")
         AppShortcut(intent: AskAtlasIntent(),
                     phrases: ["Frag \(.applicationName)",
                               "Frage \(.applicationName)",
                               "Ask \(.applicationName)"],
-                    shortTitle: "ATLAS fragen",
+                    shortTitle: "A.T.L.A.S. fragen",
                     systemImageName: "questionmark.bubble")
         AppShortcut(intent: MorningBriefingIntent(),
                     phrases: ["\(.applicationName) Tagesübersicht",

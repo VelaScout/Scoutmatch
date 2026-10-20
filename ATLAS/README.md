@@ -1,4 +1,4 @@
-# ATLAS – Advanced Thinking, Learning & Assistance System
+# A.T.L.A.S. – Advanced Thinking, Learning & Assistance System
 
 Ihr persönlicher KI-Assistent für **iPhone und Mac** – eine native SwiftUI-App mit Claude als „Gehirn“.
 
@@ -11,7 +11,7 @@ Ihr persönlicher KI-Assistent für **iPhone und Mac** – eine native SwiftUI-A
 
 | Bereich | Funktionen |
 |---|---|
-| **Erscheinung** | Ein 3D-Kern aus rund 1.900 Lichtpunkten im Stil von J.A.R.V.I.S.: dreht sich räumlich, die Oberfläche wogt wie ein Klangfeld zu Ihrer Stimme, beim Nachdenken kreist ein Analyse-Strahl, beim Sprechen pulsiert er im Wortrhythmus und sendet Schallwellen aus. Umgeben von einem präzisen HUD mit Skalen, Segmentbögen, Audiowelle und Statusanzeigen. Alternativ eine besonders sparsame Darstellung. |
+| **Erscheinung** | Beim Öffnen fliegen Lichtpunkte in Schwüngen über den Bildschirm, formen das Wort **A.T.L.A.S.** und dann den Kern: eine blaue Energiekugel (Tiefblau bis Eisblau) aus glühenden Lichtsplittern mit hellem Energie-Wirbel in der Mitte. Sie reagiert auf Ihre Stimme, kreist beim Nachdenken schneller, pulsiert beim Sprechen und sendet Schallwellen aus. Mit dem Finger drehbar. |
 | **Sprache** | Sprechen statt Tippen, automatische Pausenerkennung, Gesprächsmodus, Unterbrechen per Tippen, Deutsch und britisches Englisch, wählbare Stimme – optional eine menschlich klingende Premium-Stimme (ElevenLabs). |
 | **Wake-Word** | Bei geöffneter App „Atlas“ sagen → „Ja, Sir?“. Oder direkt: „Atlas, wie wird das Wetter morgen?“. Die Erkennung läuft ausschließlich auf dem Gerät. |
 | **Siri & Kurzbefehle** | „Siri, starte ATLAS“, „Siri, frag ATLAS“ (Antwort ohne App-Öffnen), „Siri, ATLAS Tagesübersicht“, „Siri, plane morgen mit ATLAS“. Auf den Action-Button legbar. |
@@ -143,7 +143,7 @@ Bitte der Reihe nach testen und notieren, was nicht wie erwartet funktioniert.
 ### D1. Grundfunktionen
 | # | Test | Erwartet |
 |---|---|---|
-| 1 | App öffnen | Nur der bernsteinfarbene 3D-Kern füllt den Bildschirm, unten eine schlanke Leiste. Mit dem Finger lässt sich der Kern drehen. Beim ersten Start Schlüssel-Eingabe. |
+| 1 | App öffnen | Lichtpunkte formen „A.T.L.A.S.“, dann den blauen Kern. Er füllt den Bildschirm, unten eine schlanke Leiste. Mit dem Finger lässt sich der Kern drehen. Beim ersten Start Schlüssel-Eingabe. |
 | 2 | Schlüssel speichern | Lange auf den Kern drücken → Einstellungen → *Claude API*: „sicher gespeichert“. |
 | 3 | Mikrofon in der Leiste antippen (oder auf den Kern) | Fragen nach **Spracherkennung** und **Mikrofon** → erlauben. |
 | 4 | „Wer bist du?“ | Status „Hört zu“, das Klangfeld des Kerns folgt Ihrer Stimme, Text erscheint live. Nach der Pause „Denkt nach“ (Kern dreht schneller, Analyse-Strahl), dann spricht ATLAS – der Kern pulsiert und sendet Schallwellen aus. |

@@ -35,7 +35,8 @@ final class SpeechSynthesizer: NSObject {
     /// - Parameter premium: Zugangsdaten der Premium-Stimme; `nil` = Apple-Stimme.
     func speak(_ text: String, voiceIdentifier: String, language: AtlasLanguage, rate: Double,
                premium config: PremiumVoice.Config? = nil) {
-        let cleaned = SpeechTextCleaner.clean(text)
+        // Geschrieben „A.T.L.A.S.“, gesprochen „Atlas“ – nicht buchstabiert
+        let cleaned = SpeechTextCleaner.clean(text).replacingOccurrences(of: "A.T.L.A.S.", with: "Atlas")
         guard !cleaned.isEmpty else { return }
         fallbackVoice = (voiceIdentifier, language, rate)
         if let config {
