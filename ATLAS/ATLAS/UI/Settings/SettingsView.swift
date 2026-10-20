@@ -23,6 +23,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
+                    NavigationLink { ConnectionsView() } label: { Label("Verbindungen (E-Mail, Spotify)", systemImage: "link") }
                     NavigationLink { MemoryView() } label: { Label("Gedächtnis", systemImage: "brain.head.profile") }
                     NavigationLink { PermissionsView() } label: { Label("Berechtigungen", systemImage: "lock.shield") }
                     NavigationLink { ActivityView() } label: { Label("Aktivitäten", systemImage: "list.bullet.rectangle") }

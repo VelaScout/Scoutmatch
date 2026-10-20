@@ -30,6 +30,12 @@ enum ToolCatalog {
         case "open_link": return "Öffnet den Link"
         case "call_phone": return "Bereitet den Anruf vor"
         case "copy_to_clipboard": return "Kopiert den Text"
+        case "list_emails": return "Prüft Ihr Postfach"
+        case "read_email": return "Liest die E-Mail"
+        case "send_email": return "Bereitet die E-Mail vor"
+        case "spotify_play": return "Startet die Musik"
+        case "spotify_control": return "Steuert Spotify"
+        case "spotify_now_playing": return "Prüft, was läuft"
         case "remember": return "Merkt sich das"
         case "forget": return "Vergisst das"
         case "list_memories": return "Durchsucht das Gedächtnis"
@@ -171,15 +177,61 @@ enum ToolCatalog {
                 "text": string("Der vollständige Text."),
             ], required: ["text"]),
         ],
+        [
+            "name": "list_emails",
+            "description": "Listet E-Mails aus dem Posteingang des verbundenen Postfachs (Absender, Betreff, Datum, gelesen/ungelesen, id). Benutze dies bei „habe ich neue Mails?“, „was ist in meinem Postfach?“, „hat mir X geschrieben?“. Fasse das Ergebnis kurz gesprochen zusammen, statt alles vorzulesen.",
+            "input_schema": object([
+                "unread_only": ["type": "boolean", "description": "Nur ungelesene (Standard true). false = alle der letzten 14 Tage."],
+                "count": ["type": "integer", "description": "Wie viele höchstens (1–25, Standard 10).", "minimum": 1, "maximum": 25],
+            ]),
+        ],
+        [
+            "name": "read_email",
+            "description": "Liest den vollständigen Inhalt einer E-Mail (id aus list_emails) und markiert sie als gelesen. Benutze dies, wenn der Nutzer wissen will, was in einer Mail steht, oder bevor du sie beantwortest.",
+            "input_schema": object([
+                "id": ["type": "integer", "description": "Die id der E-Mail aus list_emails."],
+            ], required: ["id"]),
+        ],
+        [
+            "name": "send_email",
+            "description": "Sendet eine E-Mail aus dem verbundenen Postfach – als neue Mail oder als Antwort (reply_to_id). Der Nutzer sieht vorher Empfänger, Betreff und Text und muss ausdrücklich bestätigen; erst dann wird gesendet. Formuliere den Text im Namen des Nutzers, passend zum Ton der Unterhaltung, mit Gruß und seinem Namen, falls bekannt. Ohne verbundenes Postfach nimm prepare_message.",
+            "input_schema": object([
+                "to": string("Empfänger-Adresse(n), durch Komma getrennt. Bei Antworten optional (Standard: Absender der Original-Mail)."),
+                "subject": string("Betreff. Bei Antworten optional (Standard: „Re: …“)."),
+                "body": string("Der vollständige Text der E-Mail."),
+                "reply_to_id": ["type": "integer", "description": "id der E-Mail, auf die geantwortet wird (optional)."],
+            ], required: ["body"]),
+        ],
+        [
+            "name": "spotify_play",
+            "description": "Spielt Musik bei Spotify ab: einen Song, Künstler, ein Album, eine Playlist (zuerst die eigenen Playlists des Nutzers) oder seine Lieblingssongs. Benutze dies bei „spiel …“, „mach Musik an“, „ich will … hören“. Für Stimmungen („etwas zum Entspannen“) wähle selbst eine passende Playlist-Suche.",
+            "input_schema": object([
+                "query": string("Suchbegriff, z. B. „Blinding Lights The Weeknd“, „Coldplay“, „Lo-Fi Beats“. Bei kind=liked leer lassen."),
+                "kind": ["type": "string", "enum": ["track", "artist", "album", "playlist", "liked"], "description": "Art der Musik. liked = Lieblingssongs des Nutzers."],
+            ], required: ["kind"]),
+        ],
+        [
+            "name": "spotify_control",
+            "description": "Steuert die laufende Spotify-Wiedergabe: Pause, weiter, nächster/vorheriger Titel, lauter/leiser, Lautstärke setzen, Zufallswiedergabe.",
+            "input_schema": object([
+                "action": ["type": "string", "enum": ["pause", "resume", "next", "previous", "volume_up", "volume_down", "set_volume", "shuffle_on", "shuffle_off"], "description": "Die Aktion."],
+                "volume": ["type": "integer", "description": "Lautstärke 0–100 (nur bei set_volume).", "minimum": 0, "maximum": 100],
+            ], required: ["action"]),
+        ],
+        [
+            "name": "spotify_now_playing",
+            "description": "Sagt, welcher Song gerade bei Spotify läuft. Benutze dies bei „was läuft gerade?“, „wie heißt dieses Lied?“.",
+            "input_schema": object([:]),
+        ],
     ]
 
     /// App-Steuerung per Sprache – die App hat bewusst kaum Knöpfe.
     private static let appTools: [[String: Any]] = [
         [
             "name": "open_view",
-            "description": "Öffnet eine Ansicht der A.T.L.A.S.-App. Die App hat bewusst keine Knöpfe – benutze dies immer, wenn der Nutzer etwas sehen, öffnen oder einstellen möchte: Einstellungen, Gesprächsverlauf, Termine/Aufgaben, Gedächtnis, Berechtigungen, Aktivitätsprotokoll, Stimmen-Studio (eigene Stimme), Foto auswählen, Foto aufnehmen (Kamera) oder eine Datei/PDF auswählen.",
+            "description": "Öffnet eine Ansicht der A.T.L.A.S.-App. Die App hat bewusst keine Knöpfe – benutze dies immer, wenn der Nutzer etwas sehen, öffnen oder einstellen möchte: Einstellungen, Gesprächsverlauf, Termine/Aufgaben, Gedächtnis, Berechtigungen, Aktivitätsprotokoll, Stimmen-Studio (eigene Stimme), Verbindungen (E-Mail-Konto und Spotify einrichten), Foto auswählen, Foto aufnehmen (Kamera) oder eine Datei/PDF auswählen.",
             "input_schema": object([
-                "view": ["type": "string", "enum": ["settings", "history", "tasks", "memory", "permissions", "activity", "voiceStudio", "photoPicker", "camera", "fileImporter"],
+                "view": ["type": "string", "enum": ["settings", "connections", "history", "tasks", "memory", "permissions", "activity", "voiceStudio", "photoPicker", "camera", "fileImporter"],
                          "description": "Die zu öffnende Ansicht."],
             ], required: ["view"]),
         ],

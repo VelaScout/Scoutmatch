@@ -94,6 +94,11 @@ final class AppSettings {
     var morningBriefingMinutes: Int { didSet { defaults.set(morningBriefingMinutes, forKey: Keys.morningMinutes) } }
     var eveningReviewEnabled: Bool { didSet { defaults.set(eveningReviewEnabled, forKey: Keys.eveningEnabled) } }
     var eveningReviewMinutes: Int { didSet { defaults.set(eveningReviewMinutes, forKey: Keys.eveningMinutes) } }
+    /// E-Mail-Konto (das Passwort liegt im Schlüsselbund).
+    var mailProvider: MailProvider { didSet { defaults.set(mailProvider.rawValue, forKey: Keys.mailProvider) } }
+    var mailAddress: String { didSet { defaults.set(mailAddress, forKey: Keys.mailAddress) } }
+    /// Client-ID der eigenen Spotify-App (kein Geheimnis).
+    var spotifyClientID: String { didSet { defaults.set(spotifyClientID, forKey: Keys.spotifyClientID) } }
 
     init() {
         // Lokale Variable, da `self` vor der Initialisierung aller Eigenschaften nicht genutzt werden darf.
@@ -120,6 +125,9 @@ final class AppSettings {
             Keys.morningMinutes: 7 * 60,
             Keys.eveningEnabled: false,
             Keys.eveningMinutes: 20 * 60 + 30,
+            Keys.mailProvider: MailProvider.icloud.rawValue,
+            Keys.mailAddress: "",
+            Keys.spotifyClientID: "",
         ])
         addressAsSir = defaults.bool(forKey: Keys.addressAsSir)
         userName = defaults.string(forKey: Keys.userName) ?? ""
@@ -141,6 +149,9 @@ final class AppSettings {
         morningBriefingMinutes = defaults.integer(forKey: Keys.morningMinutes)
         eveningReviewEnabled = defaults.bool(forKey: Keys.eveningEnabled)
         eveningReviewMinutes = defaults.integer(forKey: Keys.eveningMinutes)
+        mailProvider = MailProvider(rawValue: defaults.string(forKey: Keys.mailProvider) ?? "") ?? .icloud
+        mailAddress = defaults.string(forKey: Keys.mailAddress) ?? ""
+        spotifyClientID = defaults.string(forKey: Keys.spotifyClientID) ?? ""
     }
 
     /// Zugangsdaten der Premium-Stimme, falls eingeschaltet und ein Schlüssel hinterlegt ist.
@@ -173,5 +184,8 @@ final class AppSettings {
         static let morningMinutes = "morningBriefingMinutes"
         static let eveningEnabled = "eveningReviewEnabled"
         static let eveningMinutes = "eveningReviewMinutes"
+        static let mailProvider = "mailProvider"
+        static let mailAddress = "mailAddress"
+        static let spotifyClientID = "spotifyClientID"
     }
 }

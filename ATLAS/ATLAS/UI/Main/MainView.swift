@@ -292,6 +292,7 @@ struct MainView: View {
         case .permissions: SheetContainer { PermissionsView() }
         case .activity: SheetContainer { ActivityView() }
         case .voiceStudio: SheetContainer { VoiceStudioView() }
+        case .connections: SheetContainer { ConnectionsView() }
         default: EmptyView()
         }
     }

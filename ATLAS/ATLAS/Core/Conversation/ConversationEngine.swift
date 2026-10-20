@@ -223,6 +223,7 @@ final class ConversationEngine {
         guard wantsOpen else { return false }
         let map: [(keys: [String], screen: AppScreen)] = [
             (["stimmen studio", "stimmenstudio", "eigene stimme", "voice studio"], .voiceStudio),
+            (["verbindung", "connections"], .connections),
             (["einstellung", "settings"], .settings),
             (["verlauf", "history", "gespräche"], .history),
             (["gedächtnis", "memory"], .memory),

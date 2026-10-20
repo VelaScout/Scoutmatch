@@ -126,6 +126,24 @@ Aufgaben mit Kalender/Erinnerungen brauchen 2–3 Anfragen (~2–4 Cent), Intern
 - Wird ausschließlich per HTTPS direkt an `api.anthropic.com` gesendet.
 - Bei Verdacht: in der Anthropic-Konsole löschen und neu erstellen.
 
+### E-Mail verbinden (iCloud-Mail)
+1. Auf **account.apple.com** anmelden → **Anmelden und Sicherheit** → **App-spezifische Passwörter** → **+** → Name „A.T.L.A.S.“ → das Passwort (`xxxx-xxxx-xxxx-xxxx`) kopieren.
+2. Zu A.T.L.A.S. sagen: „Öffne die Verbindungen“ → Anbieter **iCloud-Mail**, Ihre Adresse, das App-Passwort → **Passwort speichern** → **Verbindung testen**.
+3. Ausprobieren: „Habe ich neue Mails?“, „Was schreibt mir Tom?“, „Antworte ihm, dass ich morgen um 10 Uhr kann.“ – A.T.L.A.S. zeigt den Entwurf und sendet erst nach Ihrem „Ja“.
+
+Das App-Passwort liegt verschlüsselt im Schlüsselbund und kann jederzeit bei Apple widerrufen werden. Mails werden nur gelesen, wenn Sie danach fragen; zum Zusammenfassen geht der Inhalt an Claude (Anthropic).
+
+### Spotify verbinden (Premium)
+1. **developer.spotify.com/dashboard** → mit Spotify anmelden → **Create app** → Name „A.T.L.A.S.“.
+2. **Redirect URI:** `atlas-assistant://spotify-callback` (genau so) · Haken bei **Web API** · speichern.
+3. Die **Client ID** kopieren → in A.T.L.A.S. „Öffne die Verbindungen“ → einfügen → **Mit Spotify verbinden** → bei Spotify zustimmen.
+4. Ausprobieren: „Spiel meine Lieblingssongs“, „Spiel Coldplay“, „Mach etwas zum Entspannen an“, „Lauter“, „Nächstes Lied“, „Was läuft gerade?“.
+
+Ist Spotify auf keinem Gerät aktiv, öffnet A.T.L.A.S. die Spotify-App kurz selbst. Ihr Spotify-Passwort sieht A.T.L.A.S. nie.
+
+### Datenschutz
+Gespräche, Gedächtnis und Verlauf liegen nur auf Ihren Geräten. Für Antworten wird die jeweilige Frage an Claude (Anthropic) gesendet – laut Anthropic werden API-Daten standardmäßig nicht zum Training verwendet. Die Premium-Stimme schickt nur den vorzulesenden Text an ElevenLabs. A.T.L.A.S. gibt von sich aus nichts über Sie weiter; Nachrichten und E-Mails verlassen das Gerät nur nach Ihrer Bestätigung.
+
 ### Optional: Premium-Stimme (klingt nicht nach Siri)
 Die eingebauten Apple-Stimmen klingen schnell nach Siri. Für eine wirklich geschmeidige, menschliche Stimme nutzt ATLAS auf Wunsch **ElevenLabs**:
 1. Auf **https://elevenlabs.io** ein Konto anlegen. Ein bezahlter Tarif (ab ca. 5 $ im Monat) reicht für den täglichen Gebrauch.
