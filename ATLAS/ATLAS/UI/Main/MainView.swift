@@ -10,6 +10,7 @@ struct MainView: View {
     @Environment(ConversationEngine.self) private var engine
     @Environment(AppSettings.self) private var settings
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var router = IntentRouter.shared
@@ -101,6 +102,18 @@ struct MainView: View {
             try? await Task.sleep(for: .seconds(withIntro ? 8.9 : 1.2))
             engine.greetOnLaunch()
         }
+        .onOpenURL { url in
+            // Per AirDrop empfangenes Gedächtnis eines anderen Geräts übernehmen.
+            guard url.pathExtension.lowercased() == "atlasmemory" else { return }
+            do {
+                let result = try MemoryTransfer.importFile(url, context: modelContext)
+                engine.announce("Gedächtnis übernommen: \(result.added) neue Einträge\(result.updated > 0 ? ", \(result.updated) aktualisiert" : ""). Jetzt weiß ich auch hier Bescheid.")
+            } catch {
+                engine.announce("Die Datei konnte ich leider nicht lesen.")
+            }
+        }
+        // Geöffnete Dateien im vorhandenen Fenster empfangen statt ein neues zu öffnen (Mac).
+        .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .onChange(of: router.sequence) { _, _ in processPendingRequest() }
         .onChange(of: engine.screenRequestSequence) { _, _ in
             if let screen = engine.screenRequest { open(screen) }

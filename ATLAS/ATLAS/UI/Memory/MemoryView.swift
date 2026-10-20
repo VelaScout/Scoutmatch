@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Gedächtnisverwaltung: alles, was sich ATLAS merkt – ansehen, bearbeiten, löschen.
 struct MemoryView: View {
@@ -11,6 +12,9 @@ struct MemoryView: View {
     @State private var newCategory = MemoryCategory.other
     @State private var editing: MemoryItem?
     @State private var confirmDeleteAll = false
+    @State private var exportURL: URL?
+    @State private var showImporter = false
+    @State private var transferStatus: String?
 
     var body: some View {
         @Bindable var settings = settings
@@ -65,6 +69,24 @@ struct MemoryView: View {
                 }
             }
 
+            Section {
+                if let exportURL, !items.isEmpty {
+                    ShareLink(item: exportURL, preview: SharePreview("A.T.L.A.S.-Gedächtnis")) {
+                        Label("Gedächtnis senden (z. B. per AirDrop)", systemImage: "square.and.arrow.up")
+                    }
+                }
+                Button { showImporter = true } label: {
+                    Label("Gedächtnis aus Datei übernehmen", systemImage: "square.and.arrow.down")
+                }
+                if let transferStatus {
+                    Text(transferStatus).font(.footnote)
+                }
+            } header: {
+                Text("Auf iPhone oder Mac übertragen")
+            } footer: {
+                Text("Kostenlos und ohne iCloud: Auf diesem Gerät „Gedächtnis senden“ → AirDrop → das andere Gerät wählen. Dort die Datei mit A.T.L.A.S. öffnen (oder hier „aus Datei übernehmen“). Beide Gedächtnisse werden zusammengeführt – nichts wird doppelt angelegt oder gelöscht.")
+            }
+
             if !items.isEmpty {
                 Section {
                     Button("Gesamtes Gedächtnis löschen", role: .destructive) { confirmDeleteAll = true }
@@ -73,6 +95,17 @@ struct MemoryView: View {
         }
         .navigationTitle("Gedächtnis")
         .atlasInlineTitle()
+        .task(id: items.count) {
+            exportURL = try? MemoryTransfer.exportFile(context: modelContext)
+        }
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.atlasMemory, .json]) { picked in
+            do {
+                let result = try MemoryTransfer.importFile(try picked.get(), context: modelContext)
+                transferStatus = "✓ Übernommen: \(result.added) neue, \(result.updated) aktualisierte Einträge."
+            } catch {
+                transferStatus = "Fehler: " + ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+            }
+        }
         .sheet(item: $editing) { item in
             MemoryEditView(item: item).atlasSheetSize()
         }

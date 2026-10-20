@@ -749,6 +749,19 @@ final class ConversationEngine {
 
     // MARK: - Speichern
 
+    // MARK: - Ansagen
+
+    /// Kurze Ansage von A.T.L.A.S. (z. B. nach einer Übertragung) – nur, wenn er gerade frei ist.
+    func announce(_ text: String) {
+        responseText = text
+        guard state == .idle || state == .standby || state.isError else { return }
+        state = .speaking
+        streamFinished = true
+        isInConversation = false
+        listenAfterSpeech = false
+        say(text)
+    }
+
     // MARK: - Begrüßung
 
     /// Kurze Begrüßung beim Öffnen, wie ein persönlicher Butler – höchstens alle drei Stunden.

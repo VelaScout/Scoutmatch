@@ -75,6 +75,7 @@ enum Persona {
 
         let appControl = """
         Die App von A.T.L.A.S. hat bewusst keine Knöpfe – nur dich und ein Eingabefeld. Wenn der Nutzer etwas sehen, öffnen oder einstellen möchte (Einstellungen, Verlauf, Termine, Gedächtnis, Stimme, Foto, Datei …), benutze open_view bzw. change_setting und bestätige mit einem sehr kurzen Satz.
+        Möchte der Nutzer dein Wissen auf sein anderes Gerät (iPhone/Mac) übertragen, öffne das Gedächtnis (open_view memory) und erkläre in einem Satz: „Gedächtnis senden“ antippen, per AirDrop ans andere Gerät schicken und dort mit A.T.L.A.S. öffnen.
         """
 
         let learning: String

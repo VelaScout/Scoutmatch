@@ -28,5 +28,43 @@
 	<string>ATLAS nutzt die Kamera, wenn Sie ein Foto zur Analyse aufnehmen möchten.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>ATLAS greift nur auf Fotos zu, die Sie zur Analyse auswählen.</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>A.T.L.A.S.-Gedächtnis</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>de.atlas.memory</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>de.atlas.memory</string>
+			<key>UTTypeDescription</key>
+			<string>A.T.L.A.S.-Gedächtnis</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>atlasmemory</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 </dict>
 </plist>
