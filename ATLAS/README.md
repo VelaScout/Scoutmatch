@@ -11,7 +11,7 @@ Ihr persönlicher KI-Assistent für **iPhone und Mac** – eine native SwiftUI-A
 
 | Bereich | Funktionen |
 |---|---|
-| **Gesicht** | Standard: **Hologramm** – eine glühende, bernsteinfarbene Kugel aus Lichtsplittern und Umlaufbahnen (im Stil von J.A.R.V.I.S.) mit einem Gesicht aus Lichtpunkten: Blinzeln, Blickkontakt, Kopfbewegung, Mundbewegung synchron zu den Wörtern, eigene Mimik für Zuhören, Nachdenken und Sprechen; die Kugel reagiert auf Ihre Stimme. Wählbar: silbernes Gesicht oder sparsamer Energiekern. |
+| **Erscheinung** | Ein 3D-Kern aus rund 1.900 Lichtpunkten im Stil von J.A.R.V.I.S.: dreht sich räumlich, die Oberfläche wogt wie ein Klangfeld zu Ihrer Stimme, beim Nachdenken kreist ein Analyse-Strahl, beim Sprechen pulsiert er im Wortrhythmus und sendet Schallwellen aus. Umgeben von einem präzisen HUD mit Skalen, Segmentbögen, Audiowelle und Statusanzeigen. Alternativ eine besonders sparsame Darstellung. |
 | **Sprache** | Sprechen statt Tippen, automatische Pausenerkennung, Gesprächsmodus, Unterbrechen per Tippen, Deutsch und britisches Englisch, wählbare Stimme. |
 | **Wake-Word** | Bei geöffneter App „Atlas“ sagen → „Ja, Sir?“. Oder direkt: „Atlas, wie wird das Wetter morgen?“. Die Erkennung läuft ausschließlich auf dem Gerät. |
 | **Siri & Kurzbefehle** | „Siri, starte ATLAS“, „Siri, frag ATLAS“ (Antwort ohne App-Öffnen), „Siri, ATLAS Tagesübersicht“, „Siri, plane morgen mit ATLAS“. Auf den Action-Button legbar. |
@@ -132,15 +132,15 @@ Bitte der Reihe nach testen und notieren, was nicht wie erwartet funktioniert.
 ### D1. Grundfunktionen
 | # | Test | Erwartet |
 |---|---|---|
-| 1 | App öffnen | Dunkler Bildschirm, bernsteinfarbene Hologramm-Kugel mit Gesicht, das blinzelt und leicht den Kopf bewegt. Beim ersten Start Schlüssel-Eingabe. |
+| 1 | App öffnen | Dunkler Bildschirm, bernsteinfarbener 3D-Kern mit HUD, der sich langsam dreht. Beim ersten Start Schlüssel-Eingabe. |
 | 2 | Schlüssel speichern | *Einstellungen → Claude API*: „sicher gespeichert“. |
 | 3 | Mikrofon antippen | Fragen nach **Spracherkennung** und **Mikrofon** → erlauben. |
-| 4 | „Wer bist du?“ | Status „Hört zu“, Augen weit geöffnet, Text erscheint live. Nach der Pause „Denkt nach“ (Blick nach oben), dann spricht ATLAS mit Mundbewegung. |
+| 4 | „Wer bist du?“ | Status „Hört zu“, das Klangfeld des Kerns folgt Ihrer Stimme, Text erscheint live. Nach der Pause „Denkt nach“ (Kern dreht schneller, Analyse-Strahl), dann spricht ATLAS – der Kern pulsiert und sendet Schallwellen aus. |
 | 5 | Gesprächsmodus | Nach der Antwort hört ATLAS automatisch weiter zu. |
 | 6 | „Danke, das ist alles.“ | „Sehr wohl, Sir.“ → Bereit. |
-| 7 | Unterbrechen | Lange Frage stellen, während der Antwort aufs Gesicht tippen → ATLAS verstummt und hört zu. |
+| 7 | Unterbrechen | Lange Frage stellen, während der Antwort auf den Kern tippen → ATLAS verstummt und hört zu. |
 | 8 | Tastatur | Tastatur-Symbol → „Rechne 15 % von 2.340 €“ → 351 €. |
-| 9 | Darstellung | *Einstellungen → Darstellung*: Hologramm (Standard), Gesicht (Silber) oder Energiekern. |
+| 9 | Darstellung | *Einstellungen → Darstellung*: ATLAS-Kern (3D, Standard) oder schlichte, besonders sparsame Darstellung. |
 
 ### D2. Wake-Word & Siri
 | # | Test | Erwartet |
@@ -180,7 +180,7 @@ Bitte der Reihe nach testen und notieren, was nicht wie erwartet funktioniert.
 ### D5. Mac
 | # | Test | Erwartet |
 |---|---|---|
-| 33 | Ziel „My Mac“ → ▶︎ | ATLAS-Fenster mit Gesicht. |
+| 33 | Ziel „My Mac“ → ▶︎ | ATLAS-Fenster mit dem 3D-Kern. |
 | 34 | ⌘L, Frage stellen | Wie auf dem iPhone; Mikrofon-Freigabe beim ersten Mal. |
 | 35 | Menü **ATLAS → Tagesübersicht** | Übersicht wird gesprochen. |
 
@@ -223,6 +223,6 @@ ATLAS/
     │   ├── Security/             Schlüsselbund
     │   ├── Settings/             Einstellungen
     │   └── Platform/             Unterschiede iPhone/Mac
-    ├── UI/                       Gesicht, Startbildschirm, Einstellungen, Gedächtnis, Aufgaben …
+    ├── UI/                       ATLAS-Kern, Startbildschirm, Einstellungen, Gedächtnis, Aufgaben …
     └── Assets.xcassets           App-Symbol (iPhone + Mac)
 ```

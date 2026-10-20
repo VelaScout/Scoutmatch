@@ -50,15 +50,14 @@ enum AtlasEffort: String, CaseIterable, Identifiable {
 
 /// Darstellung von ATLAS auf dem Startbildschirm.
 enum AtlasAppearance: String, CaseIterable, Identifiable {
-    case hologram, face, core
+    case hologram, core
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .hologram: return "Hologramm (Bernstein)"
-        case .face: return "Gesicht (Silber)"
-        case .core: return "Energiekern (sparsam)"
+        case .hologram: return "ATLAS-Kern (3D)"
+        case .core: return "Schlicht (besonders sparsam)"
         }
     }
 }

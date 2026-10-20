@@ -113,15 +113,6 @@ struct MainView: View {
                               spokenWordLength: engine.spokenWordLength,
                               speechRate: settings.speechRate)
                 .aspectRatio(1, contentMode: .fit)
-                .padding(.horizontal, 4)
-        case .face:
-            AtlasFaceView(state: engine.state,
-                          inputLevel: engine.inputLevel,
-                          spokenWordCount: engine.spokenWordCount,
-                          spokenWordLength: engine.spokenWordLength,
-                          speechRate: settings.speechRate)
-                .aspectRatio(0.78, contentMode: .fit)
-                .padding(.horizontal, 8)
         case .core:
             AtlasCoreView(state: engine.state,
                           inputLevel: engine.inputLevel,

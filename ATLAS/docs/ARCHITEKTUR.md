@@ -1,10 +1,6 @@
 # ATLAS – Technische Planung & Stand
 
-![ATLAS als Hologramm (Standard)](hologramm-vorschau.png)
-
-Alternative Darstellung „Gesicht (Silber)“:
-
-![ATLAS-Gesicht: Bereit, Hört zu, Denkt nach, Spricht](gesicht-vorschau.png)
+![ATLAS-Kern](atlas-kern-vorschau.png)
 
 ## Zielsystem
 - **Geräte:** iPhone 15 Pro oder neuer (iOS 26) und MacBook mit Apple-Chip – **eine** gemeinsame SwiftUI-App
@@ -39,8 +35,8 @@ Alternative Darstellung „Gesicht (Silber)“:
 - **Werkzeuge über Claude Tool Use:** Claude entscheidet, wann Kalender, Erinnerungen usw. gebraucht werden; ATLAS führt sie lokal aus und schickt nur das Ergebnis zurück. Werkzeug-Eingaben werden gestreamt (`eager_input_streaming`) und vor der Ausführung geprüft.
 - **Sensible Aktionen:** Nachrichten und Löschen im Gedächtnis erfordern immer eine Bestätigung (Karte + „Ja/Nein“ per Stimme). Nachrichten werden nie automatisch gesendet.
 - **Wake-Word:** Kontinuierliche Spracherkennung ausschließlich **auf dem Gerät**, nur im Vordergrund; die Erkennung startet etwa jede Minute neu (Systemgrenze). Im Hintergrund wird das Mikrofon immer abgeschaltet.
-- **Hologramm (Standard):** ca. 1.100 Lichtsplitter, nach Helligkeit in 6 Pfade gebündelt (wenige Zeichenbefehle pro Bild), additive Lichtmischung (`plusLighter`), holografisches Gesicht mit Raster und Scan-Balken. Bewegungslogik geteilt in `AtlasMotion`.
-- **Gesicht:** SwiftUI `Canvas` mit 60 fps, pausiert automatisch, wenn die App nicht sichtbar ist; respektiert „Bewegung reduzieren“. Mundbewegung aus den Wort-Ereignissen der Sprachausgabe (Wortlänge → Silben).
+- **ATLAS-Kern (Standard):** 3D-Fibonacci-Kugel aus 1.900 Punkten mit Perspektive und Tiefenhelligkeit, Oberfläche als animiertes Klangfeld, Großkreise, HUD (Skala, Segmentbögen, Audiowelle, Telemetrie); pulsiert beim Sprechen im Wortrhythmus und sendet Schallwellen aus. Punkte nach Helligkeit in 8 Pfade gebündelt, additive Lichtmischung.
+- **Darstellung:** SwiftUI `Canvas` mit 60 fps, pausiert automatisch, wenn die App nicht sichtbar ist; respektiert „Bewegung reduzieren“. Sprechrhythmus aus den Wort-Ereignissen der Sprachausgabe.
 - **Gedächtnis:** Nur ausdrücklich Gespeichertes; wird bei jeder Anfrage in die Systemanweisung eingefügt; vollständig einsehbar, bearbeitbar, löschbar.
 - **Denkblöcke:** Innerhalb eines Werkzeug-Durchlaufs werden sie unverändert zurückgegeben (Pflicht); zwischen Gesprächszügen speichert ATLAS nur den Text. Das hält Anfragen klein und robust.
 - **Ausweichmodell:** Bei fälschlicher Ablehnung übernimmt serverseitig automatisch ein anderes Modell (`fallbacks: "default"`).
@@ -73,14 +69,14 @@ Alternative Darstellung „Gesicht (Silber)“:
 | Phase | Inhalt | Stand |
 |---|---|---|
 | 1 | SwiftUI-App, Claude, Sprachgespräche | ✅ |
-| 2 | Animiertes Gesicht, Mimik, Mundbewegung, Sprachausgabe | ✅ (2D, GPU-gezeichnet) |
+| 2 | Animierter 3D-Kern mit HUD, Reaktion auf Stimme und Sprechen | ✅ |
 | 3 | Wake-Word im Vordergrund, Siri, Kurzbefehle, Action-Button | ✅ |
 | 4 | Kalender, Erinnerungen, Kontakte, Karten, Standort, Fotos, Kamera, PDFs, Nachrichtenentwürfe | ✅ |
 | 5 | Gedächtnis, Aufgabenübersicht, Tagesplanung, Tagesübersicht/Rückblick, Aktivitätsprotokoll | ✅ |
 | 6 | Mac-App, iCloud-Synchronisierung vorbereitet | ✅ Mac · ⚙️ iCloud nach Aktivierung der Capability |
 
 ## Mögliche nächste Schritte
-- **3D-Kopf mit RealityKit:** USDZ-Modell mit Blendshapes (Augen, Lider, Kiefer); die Engine-Signale (Zustand, Pegel, Wörter) sind bereits vorhanden.
+- **Metal-Partikel:** 20.000+ Punkte mit echtem Bloom über einen Metal-Shader, falls noch mehr Tiefe gewünscht ist.
 - **Apple Watch:** Watch-App mit „ATLAS fragen“ per Diktat und Tagesübersicht (eigenes watchOS-Target, nutzt die gleiche Claude-Anbindung).
 - **Widget / Steuerelement:** Kontrollzentrum- und Sperrbildschirm-Knopf „ATLAS starten“ (WidgetKit-Erweiterung).
 - **Premium-Stimme:** Optional eine Cloud-Stimme (z. B. ElevenLabs/OpenAI TTS) für einen noch natürlicheren britischen Butler.

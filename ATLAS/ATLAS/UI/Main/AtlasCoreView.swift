@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Der animierte ATLAS-Kern – alternative, besonders sparsame Darstellung
-/// (Einstellungen → Darstellung). Standard ist das Gesicht (`AtlasFaceView`).
+/// (Einstellungen → Darstellung). Standard ist der 3D-Kern (`AtlasHologramView`).
 struct AtlasCoreView: View {
     let state: ConversationEngine.State
     let inputLevel: Float
