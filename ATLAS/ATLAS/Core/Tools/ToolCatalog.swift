@@ -24,6 +24,12 @@ enum ToolCatalog {
         case "get_current_location": return "Bestimmt Ihren Standort"
         case "show_route": return "Öffnet die Route"
         case "prepare_message": return "Bereitet die Nachricht vor"
+        case "set_timer": return "Stellt den Timer"
+        case "manage_timers": return "Prüft Ihre Timer"
+        case "run_shortcut": return "Startet den Kurzbefehl"
+        case "open_link": return "Öffnet den Link"
+        case "call_phone": return "Bereitet den Anruf vor"
+        case "copy_to_clipboard": return "Kopiert den Text"
         case "remember": return "Merkt sich das"
         case "forget": return "Vergisst das"
         case "list_memories": return "Durchsucht das Gedächtnis"
@@ -110,14 +116,60 @@ enum ToolCatalog {
         ],
         [
             "name": "prepare_message",
-            "description": "Bereitet eine SMS/iMessage oder E-Mail vor. Der Nutzer sieht den Entwurf, muss ihn bestätigen und sendet ihn dann selbst – A.T.L.A.S. sendet nie selbstständig. Benutze dies bei „schreib …“, „bereite eine Nachricht an … vor“. Ermittle die Nummer oder Adresse vorher mit search_contacts.",
+            "description": "Bereitet eine SMS/iMessage, WhatsApp-Nachricht oder E-Mail vor. Der Nutzer sieht den Entwurf, muss ihn bestätigen und sendet ihn dann selbst – A.T.L.A.S. sendet nie selbstständig. Benutze dies bei „schreib …“, „bereite eine Nachricht an … vor“. Ermittle die Nummer oder Adresse vorher mit search_contacts.",
             "input_schema": object([
-                "channel": ["type": "string", "enum": ["message", "email"], "description": "message = SMS/iMessage, email = E-Mail."],
+                "channel": ["type": "string", "enum": ["message", "whatsapp", "email"], "description": "message = SMS/iMessage, whatsapp = WhatsApp, email = E-Mail."],
                 "recipient_name": string("Name des Empfängers."),
                 "recipient_address": string("Telefonnummer oder E-Mail-Adresse (optional, sonst wählt der Nutzer)."),
                 "subject": string("Betreff (nur E-Mail, optional)."),
                 "body": string("Text der Nachricht."),
             ], required: ["channel", "body"]),
+        ],
+        [
+            "name": "set_timer",
+            "description": "Stellt einen Timer bzw. Kurzzeitwecker, der mit Ton und Mitteilung meldet, wenn die Zeit um ist – auch wenn A.T.L.A.S. nicht geöffnet ist. Benutze dies bei „stell einen Timer auf …“, „weck mich in 20 Minuten“, „sag mir in einer Stunde Bescheid“. Für Erinnerungen zu einer festen Uhrzeit an einem Tag nimm create_reminder.",
+            "input_schema": object([
+                "seconds": ["type": "integer", "description": "Dauer in Sekunden (mindestens 5, höchstens 86400).", "minimum": 5, "maximum": 86400],
+                "label": string("Kurze Bezeichnung, z. B. „Pizza“ oder „Pause vorbei“ (optional)."),
+            ], required: ["seconds"]),
+        ],
+        [
+            "name": "manage_timers",
+            "description": "Listet laufende Timer auf oder bricht alle ab. Benutze dies bei „wie lange läuft mein Timer noch?“ oder „stopp den Timer“.",
+            "input_schema": object([
+                "action": ["type": "string", "enum": ["list", "cancel_all"], "description": "list = anzeigen, cancel_all = alle abbrechen."],
+            ], required: ["action"]),
+        ],
+        [
+            "name": "run_shortcut",
+            "description": "Startet einen Apple-Kurzbefehl (App „Kurzbefehle“) des Nutzers über seinen Namen. Damit kann A.T.L.A.S. fast alles steuern, was Kurzbefehle können: Licht und Smart Home, Musik, Notizen, Fokus-Modi, Apps anderer Anbieter. Benutze dies, wenn der Nutzer einen Kurzbefehl nennt oder eine Aufgabe möchte, für die er einen Kurzbefehl hat (z. B. aus dem Gedächtnis). Der Nutzer bestätigt vor dem Start.",
+            "input_schema": object([
+                "name": string("Exakter Name des Kurzbefehls, z. B. „Licht aus“."),
+                "input": string("Text, der an den Kurzbefehl übergeben wird (optional)."),
+            ], required: ["name"]),
+        ],
+        [
+            "name": "open_link",
+            "description": "Öffnet eine Webseite oder einen App-Link (https), z. B. eine Suche bei YouTube, einen Song bei Apple Music oder Spotify, eine Seite für Tickets oder Bestellungen. Benutze dies bei „öffne …“, „zeig mir … im Browser“, „spiel … auf YouTube“. Kaufe oder bestelle niemals selbst – der Nutzer erledigt das auf der geöffneten Seite.",
+            "input_schema": object([
+                "url": string("Vollständige https-Adresse."),
+                "title": string("Kurze Beschreibung, was geöffnet wird."),
+            ], required: ["url"]),
+        ],
+        [
+            "name": "call_phone",
+            "description": "Bereitet einen Anruf vor (iPhone-Telefon, auf dem Mac über FaceTime/iPhone). Der Nutzer bestätigt vorher. Benutze dies bei „ruf … an“. Ermittle die Nummer mit search_contacts, falls nur ein Name genannt wird.",
+            "input_schema": object([
+                "recipient_name": string("Name der Person (optional)."),
+                "number": string("Telefonnummer (optional, sonst aus den Kontakten)."),
+            ]),
+        ],
+        [
+            "name": "copy_to_clipboard",
+            "description": "Kopiert Text in die Zwischenablage, damit der Nutzer ihn überall einfügen kann. Benutze dies, wenn der Nutzer einen Text, eine E-Mail, einen Beitrag oder eine Zusammenfassung „zum Kopieren“ möchte oder sagt „kopier das“.",
+            "input_schema": object([
+                "text": string("Der vollständige Text."),
+            ], required: ["text"]),
         ],
     ]
 

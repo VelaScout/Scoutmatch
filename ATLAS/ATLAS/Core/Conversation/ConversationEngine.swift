@@ -553,8 +553,8 @@ final class ConversationEngine {
             var full = ""
             // Premium-Stimme: größere Abschnitte – klingt fließender und spart Ladepausen.
             var chunker = premiumVoice
-                ? SentenceChunker(firstMinimum: 70, minimum: 220)
-                : SentenceChunker(firstMinimum: 60, minimum: 260)
+                ? SentenceChunker(firstMinimum: 50, minimum: 220)
+                : SentenceChunker(firstMinimum: 40, minimum: 260)
             do {
                 for try await event in self.provider.runTurn(history: turns, options: options, tools: tools) {
                     guard self.generation == currentGeneration, !Task.isCancelled else { break }

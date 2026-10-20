@@ -25,6 +25,15 @@ enum PlatformBridge {
         #endif
     }
 
+    static func copyToClipboard(_ text: String) {
+        #if os(iOS)
+        UIPasteboard.general.string = text
+        #else
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #endif
+    }
+
     /// Öffnet die Systemeinstellungen zu den Berechtigungen von ATLAS.
     static func openSystemSettings() {
         #if os(iOS)

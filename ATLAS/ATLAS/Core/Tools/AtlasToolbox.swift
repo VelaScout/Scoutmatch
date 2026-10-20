@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import UserNotifications
 
 /// Eine Aktion, die der Nutzer vor der Ausführung bestätigen muss.
 struct ConfirmationRequest: Identifiable, Equatable {
@@ -29,6 +30,7 @@ final class AtlasToolbox: ToolExecuting {
     private static let deviceToolNames: Set<String> = [
         "get_calendar_events", "create_calendar_event", "list_reminders", "create_reminder", "complete_reminder",
         "search_contacts", "get_current_location", "show_route", "prepare_message",
+        "set_timer", "manage_timers", "run_shortcut", "open_link", "call_phone", "copy_to_clipboard",
     ]
 
     init(modelContext: ModelContext, settings: AppSettings) {
@@ -54,6 +56,12 @@ final class AtlasToolbox: ToolExecuting {
         case "get_current_location": result = await currentLocation()
         case "show_route": result = showRoute(input)
         case "prepare_message": result = await prepareMessage(input)
+        case "set_timer": result = await setTimer(input)
+        case "manage_timers": result = await manageTimers(input)
+        case "run_shortcut": result = await runShortcut(input)
+        case "open_link": result = openLink(input)
+        case "call_phone": result = await callPhone(input)
+        case "copy_to_clipboard": result = copyToClipboard(input)
         case "remember": result = remember(input)
         case "forget": result = await forget(input)
         case "list_memories": result = listMemories()
@@ -206,7 +214,9 @@ final class AtlasToolbox: ToolExecuting {
         guard let body = input["body"] as? String, !body.isEmpty else {
             return ToolResult(content: "Nachrichtentext fehlt.", isError: true)
         }
-        let isEmail = (input["channel"] as? String) == "email"
+        let channel = input["channel"] as? String ?? "message"
+        let isEmail = channel == "email"
+        let isWhatsApp = channel == "whatsapp"
         let name = input["recipient_name"] as? String ?? ""
         var address = (input["recipient_address"] as? String)?.trimmingCharacters(in: .whitespaces) ?? ""
         if address.isEmpty, !name.isEmpty {
@@ -216,9 +226,9 @@ final class AtlasToolbox: ToolExecuting {
         let recipient = [name, address.isEmpty ? nil : "(\(address))"].compactMap { $0 }.filter { !$0.isEmpty }
             .joined(separator: " ")
         let request = ConfirmationRequest(
-            title: isEmail ? "E-Mail vorbereiten" : "Nachricht vorbereiten",
+            title: isEmail ? "E-Mail vorbereiten" : (isWhatsApp ? "WhatsApp vorbereiten" : "Nachricht vorbereiten"),
             detail: "An: \(recipient.isEmpty ? "– bitte in der App wählen –" : recipient)\n\n\(body)",
-            confirmLabel: isEmail ? "In Mail öffnen" : "In Nachrichten öffnen",
+            confirmLabel: isEmail ? "In Mail öffnen" : (isWhatsApp ? "In WhatsApp öffnen" : "In Nachrichten öffnen"),
             spokenPrompt: "Soll ich den Entwurf öffnen? Bitte bestätigen Sie.")
 
         guard await askConfirmation(request) else {
@@ -234,6 +244,12 @@ final class AtlasToolbox: ToolExecuting {
             components.queryItems = [URLQueryItem(name: "subject", value: input["subject"] as? String ?? ""),
                                      URLQueryItem(name: "body", value: body)]
             url = components.url
+        } else if isWhatsApp {
+            // wa.me öffnet WhatsApp (oder die Webseite, falls die App fehlt); Nummer ohne „+“.
+            var components = URLComponents(string: "https://wa.me/")!
+            components.path = "/" + address.filter { "0123456789".contains($0) }
+            components.queryItems = [URLQueryItem(name: "text", value: body)]
+            url = components.url
         } else {
             let allowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+"))
             let encoded = body.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
@@ -244,6 +260,115 @@ final class AtlasToolbox: ToolExecuting {
         PlatformBridge.open(url)
         log(isEmail ? "E-Mail-Entwurf geöffnet" : "Nachrichtenentwurf geöffnet", recipient)
         return ToolResult(content: "Der Entwurf wurde geöffnet. Der Nutzer prüft und sendet ihn selbst – er ist noch NICHT gesendet.")
+    }
+
+    // MARK: - Timer (lokale Mitteilungen – funktionieren auch, wenn A.T.L.A.S. geschlossen ist)
+
+    private static let timerPrefix = "atlas.timer."
+
+    private func setTimer(_ input: [String: Any]) async -> ToolResult {
+        guard let seconds = (input["seconds"] as? NSNumber)?.doubleValue, seconds >= 5, seconds <= 86_400 else {
+            return ToolResult(content: "Bitte eine Dauer zwischen 5 Sekunden und 24 Stunden angeben.", isError: true)
+        }
+        guard await ProactiveScheduler.requestAuthorization() else { return denied("Mitteilungen") }
+        let label = (input["label"] as? String)?.trimmingCharacters(in: .whitespaces) ?? ""
+        let content = UNMutableNotificationContent()
+        content.title = label.isEmpty ? "Timer abgelaufen" : label
+        content.body = "Ihr Timer ist abgelaufen\(settings.sirSuffix)."
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: Self.timerPrefix + UUID().uuidString, content: content,
+                                            trigger: UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false))
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            return ToolResult(content: "Der Timer konnte nicht gestellt werden: \(error.localizedDescription)", isError: true)
+        }
+        let end = Date.now.addingTimeInterval(seconds)
+        log("Timer gestellt", "\(label.isEmpty ? "Timer" : label) – endet \(DateParsing.timeString(end)) Uhr")
+        return ToolResult(content: "Timer\(label.isEmpty ? "" : " „\(label)“") gestellt, endet um \(DateParsing.timeString(end)) Uhr.")
+    }
+
+    private func manageTimers(_ input: [String: Any]) async -> ToolResult {
+        let center = UNUserNotificationCenter.current()
+        let timers = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix(Self.timerPrefix) }
+        if (input["action"] as? String) == "cancel_all" {
+            center.removePendingNotificationRequests(withIdentifiers: timers.map(\.identifier))
+            log("Timer abgebrochen", "\(timers.count) Timer")
+            return ToolResult(content: timers.isEmpty ? "Es lief kein Timer." : "\(timers.count) Timer abgebrochen.")
+        }
+        guard !timers.isEmpty else { return ToolResult(content: "Es läuft kein Timer.") }
+        let lines = timers.map { request -> String in
+            let next = (request.trigger as? UNTimeIntervalNotificationTrigger)?.nextTriggerDate()
+            let end = next.map { "endet \(DateParsing.timeString($0)) Uhr (in \(Int($0.timeIntervalSinceNow / 60)) Minuten)" } ?? ""
+            return "\(request.content.title) \(end)"
+        }
+        return ToolResult(content: lines.joined(separator: "\n"))
+    }
+
+    // MARK: - Kurzbefehle, Links, Anrufe, Zwischenablage
+
+    private func runShortcut(_ input: [String: Any]) async -> ToolResult {
+        guard let name = (input["name"] as? String)?.trimmingCharacters(in: .whitespaces), !name.isEmpty else {
+            return ToolResult(content: "Name des Kurzbefehls fehlt.", isError: true)
+        }
+        let text = (input["input"] as? String) ?? ""
+        let request = ConfirmationRequest(
+            title: "Kurzbefehl ausführen",
+            detail: "„\(name)“" + (text.isEmpty ? "" : "\n\nEingabe: \(text)"),
+            confirmLabel: "Ausführen",
+            spokenPrompt: "Soll ich den Kurzbefehl \(name) starten?")
+        guard await askConfirmation(request) else {
+            return ToolResult(content: "Der Nutzer hat den Kurzbefehl nicht gestartet.")
+        }
+        var components = URLComponents()
+        components.scheme = "shortcuts"
+        components.host = "run-shortcut"
+        var items = [URLQueryItem(name: "name", value: name)]
+        if !text.isEmpty { items += [URLQueryItem(name: "input", value: "text"), URLQueryItem(name: "text", value: text)] }
+        components.queryItems = items
+        guard let url = components.url else { return ToolResult(content: "Ungültiger Name.", isError: true) }
+        PlatformBridge.open(url)
+        log("Kurzbefehl gestartet", name)
+        return ToolResult(content: "Der Kurzbefehl „\(name)“ wurde in der App Kurzbefehle gestartet. Falls er nicht existiert, zeigt die App einen Hinweis.")
+    }
+
+    private func openLink(_ input: [String: Any]) -> ToolResult {
+        guard let raw = (input["url"] as? String)?.trimmingCharacters(in: .whitespaces),
+              let url = URL(string: raw), url.scheme?.lowercased() == "https" || url.scheme?.lowercased() == "http" else {
+            return ToolResult(content: "Bitte eine gültige https-Adresse angeben.", isError: true)
+        }
+        PlatformBridge.open(url)
+        log("Link geöffnet", (input["title"] as? String) ?? url.host() ?? raw)
+        return ToolResult(content: "Geöffnet: \(url.host() ?? raw).")
+    }
+
+    private func callPhone(_ input: [String: Any]) async -> ToolResult {
+        let name = (input["recipient_name"] as? String) ?? ""
+        var number = ((input["number"] as? String) ?? "").filter { "+0123456789".contains($0) }
+        if number.isEmpty, !name.isEmpty {
+            number = (await contacts.firstAddress(for: name, email: false) ?? "").filter { "+0123456789".contains($0) }
+        }
+        guard !number.isEmpty, let url = URL(string: "tel:\(number)") else {
+            return ToolResult(content: "Keine Telefonnummer gefunden. Frage nach der Nummer oder dem genauen Namen.", isError: true)
+        }
+        let who = name.isEmpty ? number : "\(name) (\(number))"
+        let request = ConfirmationRequest(title: "Anrufen", detail: who, confirmLabel: "Anrufen",
+                                          spokenPrompt: "Soll ich \(name.isEmpty ? "die Nummer" : name) anrufen?")
+        guard await askConfirmation(request) else {
+            return ToolResult(content: "Der Nutzer möchte doch nicht anrufen.")
+        }
+        PlatformBridge.open(url)
+        log("Anruf gestartet", who)
+        return ToolResult(content: "Der Anruf an \(who) wurde gestartet.")
+    }
+
+    private func copyToClipboard(_ input: [String: Any]) -> ToolResult {
+        guard let text = input["text"] as? String, !text.isEmpty else {
+            return ToolResult(content: "Text fehlt.", isError: true)
+        }
+        PlatformBridge.copyToClipboard(text)
+        log("In die Zwischenablage kopiert", String(text.prefix(80)))
+        return ToolResult(content: "Der Text liegt in der Zwischenablage und kann überall eingefügt werden.")
     }
 
     // MARK: - Gedächtnis

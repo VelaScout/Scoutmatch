@@ -106,11 +106,12 @@ final class AppSettings {
             Keys.speechRate: 0.5,
             Keys.premiumVoice: false,
             Keys.premiumVoiceID: PremiumVoice.presets[0].id,
-            Keys.model: AtlasModel.opus.rawValue,
+            // Sonnet antwortet spürbar schneller – wichtig für ein flüssiges Gespräch.
+            Keys.model: AtlasModel.sonnet.rawValue,
             Keys.effort: AtlasEffort.low.rawValue,
             Keys.webSearch: true,
             Keys.conversationMode: true,
-            Keys.silenceTimeout: 1.4,
+            Keys.silenceTimeout: 1.0,
             Keys.appearance: AtlasAppearance.hologram.rawValue,
             Keys.wakeWord: true,
             Keys.tools: true,
@@ -127,7 +128,7 @@ final class AppSettings {
         speechRate = defaults.double(forKey: Keys.speechRate)
         premiumVoiceEnabled = defaults.bool(forKey: Keys.premiumVoice)
         premiumVoiceID = defaults.string(forKey: Keys.premiumVoiceID) ?? PremiumVoice.presets[0].id
-        model = AtlasModel(rawValue: defaults.string(forKey: Keys.model) ?? "") ?? .opus
+        model = AtlasModel(rawValue: defaults.string(forKey: Keys.model) ?? "") ?? .sonnet
         effort = AtlasEffort(rawValue: defaults.string(forKey: Keys.effort) ?? "") ?? .low
         webSearchEnabled = defaults.bool(forKey: Keys.webSearch)
         conversationMode = defaults.bool(forKey: Keys.conversationMode)

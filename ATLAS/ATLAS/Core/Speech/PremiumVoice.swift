@@ -12,7 +12,8 @@ final class PremiumVoice: NSObject {
     struct Config: Equatable {
         var apiKey: String
         var voiceID: String
-        var model = "eleven_multilingual_v2"
+        /// Turbo v2.5: mehrsprachig, deutlich kürzere Ladezeit – A.T.L.A.S. beginnt schneller zu sprechen.
+        var model = "eleven_turbo_v2_5"
     }
 
     /// Bekannte Stimmen aus der ElevenLabs-Bibliothek (frei wählbar, eigene ID möglich).
