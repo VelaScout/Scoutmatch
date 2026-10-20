@@ -168,7 +168,9 @@ struct MainView: View {
         case .error(let message): text = message
         // Beim Nachdenken keine Statusanzeige – Ihre Frage bleibt einfach stehen.
         case .thinking: text = engine.liveTranscript
-        default: text = engine.responseText
+        // Wenn A.T.L.A.S. spricht (und danach), kein Untertitel – nur die Stimme.
+        // Die Antworten stehen weiterhin im Gesprächsverlauf.
+        default: text = ""
         }
         return Text(text)
             .font(.callout)
