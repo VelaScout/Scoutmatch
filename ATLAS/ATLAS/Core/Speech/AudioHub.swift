@@ -74,6 +74,7 @@ final class AudioHub: @unchecked Sendable {
     private let lock = NSLock()
     private var outputReady = false
     private var inputReady = false
+    private var voiceProcessingActive = false
     private var pendingBuffers = 0
     private var generation = 0
     private var inputHandler: ((AVAudioPCMBuffer) -> Void)?
@@ -103,19 +104,25 @@ final class AudioHub: @unchecked Sendable {
     }
 
     /// Schaltet das Mikrofon mit Echo-Unterdrückung zu. Erst nach erteilter Erlaubnis aufrufen.
-    func enableInput() throws {
-        if inputReady {
+    /// - Parameter voiceProcessing: Echo-Unterdrückung (nötig, um A.T.L.A.S. per Stimme zu
+    ///   unterbrechen). Ohne sie klingt die Wiedergabe etwas voller, er hört beim Sprechen aber nicht zu.
+    func enableInput(voiceProcessing: Bool = true) throws {
+        if inputReady, voiceProcessingActive == voiceProcessing {
             try startIfNeeded()
             return
         }
         try prepareOutput()
         if engine.isRunning { engine.stop() }
         let input = engine.inputNode
+        if inputReady { input.removeTap(onBus: 0) }
         // Echo-Unterdrückung: Die eigene Stimme wird aus dem Mikrofon herausgerechnet.
-        try? input.setVoiceProcessingEnabled(true)
-        // Andere Apps (z. B. Spotify) dabei nicht leiser machen.
-        input.voiceProcessingOtherAudioDuckingConfiguration =
-            AVAudioVoiceProcessingOtherAudioDuckingConfiguration(enableAdvancedDucking: false, duckingLevel: .min)
+        try? input.setVoiceProcessingEnabled(voiceProcessing)
+        voiceProcessingActive = voiceProcessing
+        if voiceProcessing {
+            // Andere Apps (z. B. Spotify) dabei nicht leiser machen.
+            input.voiceProcessingOtherAudioDuckingConfiguration =
+                AVAudioVoiceProcessingOtherAudioDuckingConfiguration(enableAdvancedDucking: false, duckingLevel: .min)
+        }
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else {
             throw SpeechRecognizer.RecognizerError.noMicrophone
@@ -232,6 +239,20 @@ final class PCMStreamConverter {
             provided = true
             status.pointee = .haveData
             return buffer
+        }
+        return output.frameLength > 0 ? output : nil
+    }
+
+    /// Gibt am Ende eines Abschnitts die letzten, noch im Umwandler steckenden Millisekunden
+    /// heraus – sonst würden Satzenden abgeschnitten.
+    func flush() -> AVAudioPCMBuffer? {
+        guard let converter else { return nil }
+        defer { converter.reset() }
+        guard let output = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: 8_192) else { return nil }
+        var error: NSError?
+        _ = converter.convert(to: output, error: &error) { _, status in
+            status.pointee = .endOfStream
+            return nil
         }
         return output.frameLength > 0 ? output : nil
     }

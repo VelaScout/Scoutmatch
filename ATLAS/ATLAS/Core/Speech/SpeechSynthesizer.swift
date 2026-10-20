@@ -108,15 +108,38 @@ final class SpeechSynthesizer: NSObject {
     private func render(_ item: Item) async {
         if let stream = item.premium, !premiumFailed {
             var played = false
+            // Puffer-Polster: Erst abspielen, wenn genug Ton da ist – dann gibt es keine Aussetzer,
+            // falls das Netz kurz langsamer liefert. Läuft schon etwas, reicht ein kleines Polster.
+            let cushion = hub.isPlaying ? 0.15 : 0.45
+            var waiting: [AVAudioPCMBuffer] = []
+            var waitingSeconds = 0.0
             do {
                 for try await buffer in stream {
                     if Task.isCancelled { return }
+                    if played {
+                        hub.play(buffer)
+                        continue
+                    }
+                    waiting.append(buffer)
+                    waitingSeconds += Double(buffer.frameLength) / buffer.format.sampleRate
+                    if waitingSeconds >= cushion {
+                        waiting.forEach { hub.play($0) }
+                        waiting.removeAll()
+                        played = true
+                    }
+                }
+                if !waiting.isEmpty {
+                    waiting.forEach { hub.play($0) }
                     played = true
-                    hub.play(buffer)
                 }
                 if played { return }
             } catch {
-                if Task.isCancelled || played { return }
+                if Task.isCancelled { return }
+                if !waiting.isEmpty {
+                    waiting.forEach { hub.play($0) }
+                    return
+                }
+                if played { return }
             }
             // Premium-Stimme ausgefallen (z. B. Kontingent aufgebraucht): Rest mit Apple-Stimme.
             premiumFailed = true
@@ -158,7 +181,8 @@ final class SpeechSynthesizer: NSObject {
     nonisolated private static func makeBufferCallback(sink: AppleSink, waiter: AppleWaiter) -> AVSpeechSynthesizer.BufferCallback {
         { buffer in
             guard let pcm = buffer as? AVAudioPCMBuffer, pcm.frameLength > 0 else {
-                // Ein leerer Puffer markiert das Ende des Abschnitts.
+                // Ein leerer Puffer markiert das Ende des Abschnitts: Rest ausgeben, dann weiter.
+                sink.finish()
                 waiter.finish()
                 return
             }
@@ -254,6 +278,11 @@ private final class AppleSink: @unchecked Sendable {
     func play(_ buffer: AVAudioPCMBuffer) {
         let converted = lock.withLock { converter.convert(buffer) }
         if let converted { hub.play(converted) }
+    }
+
+    func finish() {
+        let tail = lock.withLock { converter.flush() }
+        if let tail { hub.play(tail) }
     }
 }
 
