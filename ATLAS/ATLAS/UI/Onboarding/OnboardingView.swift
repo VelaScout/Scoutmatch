@@ -10,7 +10,8 @@ struct OnboardingView: View {
             Color.black.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    AtlasHologramView(state: .idle, inputLevel: 0, spokenWordCount: 0, spokenWordLength: 0, speechRate: 0.5)
+                    AtlasHologramView(state: .idle, inputLevel: 0, spokenWordCount: 0, spokenWordLength: 0, speechRate: 0.5,
+                                      showsIntro: false, showsFrame: false)
                         .frame(height: 240)
                         .frame(maxWidth: .infinity)
 
