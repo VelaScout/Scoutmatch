@@ -11,7 +11,7 @@ Ihr persönlicher KI-Assistent für **iPhone und Mac** – eine native SwiftUI-A
 
 | Bereich | Funktionen |
 |---|---|
-| **Gesicht** | Standard: **Hologramm** – eine glühende, bernsteinfarbene Kugel aus Lichtsplittern und Umlaufbahnen (im Stil von J.A.R.V.I.S.) mit holografischem Gesicht: Blinzeln, Blickkontakt, Kopfbewegung, Mundbewegung synchron zu den Wörtern, eigene Mimik für Zuhören, Nachdenken und Sprechen; die Kugel reagiert auf Ihre Stimme. Wählbar: silbernes Gesicht oder sparsamer Energiekern. |
+| **Gesicht** | Standard: **Hologramm** – eine glühende, bernsteinfarbene Kugel aus Lichtsplittern und Umlaufbahnen (im Stil von J.A.R.V.I.S.) mit einem Gesicht aus Lichtpunkten: Blinzeln, Blickkontakt, Kopfbewegung, Mundbewegung synchron zu den Wörtern, eigene Mimik für Zuhören, Nachdenken und Sprechen; die Kugel reagiert auf Ihre Stimme. Wählbar: silbernes Gesicht oder sparsamer Energiekern. |
 | **Sprache** | Sprechen statt Tippen, automatische Pausenerkennung, Gesprächsmodus, Unterbrechen per Tippen, Deutsch und britisches Englisch, wählbare Stimme. |
 | **Wake-Word** | Bei geöffneter App „Atlas“ sagen → „Ja, Sir?“. Oder direkt: „Atlas, wie wird das Wetter morgen?“. Die Erkennung läuft ausschließlich auf dem Gerät. |
 | **Siri & Kurzbefehle** | „Siri, starte ATLAS“, „Siri, frag ATLAS“ (Antwort ohne App-Öffnen), „Siri, ATLAS Tagesübersicht“, „Siri, plane morgen mit ATLAS“. Auf den Action-Button legbar. |

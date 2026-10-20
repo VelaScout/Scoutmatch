@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// ATLAS als Hologramm (Standard-Darstellung): eine glühende, bernsteinfarbene Kugel aus
-/// Lichtsplittern und Umlaufbahnen – inspiriert von J.A.R.V.I.S. – mit einem holografischen
-/// Gesicht im Zentrum. Das Gesicht blinzelt, hält Blickkontakt und bewegt beim Sprechen den
+/// Lichtsplittern und Umlaufbahnen – inspiriert von J.A.R.V.I.S. – mit einem Gesicht aus
+/// rund 1.500 Lichtpunkten im Zentrum. Das Gesicht blinzelt, hält Blickkontakt und bewegt beim Sprechen den
 /// Mund; die Kugel reagiert auf Ihre Stimme (Zuhören), dreht sich schneller beim Nachdenken
 /// und pulsiert beim Sprechen.
 ///
@@ -227,15 +227,15 @@ struct AtlasHologramView: View {
         }
     }
 
-    /// Das holografische Gesicht: Umriss, Raster, Scan-Balken, glühende Augen, Brauen, Mund.
+    /// Das holografische Gesicht als Punktwolke: Fläche mit Tiefe, Umriss- und Konturpunkte,
+    /// bewegliche Brauen, Nase, Mund und Lidränder aus Punkten sowie glühende Augenkerne.
     private func drawFace(_ ctx: inout GraphicsContext, center: CGPoint, radius R: Double, energy en: Double,
                           t: Double, motion: Double, expr: AtlasFaceView.Expression, mouth: Double) {
         let H = R, W = H * 0.7
         let yaw = (sin(t * 0.37) * 0.035 + sin(t * 0.91) * 0.012) * motion
         let pitch = sin(t * 0.29) * 0.02 * motion
         let fx = yaw * W * 0.55, fy = pitch * H * 0.5
-        let flickerFace = 0.82 + 0.18 * sin(t * 23) * sin(t * 7.1)
-        let faceA = min(1, (0.75 + 0.35 * en) * flickerFace)
+        let faceA = min(1, (0.8 + 0.3 * en) * (0.9 + 0.1 * sin(t * 23) * sin(t * 7.1)))
 
         var face = ctx
         let offsetX: Double = Double(center.x) + yaw * W * 0.35
@@ -243,116 +243,229 @@ struct AtlasHologramView: View {
         face.translateBy(x: offsetX, y: offsetY)
         face.rotate(by: .radians((expr.headTilt + sin(t * 0.23) * 0.012) * motion))
 
-        let head = AtlasMotion.headPath(W: W, H: H)
-
-        // Dunkler Grund, damit das Gesicht aus der Kugel heraustritt
+        // Dunkler Grund, damit das Gesicht vor der Kugel steht
         var shade = face
         shade.blendMode = .normal
-        shade.fill(head, with: .color(Color(red: 0.04, green: 0.02, blue: 0.01).opacity(0.55)))
+        shade.fill(AtlasMotion.headPath(W: W, H: H),
+                   with: .color(Color(red: 0.03, green: 0.015, blue: 0.004).opacity(0.62)))
 
-        // Hologramm-Raster und wandernder Scan-Balken
-        var inside = face
-        inside.clip(to: head)
-        var lines = Path()
-        let step = H / 30
-        let shift = (t * 12).truncatingRemainder(dividingBy: step)
-        var y = -H / 2 + shift
-        while y < H / 2 {
-            lines.move(to: CGPoint(x: -W / 2, y: y))
-            lines.addLine(to: CGPoint(x: W / 2, y: y))
-            y += step
+        let unit = R / 190
+        let scanY = ((t * 0.32).truncatingRemainder(dividingBy: 1.4) - 0.2) * H - H / 2
+        func scanBoost(_ y: Double) -> Double {
+            let d = (y - scanY) / (H * 0.035)
+            return 1 + 1.6 * exp(-d * d)
         }
-        inside.stroke(lines, with: .color(amber.opacity(0.07 * faceA)), lineWidth: 1)
-        let scanY = ((t * 0.35).truncatingRemainder(dividingBy: 1.4) - 0.2) * H - H / 2
-        inside.fill(Path(CGRect(x: -W / 2, y: scanY - H * 0.06, width: W, height: H * 0.12)),
-                    with: .linearGradient(
-                        Gradient(colors: [amber.opacity(0), amber.opacity(0.16 * faceA), amber.opacity(0)]),
-                        startPoint: CGPoint(x: 0, y: scanY - H * 0.06), endPoint: CGPoint(x: 0, y: scanY + H * 0.06)))
 
-        glow(&face, head, alpha: 0.7 * faceA, width: 1.4)
+        var dots = DotBuckets()
 
-        // Konturlinien wie ein Drahtgitter
-        var contour = Path()
-        contour.move(to: CGPoint(x: fx * 0.5, y: -0.49 * H))
-        contour.addLine(to: CGPoint(x: fx * 0.8, y: -0.17 * H + fy))
-        for side in [-1.0, 1.0] {
-            contour.move(to: CGPoint(x: side * 0.44 * W + fx * 0.6, y: -0.12 * H))
-            contour.addQuadCurve(to: CGPoint(x: side * 0.17 * W + fx, y: 0.37 * H + fy),
-                                 control: CGPoint(x: side * 0.36 * W + fx, y: 0.16 * H))
-            contour.move(to: CGPoint(x: side * 0.12 * W + fx * 0.7, y: -0.47 * H))
-            contour.addQuadCurve(to: CGPoint(x: side * 0.42 * W + fx * 0.6, y: -0.2 * H),
-                                 control: CGPoint(x: side * 0.34 * W + fx * 0.6, y: -0.42 * H))
-            contour.move(to: CGPoint(x: side * 0.3 * W + fx, y: 0.05 * H + fy))
-            contour.addQuadCurve(to: CGPoint(x: side * 0.1 * W + fx, y: 0.06 * H + fy),
-                                 control: CGPoint(x: side * 0.2 * W + fx, y: 0.1 * H + fy))
+        // Gesichtsfläche: vorne heller, Ränder dunkler; vordere Punkte verschieben sich stärker (3D)
+        for d in Self.faceDots {
+            let par = 0.3 + 0.9 * d.z
+            let x = d.u * W + fx * par
+            let y = d.v * H + fy * par + sin(t * 1.3 + d.phase) * 0.0025 * H
+            let a = d.brightness * (0.72 + 0.28 * sin(t * d.flicker + d.phase)) * faceA * scanBoost(y)
+            dots.add(x: x, y: y, alpha: a, size: unit * (0.55 + 0.55 * d.z))
         }
-        glow(&face, contour, alpha: 0.28 * faceA, width: 0.9)
+        for d in Self.lineDots {
+            let par = 0.3 + 0.9 * d.z
+            let x = d.u * W + fx * par, y = d.v * H + fy * par
+            let a = d.brightness * (0.8 + 0.2 * sin(t * 3 + d.phase)) * faceA * scanBoost(y)
+            dots.add(x: x, y: y, alpha: a, size: unit * 0.95)
+        }
 
-        // Augen: glühende Kerne mit Blick und Blinzeln
+        // Bewegliche Teile, jedes Bild neu abgetastet
         let openness = max(0.06, expr.eyeOpen * (1 - AtlasMotion.blink(t)))
         let gaze = AtlasMotion.gaze(t, state: state)
         let eyeGlow = 0.6 + 0.4 * expr.glow
+        var eyeCores: [(CGPoint, Double)] = []
         for side in [-1.0, 1.0] {
             let ex = side * 0.2 * W + fx, ey = -0.05 * H + fy
-            let ew = 0.22 * W, eh = max(0.085 * H * openness, 1.2)
-            glow(&face, Path(ellipseIn: CGRect(x: ex - ew / 2, y: ey - eh / 2, width: ew, height: eh)),
-                 alpha: 0.7 * faceA, width: 1.2)
-            let ix = ex + gaze.x * ew * 0.25, iy = ey + gaze.y * eh * 0.3
-            let ir = 0.035 * H * min(1, openness * 1.3)
-            face.fill(circle(CGPoint(x: ix, y: iy), ir * 3.2),
-                      with: .radialGradient(
-                        Gradient(stops: [
-                            .init(color: Self.amberCore.opacity(eyeGlow), location: 0),
-                            .init(color: amber.opacity(0.75 * eyeGlow), location: 0.3),
-                            .init(color: amber.opacity(0), location: 1),
-                        ]),
-                        center: CGPoint(x: ix, y: iy), startRadius: 0, endRadius: ir * 3.2))
-            face.fill(circle(CGPoint(x: ix, y: iy), ir * 0.45),
-                      with: .color(Color(red: 1, green: 0.96, blue: 0.88).opacity(eyeGlow)))
-
+            let ew = 0.22 * W, eh = 0.085 * H * openness
+            for i in 0..<26 {
+                let angle = Double(i) / 26 * 2 * .pi
+                dots.add(x: ex + cos(angle) * ew / 2, y: ey + sin(angle) * eh / 2, alpha: 0.75 * faceA, size: unit * 0.9)
+            }
             let base = -0.135 * H + fy - expr.browRaise * 0.025 * H
-            var brow = Path()
-            brow.move(to: CGPoint(x: side * 0.08 * W + fx, y: base - expr.browInner * 0.02 * H))
-            brow.addQuadCurve(to: CGPoint(x: side * 0.34 * W + fx, y: base + 0.012 * H),
-                              control: CGPoint(x: side * 0.22 * W + fx, y: base - 0.03 * H))
-            glow(&face, brow, alpha: 0.6 * faceA, width: 1.4)
+            dots.addQuad(from: (side * 0.08 * W + fx, base - expr.browInner * 0.02 * H),
+                         control: (side * 0.22 * W + fx, base - 0.03 * H),
+                         to: (side * 0.34 * W + fx, base + 0.012 * H),
+                         count: 16, alpha: 0.85 * faceA, size: unit * 1.1)
+            let ir = 0.035 * H * min(1, openness * 1.3)
+            eyeCores.append((CGPoint(x: ex + Double(gaze.x) * ew * 0.25, y: ey + Double(gaze.y) * eh * 0.3), ir))
         }
-
-        // Nase
-        var nose = Path()
-        nose.move(to: CGPoint(x: 0.015 * W + fx, y: -0.04 * H + fy))
-        nose.addQuadCurve(to: CGPoint(x: 0.035 * W + fx * 1.1, y: 0.13 * H + fy),
-                          control: CGPoint(x: 0.045 * W + fx, y: 0.05 * H + fy))
-        nose.move(to: CGPoint(x: -0.06 * W + fx * 1.1, y: 0.15 * H + fy))
-        nose.addQuadCurve(to: CGPoint(x: 0.06 * W + fx * 1.1, y: 0.15 * H + fy),
-                          control: CGPoint(x: fx * 1.1, y: 0.175 * H + fy))
-        glow(&face, nose, alpha: 0.4 * faceA, width: 1)
+        dots.addQuad(from: (0.015 * W + fx, -0.04 * H + fy), control: (0.045 * W + fx, 0.05 * H + fy),
+                     to: (0.035 * W + fx * 1.1, 0.13 * H + fy), count: 12, alpha: 0.55 * faceA, size: unit * 0.9)
+        dots.addQuad(from: (-0.06 * W + fx * 1.1, 0.15 * H + fy), control: (fx * 1.1, 0.175 * H + fy),
+                     to: (0.06 * W + fx * 1.1, 0.15 * H + fy), count: 9, alpha: 0.6 * faceA, size: unit * 0.9)
 
         // Mund – öffnet sich im Takt der gesprochenen Wörter
         let mx = fx * 1.05, my = 0.27 * H + fy
         let half = 0.12 * W * (1 - mouth * 0.15)
         let corner = -expr.smile * 0.018 * H
         let gap = mouth * 0.06 * H
-        let left = CGPoint(x: mx - half, y: my + corner), right = CGPoint(x: mx + half, y: my + corner)
-        var lips = Path()
-        lips.move(to: left)
-        lips.addQuadCurve(to: right, control: CGPoint(x: mx, y: my - gap * 0.6 - 0.006 * H))
-        lips.addQuadCurve(to: left, control: CGPoint(x: mx, y: my + gap * 1.4 + expr.smile * 0.012 * H))
+        let mouthA = (0.85 + 0.15 * mouth) * faceA
+        dots.addQuad(from: (mx - half, my + corner), control: (mx, my - gap * 0.6 - 0.006 * H),
+                     to: (mx + half, my + corner), count: 18, alpha: mouthA, size: unit * 1.05)
+        dots.addQuad(from: (mx - half, my + corner), control: (mx, my + gap * 1.4 + expr.smile * 0.012 * H),
+                     to: (mx + half, my + corner), count: 18, alpha: mouthA * 0.8, size: unit)
         if mouth > 0.05 {
-            face.fill(lips, with: .color(amber.opacity(0.18 + 0.35 * mouth)))
+            var inner = Path()
+            inner.move(to: CGPoint(x: mx - half, y: my + corner))
+            inner.addQuadCurve(to: CGPoint(x: mx + half, y: my + corner), control: CGPoint(x: mx, y: my - gap * 0.6))
+            inner.addQuadCurve(to: CGPoint(x: mx - half, y: my + corner), control: CGPoint(x: mx, y: my + gap * 1.4))
+            face.fill(inner, with: .color(amber.opacity(0.12 + 0.3 * mouth)))
         }
-        glow(&face, lips, alpha: 0.7 * faceA, width: 1.4)
+
+        // Glühende Augenkerne
+        for (core, ir) in eyeCores {
+            face.fill(circle(core, ir * 3.2),
+                      with: .radialGradient(
+                        Gradient(stops: [
+                            .init(color: Self.amberCore.opacity(eyeGlow), location: 0),
+                            .init(color: amber.opacity(0.75 * eyeGlow), location: 0.3),
+                            .init(color: amber.opacity(0), location: 1),
+                        ]),
+                        center: core, startRadius: 0, endRadius: ir * 3.2))
+            face.fill(circle(core, ir * 0.45), with: .color(Color(red: 1, green: 0.96, blue: 0.88).opacity(eyeGlow)))
+        }
+
+        // Punkte zeichnen: weicher Schein + heller Kern, nach Helligkeit gebündelt
+        for (index, path) in dots.paths.enumerated() where !path.isEmpty {
+            let a = Double(index + 1) / Double(DotBuckets.count)
+            face.stroke(path, with: .color(amber.opacity(a * 0.22)), lineWidth: unit * 2.2)
+            face.fill(path, with: .color((index >= DotBuckets.count - 3 ? Self.amberCore : amber).opacity(a)))
+        }
     }
+
+    /// Sammelt Lichtpunkte in wenigen Pfaden – einer pro Helligkeitsstufe.
+    private struct DotBuckets {
+        static let count = 7
+        var paths = [Path](repeating: Path(), count: count)
+
+        mutating func add(x: Double, y: Double, alpha: Double, size: Double) {
+            guard alpha >= 0.035 else { return }
+            let index = min(Self.count - 1, Int(min(alpha, 0.999) * Double(Self.count)))
+            paths[index].addEllipse(in: CGRect(x: x - size, y: y - size, width: size * 2, height: size * 2))
+        }
+
+        mutating func addQuad(from a: (Double, Double), control q: (Double, Double), to c: (Double, Double),
+                              count n: Int, alpha: Double, size: Double) {
+            for i in 0...n {
+                let s = Double(i) / Double(n), k = 1 - s
+                add(x: k * k * a.0 + 2 * k * s * q.0 + s * s * c.0,
+                    y: k * k * a.1 + 2 * k * s * q.1 + s * s * c.1,
+                    alpha: alpha, size: size)
+            }
+        }
+    }
+
+    // MARK: - Punktwolke des Gesichts (einmal berechnet)
+
+    /// Ein Lichtpunkt im Gesicht. u relativ zur Kopfbreite, v relativ zur Kopfhöhe, z = Tiefe (1 = vorne).
+    private struct FaceDot {
+        let u: Double, v: Double, z: Double
+        let brightness: Double
+        let flicker: Double
+        let phase: Double
+    }
+
+    private static func seededRandom(_ seed: UInt64) -> () -> Double {
+        var state = seed
+        return {
+            state &+= 0x9E37_79B9_7F4A_7C15
+            var z = state
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            z ^= z >> 31
+            return Double(z >> 11) / Double(1 << 53)
+        }
+    }
+
+    /// Hexagonales Punktraster innerhalb des Kopfes mit plastischer Helligkeit.
+    private static let faceDots: [FaceDot] = {
+        let random = AtlasHologramView.seededRandom(11)
+        let head = AtlasMotion.headPath(W: 700, H: 1000)
+        var list: [FaceDot] = []
+        let step = 0.021
+        let du = step / 0.7
+        var row = 0
+        var v = -0.49
+        while v <= 0.49 {
+            var u = -0.5 + Double(row % 2) * du / 2
+            while u <= 0.5 {
+                let ju = u + (random() - 0.5) * du * 0.35
+                let jv = v + (random() - 0.5) * step * 0.35
+                u += du
+                guard head.contains(CGPoint(x: ju * 700, y: jv * 1000)) else { continue }
+                // Augenöffnungen frei lassen – dort sitzen die glühenden Kerne
+                let inEye = [-1.0, 1.0].contains { side in
+                    pow((ju - side * 0.2) / 0.15, 2) + pow((jv + 0.05) / 0.065, 2) < 1
+                }
+                if inEye { continue }
+                let nu = ju / 0.5, nv = (jv + 0.02) / 0.5
+                let z = sqrt(max(0, 1 - 0.8 * nu * nu - 0.35 * nv * nv))
+                var b = 0.1 + 0.5 * pow(z, 1.6)
+                b += 0.18 * exp(-(pow((abs(ju) - 0.3) / 0.09, 2) + pow((jv - 0.03) / 0.07, 2)))  // Wangenknochen
+                b += 0.12 * exp(-(pow(ju / 0.22, 2) + pow((jv + 0.3) / 0.1, 2)))                 // Stirn
+                b += 0.1 * exp(-(pow(ju / 0.05, 2) + pow((jv - 0.06) / 0.1, 2)))                 // Nasenrücken
+                for side in [-1.0, 1.0] {
+                    let d = hypot((ju - side * 0.2) / 0.2, (jv + 0.05) / 0.12)
+                    if d < 1 { b *= 0.45 + 0.55 * d }                                           // Augenhöhlen
+                }
+                if random() < 0.06 { b *= 1.8 }                                                  // einzelne Funken
+                list.append(FaceDot(u: ju, v: jv, z: z, brightness: min(b, 0.95),
+                                    flicker: 0.8 + 2.5 * random(), phase: random() * 6.28))
+            }
+            v += step
+            row += 1
+        }
+        return list
+    }()
+
+    /// Umriss und Gesichtskonturen als dichte Punktreihen.
+    private static let lineDots: [FaceDot] = {
+        let random = AtlasHologramView.seededRandom(23)
+        var list: [FaceDot] = []
+        // Umriss: dieselben Kurven wie AtlasMotion.headPath, in Einheiten von W und H
+        let start = (0.0, -0.5)
+        let segments: [((Double, Double), (Double, Double), (Double, Double))] = [
+            ((0.3, -0.5), (0.5, -0.38), (0.5, -0.16)),
+            ((0.5, 0.04), (0.44, 0.17), (0.31, 0.31)),
+            ((0.24, 0.44), (0.13, 0.5), (0, 0.5)),
+            ((-0.13, 0.5), (-0.24, 0.44), (-0.31, 0.31)),
+            ((-0.44, 0.17), (-0.5, 0.04), (-0.5, -0.16)),
+            ((-0.5, -0.38), (-0.3, -0.5), (0, -0.5)),
+        ]
+        var previous = start
+        for (c1, c2, end) in segments {
+            for i in 0..<30 {
+                let s = Double(i) / 30, k = 1 - s
+                let u = k * k * k * previous.0 + 3 * k * k * s * c1.0 + 3 * k * s * s * c2.0 + s * s * s * end.0
+                let v = k * k * k * previous.1 + 3 * k * k * s * c1.1 + 3 * k * s * s * c2.1 + s * s * s * end.1
+                list.append(FaceDot(u: u, v: v, z: 0.1, brightness: 0.8, flicker: 3, phase: random() * 6.28))
+            }
+            previous = end
+        }
+        func quad(_ a: (Double, Double), _ q: (Double, Double), _ c: (Double, Double),
+                  _ n: Int, _ brightness: Double, _ z: Double) {
+            for i in 0...n {
+                let s = Double(i) / Double(n), k = 1 - s
+                list.append(FaceDot(u: k * k * a.0 + 2 * k * s * q.0 + s * s * c.0,
+                                    v: k * k * a.1 + 2 * k * s * q.1 + s * s * c.1,
+                                    z: z, brightness: brightness, flicker: 3, phase: random() * 6.28))
+            }
+        }
+        quad((0, -0.49), (0, -0.33), (0, -0.17), 12, 0.35, 0.8)
+        for side in [-1.0, 1.0] {
+            quad((side * 0.44, -0.12), (side * 0.36, 0.16), (side * 0.17, 0.37), 24, 0.42, 0.4)
+            quad((side * 0.12, -0.47), (side * 0.34, -0.42), (side * 0.42, -0.2), 16, 0.32, 0.35)
+            quad((side * 0.3, 0.05), (side * 0.2, 0.1), (side * 0.1, 0.06), 9, 0.4, 0.7)
+            quad((side * 0.33, -0.05), (side * 0.36, 0.1), (side * 0.3, 0.22), 10, 0.25, 0.5)
+        }
+        return list
+    }()
 
     // MARK: - Hilfen
-
-    /// Leuchtende Linie: breiter, schwacher Schein plus heller Kern.
-    private func glow(_ ctx: inout GraphicsContext, _ path: Path, alpha: Double, width: Double) {
-        ctx.stroke(path, with: .color(amber.opacity(alpha * 0.18)),
-                   style: StrokeStyle(lineWidth: width * 5, lineCap: .round, lineJoin: .round))
-        ctx.stroke(path, with: .color(Self.amberCore.opacity(alpha)),
-                   style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
-    }
 
     private func circle(_ center: CGPoint, _ radius: Double) -> Path {
         Path(ellipseIn: CGRect(x: Double(center.x) - radius, y: Double(center.y) - radius,
