@@ -19,6 +19,8 @@ final class SpeechSynthesizer: NSObject {
         let text: String
         let voiceIdentifier: String
         let language: AtlasLanguage
+        /// Abweichende Sprache dieses Abschnitts (z. B. „en-GB“) – dann spricht eine passende Stimme.
+        let locale: String?
         let rate: Double
         let premium: AsyncThrowingStream<AVAudioPCMBuffer, Error>?
     }
@@ -48,18 +50,27 @@ final class SpeechSynthesizer: NSObject {
     func speak(_ text: String, voiceIdentifier: String, language: AtlasLanguage, rate: Double,
                premium config: PremiumVoice.Config? = nil) {
         // Geschrieben „A.T.L.A.S.“, gesprochen „Atlas“ – nicht buchstabiert
-        let cleaned = SpeechTextCleaner.clean(text).replacingOccurrences(of: "A.T.L.A.S.", with: "Atlas")
+        let named = text.replacingOccurrences(of: "A.T.L.A.S.", with: "Atlas")
+        let cleaned = SpeechTextCleaner.clean(named)
         guard !cleaned.isEmpty else { return }
         try? hub.startIfNeeded()
         spokenLog += " " + cleaned
-        var stream: AsyncThrowingStream<AVAudioPCMBuffer, Error>?
         if let config, !premiumFailed {
-            // Laden beginnt sofort – parallel zu den Abschnitten davor.
-            stream = PremiumVoice.stream(text: cleaned, config: config, previousText: previousPremiumText,
-                                         format: hub.playbackFormat)
+            // Die Premium-Stimme spricht alle Sprachen selbst akzentfrei – Laden beginnt sofort.
+            let stream = PremiumVoice.stream(text: cleaned, config: config, previousText: previousPremiumText,
+                                             format: hub.playbackFormat)
             previousPremiumText = cleaned
+            items.append(Item(text: cleaned, voiceIdentifier: voiceIdentifier, language: language, locale: nil,
+                              rate: rate, premium: stream))
+        } else {
+            // Apple-Stimmen: Fremdsprachige Stellen spricht eine Stimme der jeweiligen Sprache.
+            for segment in LanguageSegments.split(named) {
+                let part = SpeechTextCleaner.clean(segment.text)
+                guard !part.isEmpty else { continue }
+                items.append(Item(text: part, voiceIdentifier: voiceIdentifier, language: language,
+                                  locale: segment.locale, rate: rate, premium: nil))
+            }
         }
-        items.append(Item(text: cleaned, voiceIdentifier: voiceIdentifier, language: language, rate: rate, premium: stream))
         startWorker()
     }
 
@@ -109,6 +120,11 @@ final class SpeechSynthesizer: NSObject {
             }
             // Premium-Stimme ausgefallen (z. B. Kontingent aufgebraucht): Rest mit Apple-Stimme.
             premiumFailed = true
+            for segment in LanguageSegments.split(item.text) where !segment.text.isEmpty {
+                await renderWithApple(Item(text: segment.text, voiceIdentifier: item.voiceIdentifier, language: item.language,
+                                           locale: segment.locale, rate: item.rate, premium: nil))
+            }
+            return
         }
         await renderWithApple(item)
     }
@@ -116,7 +132,11 @@ final class SpeechSynthesizer: NSObject {
     /// Lässt die Apple-Stimme den Text als Audio erzeugen und reiht ihn lückenlos ein.
     private func renderWithApple(_ item: Item) async {
         let utterance = AVSpeechUtterance(string: item.text)
-        utterance.voice = Self.voice(for: item.voiceIdentifier, language: item.language)
+        if let locale = item.locale, !locale.hasPrefix(item.language.rawValue.prefix(2)) {
+            utterance.voice = Self.bestVoice(locale: locale)
+        } else {
+            utterance.voice = Self.voice(for: item.voiceIdentifier, language: item.language)
+        }
         // AVSpeechUtterance-Rate: 0 = sehr langsam, 0.5 = normal, 1 = sehr schnell.
         utterance.rate = Float(item.rate) * (AVSpeechUtteranceMaximumSpeechRate - AVSpeechUtteranceMinimumSpeechRate)
             + AVSpeechUtteranceMinimumSpeechRate
@@ -172,6 +192,21 @@ final class SpeechSynthesizer: NSObject {
         let bestTier = voices.filter { $0.quality == voices.first?.quality }
         return bestTier.first(where: { $0.gender == .male }) ?? voices.first
             ?? AVSpeechSynthesisVoice(language: language.rawValue)
+    }
+
+    /// Beste Stimme für eine beliebige Sprache (z. B. „en-GB“), notfalls derselben Sprachfamilie.
+    static func bestVoice(locale: String) -> AVSpeechSynthesisVoice? {
+        let prefix = String(locale.prefix(2))
+        let candidates = AVSpeechSynthesisVoice.speechVoices()
+            .filter { !$0.voiceTraits.contains(.isNoveltyVoice) && $0.language.hasPrefix(prefix) }
+            .sorted { lhs, rhs in
+                let lhsExact = lhs.language == locale, rhsExact = rhs.language == locale
+                if lhs.quality.rawValue != rhs.quality.rawValue { return lhs.quality.rawValue > rhs.quality.rawValue }
+                if lhsExact != rhsExact { return lhsExact }
+                if (lhs.gender == .male) != (rhs.gender == .male) { return lhs.gender == .male }
+                return lhs.name < rhs.name
+            }
+        return candidates.first ?? AVSpeechSynthesisVoice(language: locale)
     }
 
     /// Alle Stimmen der Sprache, sortiert nach Qualität (Premium > Erweitert > Standard).
@@ -252,7 +287,7 @@ private final class AppleWaiter: @unchecked Sendable {
 /// Entfernt Formatierungen, die beim Vorlesen stören würden.
 enum SpeechTextCleaner {
     static func clean(_ text: String) -> String {
-        var result = text
+        var result = LanguageSegments.strip(text)
         // Markdown-Links [Text](URL) -> Text
         result = result.replacingOccurrences(of: #"\[([^\]]+)\]\([^)]+\)"#, with: "$1", options: .regularExpression)
         // Nackte URLs entfernen
@@ -313,7 +348,8 @@ struct SentenceChunker {
             let next = buffer.index(after: index)
             length += 1
             if char == "\n", length >= 2 { return next }
-            if ".!?;:".contains(char), next < buffer.endIndex, buffer[next].isWhitespace, length >= minimumLength {
+            if ".!?;:".contains(char), next < buffer.endIndex, buffer[next].isWhitespace, length >= minimumLength,
+               LanguageSegments.isBalanced(buffer[..<next]) {
                 return next
             }
             index = next
