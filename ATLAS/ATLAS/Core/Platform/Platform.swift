@@ -46,6 +46,28 @@ enum PlatformBridge {
     }
 }
 
+#if os(macOS)
+/// Schaltet das Fenster beim ersten Öffnen in den Vollbildmodus (Mac).
+struct FullScreenOnLaunch: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { FullScreenTriggerView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class FullScreenTriggerView: NSView {
+        private var didTrigger = false
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard !didTrigger, let window else { return }
+            didTrigger = true
+            DispatchQueue.main.async {
+                window.collectionBehavior.insert(.fullScreenPrimary)
+                if !window.styleMask.contains(.fullScreen) { window.toggleFullScreen(nil) }
+            }
+        }
+    }
+}
+#endif
+
 /// Haptisches Feedback (nur iPhone).
 @MainActor
 enum Haptics {

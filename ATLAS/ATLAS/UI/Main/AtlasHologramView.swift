@@ -630,6 +630,10 @@ extension AtlasHologramView {
         struct Flyer {
             let theta0, omega, radius, phase, phase2, size, delay, tx, ty: Double
             let sphereIndex: Int
+            /// Bleibt nach dem Start als leuchtende Partikelwolke um den Kern.
+            let stays: Bool
+            /// Abstand in der Wolke (1 = Kugeloberfläche).
+            let cloud: Double
         }
 
         struct Effects {
@@ -686,7 +690,8 @@ extension AtlasHologramView {
                     size: 0.45 + random() * 0.9, delay: random() * 0.25,
                     tx: L.cx + target.0 + (random() - 0.5) * step * 0.5,
                     ty: L.cy + target.1 + (random() - 0.5) * step * 0.5,
-                    sphereIndex: (i * 7) % AtlasHologramView.sphere.count))
+                    sphereIndex: (i * 7) % AtlasHologramView.sphere.count,
+                    stays: i % 2 == 0, cloud: 0.9 + 0.55 * pow(random(), 1.6)))
             }
             let wordRenderer = ImageRenderer(content:
                 Text("A.T.L.A.S.")
@@ -774,8 +779,6 @@ extension AtlasHologramView {
         func draw(_ ctx: inout GraphicsContext, date: Date, t: Double, ay: Double, ax: Double,
                   layout L: Layout) -> Effects {
             let e = date.timeIntervalSince(start)
-            guard e < Self.end + 0.3 else { return Effects(reveal: 1, shake: 0, flash: 0) }
-
             drawWordmark(&ctx, e: e)
 
             let bucketCount = 6
@@ -804,20 +807,24 @@ extension AtlasHologramView {
                     a = 0.85 + 0.15 * sin(t * 7 + f.tx * 0.03)
                     size = f.size * 1.5
                 } else {
-                    // Phase 4: Zerfall – Spirale in den Kern
-                    let u = min(1, (e - Self.dissolveStart) / Self.dissolve - f.delay * 0.4)
-                    let k = AtlasHologramView.easeInOut(max(0, u))
+                    // Phase 4: Zerfall – Spirale in den Kern. Danach bleibt die Hälfte der Punkte
+                    // als Partikelwolke, die sich mit dem Kern dreht.
+                    if e >= Self.end, !f.stays { continue }
+                    let raw = ((e - Self.dissolveStart) / Self.dissolve - f.delay * 0.4) / (1 - f.delay * 0.4)
+                    let k = AtlasHologramView.easeInOut(min(1, max(0, raw)))
                     let point = AtlasHologramView.sphere[f.sphereIndex]
-                    let q = AtlasHologramView.project(point.x, point.y, point.z, ay: ay, ax: ax,
-                                                      cx: L.cx, cy: L.cy, R: L.R)
+                    let q = AtlasHologramView.project(point.x * f.cloud, point.y * f.cloud, point.z * f.cloud,
+                                                      ay: ay, ax: ax, cx: L.cx, cy: L.cy, R: L.R)
                     let rx = f.tx - L.cx, ry = f.ty - L.cy
                     let r0 = hypot(rx, ry), th0 = atan2(ry, rx)
                     let r1 = hypot(q.x - L.cx, q.y - L.cy), th1 = atan2(q.y - L.cy, q.x - L.cx) + 3 * .pi
                     let rr = r0 + (r1 - r0) * k, th = th0 + (th1 - th0) * k
                     head = (L.cx + cos(th) * rr, L.cy + sin(th) * rr)
-                    a = 1 - 0.6 * k
+                    let resting = f.stays ? 0.4 * (0.65 + 0.35 * sin(t * 1.7 + f.phase)) * (0.6 + 0.4 * (q.z + 1) / 2) : 0
+                    a = 1 + (resting - 1) * k
                     size = f.size * (1.5 - 0.7 * k)
                 }
+                guard a > 0.03 else { continue }
                 let index = min(bucketCount - 1, max(0, Int(a * Double(bucketCount))))
                 let from: (x: Double, y: Double) = tail ?? (x: head.x - 0.01, y: head.y)
                 buckets[index].move(to: CGPoint(x: from.x, y: from.y))

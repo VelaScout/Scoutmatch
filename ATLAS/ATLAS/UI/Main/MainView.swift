@@ -47,6 +47,9 @@ struct MainView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: engine.pendingConfirmation)
+        #if os(macOS)
+        .background(FullScreenOnLaunch())
+        #endif
         .preferredColorScheme(.dark)
         .sheet(item: $sheet) { screen in
             sheetContent(for: screen).atlasSheetSize()

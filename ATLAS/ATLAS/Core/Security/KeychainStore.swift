@@ -1,10 +1,12 @@
 import Foundation
 import Security
 
-/// Speichert Geheimnisse (z. B. den API-Schlüssel) verschlüsselt in der iOS-Keychain.
+/// Speichert Geheimnisse (z. B. den API-Schlüssel) verschlüsselt im Schlüsselbund.
 /// iPhone: `WhenUnlockedThisDeviceOnly` – nur lesbar, wenn das iPhone entsperrt ist,
 /// und wird weder in Backups noch auf andere Geräte übertragen.
-/// Mac: Schlüsselbund des angemeldeten Benutzers.
+/// Mac: moderner Schlüsselbund wie auf dem iPhone („Data Protection Keychain“). Der alte
+/// Datei-Schlüsselbund fragt nach jedem neuen Build nach dem Mac-Passwort – das entfällt so.
+/// Gelesene Werte werden für die Laufzeit der App zwischengespeichert.
 enum KeychainStore {
     private static let service = "ATLAS.secrets"
 
@@ -13,47 +15,96 @@ enum KeychainStore {
         case elevenLabsAPIKey = "elevenlabs-api-key"
     }
 
+    /// Zwischenspeicher: `nil` = noch nicht gelesen, `""` = nicht vorhanden.
+    nonisolated(unsafe) private static var cache: [Key: String] = [:]
+    private static let lock = NSLock()
+
     @discardableResult
     static func save(_ value: String, for key: Key) -> Bool {
-        let data = Data(value.utf8)
         delete(key)
+        var query = baseQuery(key, modern: true)
+        query[kSecValueData as String] = Data(value.utf8)
+        #if os(iOS)
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        #else
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+        #endif
+        var status = SecItemAdd(query as CFDictionary, nil)
+        #if os(macOS)
+        if status == errSecMissingEntitlement {
+            // Ohne passende Signatur steht nur der alte Schlüsselbund zur Verfügung.
+            var legacy = baseQuery(key, modern: false)
+            legacy[kSecValueData as String] = Data(value.utf8)
+            status = SecItemAdd(legacy as CFDictionary, nil)
+        }
+        #endif
+        if status == errSecSuccess { setCache(value, for: key) }
+        return status == errSecSuccess
+    }
+
+    static func read(_ key: Key) -> String? {
+        if let cached = cachedValue(for: key) { return cached.isEmpty ? nil : cached }
+        var value = copy(key, modern: true)
+        #if os(macOS)
+        if value == nil, let legacy = copy(key, modern: false) {
+            // Einmalig umziehen: aus dem alten in den modernen Schlüsselbund.
+            value = legacy
+            var query = baseQuery(key, modern: true)
+            query[kSecValueData as String] = Data(legacy.utf8)
+            query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+            if SecItemAdd(query as CFDictionary, nil) == errSecSuccess {
+                SecItemDelete(baseQuery(key, modern: false) as CFDictionary)
+            }
+        }
+        #endif
+        setCache(value ?? "", for: key)
+        return value
+    }
+
+    static func delete(_ key: Key) {
+        SecItemDelete(baseQuery(key, modern: true) as CFDictionary)
+        #if os(macOS)
+        SecItemDelete(baseQuery(key, modern: false) as CFDictionary)
+        #endif
+        setCache("", for: key)
+    }
+
+    static func has(_ key: Key) -> Bool {
+        guard let value = read(key) else { return false }
+        return !value.isEmpty
+    }
+
+    // MARK: - Intern
+
+    private static func baseQuery(_ key: Key, modern: Bool) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key.rawValue,
-            kSecValueData as String: data,
         ]
-        #if os(iOS)
-        query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        #if os(macOS)
+        if modern { query[kSecUseDataProtectionKeychain as String] = true }
         #endif
-        return SecItemAdd(query as CFDictionary, nil) == errSecSuccess
+        return query
     }
 
-    static func read(_ key: Key) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key.rawValue,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
+    private static func copy(_ key: Key, modern: Bool) -> String? {
+        var query = baseQuery(key, modern: modern)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: AnyObject?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
               let data = result as? Data else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
-    static func delete(_ key: Key) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key.rawValue,
-        ]
-        SecItemDelete(query as CFDictionary)
+    private static func cachedValue(for key: Key) -> String? {
+        lock.lock(); defer { lock.unlock() }
+        return cache[key]
     }
 
-    static func has(_ key: Key) -> Bool {
-        guard let value = read(key) else { return false }
-        return !value.isEmpty
+    private static func setCache(_ value: String, for key: Key) {
+        lock.lock(); defer { lock.unlock() }
+        cache[key] = value
     }
 }
