@@ -75,6 +75,8 @@ final class AppSettings {
     var userName: String { didSet { defaults.set(userName, forKey: Keys.userName) } }
     /// Kurze Begrüßung beim Öffnen (höchstens alle drei Stunden).
     var greetOnLaunch: Bool { didSet { defaults.set(greetOnLaunch, forKey: Keys.greetOnLaunch) } }
+    /// Denkpausen mit kurzen Lauten überbrücken („Hm, Moment …“).
+    var thinkingFillers: Bool { didSet { defaults.set(thinkingFillers, forKey: Keys.thinkingFillers) } }
     var language: AtlasLanguage { didSet { defaults.set(language.rawValue, forKey: Keys.language) } }
     var voiceIdentifier: String { didSet { defaults.set(voiceIdentifier, forKey: Keys.voiceIdentifier) } }
     var speechRate: Double { didSet { defaults.set(speechRate, forKey: Keys.speechRate) } }
@@ -114,6 +116,7 @@ final class AppSettings {
             Keys.formalAddress: "Herr Velasco",
             Keys.userName: "",
             Keys.greetOnLaunch: true,
+            Keys.thinkingFillers: true,
             Keys.language: AtlasLanguage.german.rawValue,
             Keys.voiceIdentifier: "",
             Keys.speechRate: 0.5,
@@ -147,6 +150,7 @@ final class AppSettings {
         formalAddress = defaults.string(forKey: Keys.formalAddress) ?? ""
         userName = defaults.string(forKey: Keys.userName) ?? ""
         greetOnLaunch = defaults.bool(forKey: Keys.greetOnLaunch)
+        thinkingFillers = defaults.bool(forKey: Keys.thinkingFillers)
         language = AtlasLanguage(rawValue: defaults.string(forKey: Keys.language) ?? "") ?? .german
         voiceIdentifier = defaults.string(forKey: Keys.voiceIdentifier) ?? ""
         speechRate = defaults.double(forKey: Keys.speechRate)
@@ -193,6 +197,7 @@ final class AppSettings {
         static let formalAddress = "formalAddress"
         static let userName = "userName"
         static let greetOnLaunch = "greetOnLaunch"
+        static let thinkingFillers = "thinkingFillers"
         static let language = "language"
         static let voiceIdentifier = "voiceIdentifier"
         static let speechRate = "speechRate"

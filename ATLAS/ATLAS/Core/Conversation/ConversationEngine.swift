@@ -103,6 +103,9 @@ final class ConversationEngine {
     private let noSpeechTimeout: Double = 15
     /// Fehlgeschlagene Starts der Bereitschaft in Folge – für das erneute Versuchen.
     @ObservationIgnored private var standbyFailures = 0
+    /// Kurze Denk-Laute („Hm, Moment …“) in der laufenden Antwort.
+    @ObservationIgnored private var fillersThisTurn = 0
+    @ObservationIgnored private var fillerTask: Task<Void, Never>?
 
     private let endPhrases: Set<String> = [
         "danke das ist alles", "das ist alles", "das wars", "das war's", "ende", "stopp", "tschüss",
@@ -153,6 +156,7 @@ final class ConversationEngine {
 
     /// Antwort abbrechen (z. B. durch Tippen während ATLAS spricht).
     func interrupt() {
+        fillerTask?.cancel()
         if confirmationContinuation != nil { resolveConfirmation(false) }
         responseTask?.cancel()
         responseTask = nil
@@ -463,7 +467,7 @@ final class ConversationEngine {
             state = .speaking
             streamFinished = true
             isInConversation = false
-            say("Sehr wohl\(settings.sirSuffix).")
+            say(["Alles klar\(settings.sirSuffix).", "Okay, bis später.", "Gern geschehen."].randomElement() ?? "Alles klar.")
             return
         }
 
@@ -477,7 +481,9 @@ final class ConversationEngine {
         streamFinished = true
         isInConversation = true
         listenAfterSpeech = true
-        let phrase = settings.language == .german ? "Ja\(settings.sirSuffix)?" : "Yes\(settings.sirSuffix)?"
+        let phrase = settings.language == .german
+            ? (["Ja\(settings.sirSuffix)?", "Was gibt's?", "Ja, ich höre?", "Hm?"].randomElement() ?? "Ja?")
+            : (["Yes\(settings.sirSuffix)?", "What's up?", "I'm listening."].randomElement() ?? "Yes?")
         say(phrase)
     }
 
@@ -569,6 +575,7 @@ final class ConversationEngine {
 
         generation += 1
         let currentGeneration = generation
+        scheduleThinkingFiller(generation: currentGeneration)
 
         responseTask = Task { [weak self] in
             guard let self else { return }
@@ -588,12 +595,14 @@ final class ConversationEngine {
                     case .toolStarted(let name):
                         // Angefangene Sätze vor der Werkzeugnutzung aussprechen.
                         if let rest = chunker.flush() { self.say(rest) }
+                        if Self.slowTools.contains(name) { self.sayFiller(.tool) }
                         if !full.isEmpty { full += " " }
                         self.statusDetail = ToolCatalog.statusText(for: name)
                     case .toolFinished:
                         self.statusDetail = nil
                     case .searching:
                         if let rest = chunker.flush() { self.say(rest) }
+                        self.sayFiller(.searching)
                         if !full.isEmpty { full += " " }
                         self.statusDetail = "Recherchiert im Internet"
                     }
@@ -617,6 +626,47 @@ final class ConversationEngine {
                 self.recoverFromErrorLater()
             }
         }
+    }
+
+    // MARK: - Denkpausen überbrücken
+
+    private enum FillerKind { case thinking, searching, tool }
+
+    /// Werkzeuge, die spürbar dauern – nur dann lohnt ein „Moment, ich schau nach“.
+    private static let slowTools: Set<String> = [
+        "list_emails", "read_email", "get_calendar_events", "list_reminders", "search_contacts",
+        "get_current_location", "spotify_play",
+    ]
+
+    /// Kommt nach gut einer Sekunde noch keine Antwort, sagt A.T.L.A.S. etwas wie „Hm, Moment …“.
+    private func scheduleThinkingFiller(generation turn: Int) {
+        fillersThisTurn = 0
+        fillerTask?.cancel()
+        fillerTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.1))
+            guard let self, !Task.isCancelled, self.generation == turn else { return }
+            self.sayFiller(.thinking)
+        }
+    }
+
+    private func sayFiller(_ kind: FillerKind) {
+        guard settings.thinkingFillers, fillersThisTurn < 2, state == .thinking, !synthesizer.isSpeaking else { return }
+        fillersThisTurn += 1
+        let english = settings.language == .britishEnglish
+        let options: [String]
+        switch kind {
+        case .thinking:
+            options = english
+                ? ["Hm, one moment …", "Let me think …", "Good question. Hang on.", "Okay, give me a second …"]
+                : ["Hm, Moment …", "Lass mich kurz überlegen.", "Pff … gute Frage. Moment.", "Okay, Sekunde …", "Mal sehen …", "Hmm, kurz nachdenken."]
+        case .searching:
+            options = english
+                ? ["Let me check that quickly.", "One sec, looking it up."]
+                : ["Ich schau mal schnell nach.", "Moment, ich check das kurz.", "Sekunde, ich such das raus."]
+        case .tool:
+            options = english ? ["One moment.", "On it."] : ["Moment, ich schau kurz nach.", "Bin dran.", "Einen Augenblick."]
+        }
+        say(options.randomElement() ?? options[0])
     }
 
     private func defaultQuestion(for attachments: [Attachment]) -> String {
@@ -749,8 +799,8 @@ final class ConversationEngine {
             }
         }
         let closings = english
-            ? ["All systems are online.", "How may I be of service?", "At your service."]
-            : ["Alle Systeme sind bereit.", "Womit kann ich dienen?", "Ich stehe zu Ihrer Verfügung."]
+            ? ["All systems online.", "What's the plan?", "What can I do for you?"]
+            : ["Alle Systeme laufen.", "Was steht an?", "Was kann ich für Sie tun?"]
         parts.append(closings.randomElement() ?? closings[0])
         return parts.joined(separator: " ")
     }

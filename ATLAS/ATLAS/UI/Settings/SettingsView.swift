@@ -34,6 +34,7 @@ struct SettingsView: View {
                     TextField("Förmliche Anrede, z. B. Herr Velasco", text: $settings.formalAddress)
                     TextField("Ihr Vorname (optional)", text: $settings.userName)
                     Toggle("Begrüßung beim Öffnen", isOn: $settings.greetOnLaunch)
+                    Toggle("Denkpausen überbrücken („Hm, Moment …“)", isOn: $settings.thinkingFillers)
                 }
 
                 Section("Darstellung") {
