@@ -10,8 +10,8 @@ struct OnboardingView: View {
             Color.black.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    AtlasFaceView(state: .idle, inputLevel: 0, spokenWordCount: 0, spokenWordLength: 0, speechRate: 0.5)
-                        .frame(height: 220)
+                    AtlasHologramView(state: .idle, inputLevel: 0, spokenWordCount: 0, spokenWordLength: 0, speechRate: 0.5)
+                        .frame(height: 240)
                         .frame(maxWidth: .infinity)
 
                     Text("Guten Tag.\nIch bin ATLAS.")

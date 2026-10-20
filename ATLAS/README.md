@@ -11,7 +11,7 @@ Ihr persönlicher KI-Assistent für **iPhone und Mac** – eine native SwiftUI-A
 
 | Bereich | Funktionen |
 |---|---|
-| **Gesicht** | Animiertes, weiß-silbernes, halbtransparentes Gesicht mit eisblauen Augen: Blinzeln, Blickkontakt, Kopfbewegung, Mundbewegung synchron zu den gesprochenen Wörtern, eigene Mimik für Zuhören, Nachdenken, Sprechen und Hinweise. Alternativ ein sparsamer Energiekern. |
+| **Gesicht** | Standard: **Hologramm** – eine glühende, bernsteinfarbene Kugel aus Lichtsplittern und Umlaufbahnen (im Stil von J.A.R.V.I.S.) mit holografischem Gesicht: Blinzeln, Blickkontakt, Kopfbewegung, Mundbewegung synchron zu den Wörtern, eigene Mimik für Zuhören, Nachdenken und Sprechen; die Kugel reagiert auf Ihre Stimme. Wählbar: silbernes Gesicht oder sparsamer Energiekern. |
 | **Sprache** | Sprechen statt Tippen, automatische Pausenerkennung, Gesprächsmodus, Unterbrechen per Tippen, Deutsch und britisches Englisch, wählbare Stimme. |
 | **Wake-Word** | Bei geöffneter App „Atlas“ sagen → „Ja, Sir?“. Oder direkt: „Atlas, wie wird das Wetter morgen?“. Die Erkennung läuft ausschließlich auf dem Gerät. |
 | **Siri & Kurzbefehle** | „Siri, starte ATLAS“, „Siri, frag ATLAS“ (Antwort ohne App-Öffnen), „Siri, ATLAS Tagesübersicht“, „Siri, plane morgen mit ATLAS“. Auf den Action-Button legbar. |
@@ -132,7 +132,7 @@ Bitte der Reihe nach testen und notieren, was nicht wie erwartet funktioniert.
 ### D1. Grundfunktionen
 | # | Test | Erwartet |
 |---|---|---|
-| 1 | App öffnen | Dunkler Bildschirm, ATLAS-Gesicht blinzelt und bewegt leicht den Kopf. Beim ersten Start Schlüssel-Eingabe. |
+| 1 | App öffnen | Dunkler Bildschirm, bernsteinfarbene Hologramm-Kugel mit Gesicht, das blinzelt und leicht den Kopf bewegt. Beim ersten Start Schlüssel-Eingabe. |
 | 2 | Schlüssel speichern | *Einstellungen → Claude API*: „sicher gespeichert“. |
 | 3 | Mikrofon antippen | Fragen nach **Spracherkennung** und **Mikrofon** → erlauben. |
 | 4 | „Wer bist du?“ | Status „Hört zu“, Augen weit geöffnet, Text erscheint live. Nach der Pause „Denkt nach“ (Blick nach oben), dann spricht ATLAS mit Mundbewegung. |
@@ -140,7 +140,7 @@ Bitte der Reihe nach testen und notieren, was nicht wie erwartet funktioniert.
 | 6 | „Danke, das ist alles.“ | „Sehr wohl, Sir.“ → Bereit. |
 | 7 | Unterbrechen | Lange Frage stellen, während der Antwort aufs Gesicht tippen → ATLAS verstummt und hört zu. |
 | 8 | Tastatur | Tastatur-Symbol → „Rechne 15 % von 2.340 €“ → 351 €. |
-| 9 | Darstellung | *Einstellungen → Darstellung → Energiekern* → Kern statt Gesicht. Zurückstellen. |
+| 9 | Darstellung | *Einstellungen → Darstellung*: Hologramm (Standard), Gesicht (Silber) oder Energiekern. |
 
 ### D2. Wake-Word & Siri
 | # | Test | Erwartet |

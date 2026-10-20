@@ -1,5 +1,9 @@
 # ATLAS – Technische Planung & Stand
 
+![ATLAS als Hologramm (Standard)](hologramm-vorschau.png)
+
+Alternative Darstellung „Gesicht (Silber)“:
+
 ![ATLAS-Gesicht: Bereit, Hört zu, Denkt nach, Spricht](gesicht-vorschau.png)
 
 ## Zielsystem
@@ -35,6 +39,7 @@
 - **Werkzeuge über Claude Tool Use:** Claude entscheidet, wann Kalender, Erinnerungen usw. gebraucht werden; ATLAS führt sie lokal aus und schickt nur das Ergebnis zurück. Werkzeug-Eingaben werden gestreamt (`eager_input_streaming`) und vor der Ausführung geprüft.
 - **Sensible Aktionen:** Nachrichten und Löschen im Gedächtnis erfordern immer eine Bestätigung (Karte + „Ja/Nein“ per Stimme). Nachrichten werden nie automatisch gesendet.
 - **Wake-Word:** Kontinuierliche Spracherkennung ausschließlich **auf dem Gerät**, nur im Vordergrund; die Erkennung startet etwa jede Minute neu (Systemgrenze). Im Hintergrund wird das Mikrofon immer abgeschaltet.
+- **Hologramm (Standard):** ca. 1.100 Lichtsplitter, nach Helligkeit in 6 Pfade gebündelt (wenige Zeichenbefehle pro Bild), additive Lichtmischung (`plusLighter`), holografisches Gesicht mit Raster und Scan-Balken. Bewegungslogik geteilt in `AtlasMotion`.
 - **Gesicht:** SwiftUI `Canvas` mit 60 fps, pausiert automatisch, wenn die App nicht sichtbar ist; respektiert „Bewegung reduzieren“. Mundbewegung aus den Wort-Ereignissen der Sprachausgabe (Wortlänge → Silben).
 - **Gedächtnis:** Nur ausdrücklich Gespeichertes; wird bei jeder Anfrage in die Systemanweisung eingefügt; vollständig einsehbar, bearbeitbar, löschbar.
 - **Denkblöcke:** Innerhalb eines Werkzeug-Durchlaufs werden sie unverändert zurückgegeben (Pflicht); zwischen Gesprächszügen speichert ATLAS nur den Text. Das hält Anfragen klein und robust.

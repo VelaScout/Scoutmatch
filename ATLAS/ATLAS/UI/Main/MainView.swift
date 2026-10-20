@@ -106,6 +106,14 @@ struct MainView: View {
     @ViewBuilder
     private var atlasVisual: some View {
         switch settings.appearance {
+        case .hologram:
+            AtlasHologramView(state: engine.state,
+                              inputLevel: engine.inputLevel,
+                              spokenWordCount: engine.spokenWordCount,
+                              spokenWordLength: engine.spokenWordLength,
+                              speechRate: settings.speechRate)
+                .aspectRatio(1, contentMode: .fit)
+                .padding(.horizontal, 4)
         case .face:
             AtlasFaceView(state: engine.state,
                           inputLevel: engine.inputLevel,
@@ -126,7 +134,9 @@ struct MainView: View {
     private var background: some View {
         ZStack {
             Color.black
-            RadialGradient(colors: [Color(red: 0.05, green: 0.16, blue: 0.28), .black],
+            RadialGradient(colors: [settings.appearance == .hologram
+                                    ? Color(red: 0.12, green: 0.06, blue: 0.02)
+                                    : Color(red: 0.05, green: 0.16, blue: 0.28), .black],
                            center: .center, startRadius: 20, endRadius: 560)
         }
         .ignoresSafeArea()

@@ -50,13 +50,14 @@ enum AtlasEffort: String, CaseIterable, Identifiable {
 
 /// Darstellung von ATLAS auf dem Startbildschirm.
 enum AtlasAppearance: String, CaseIterable, Identifiable {
-    case face, core
+    case hologram, face, core
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .face: return "Gesicht"
+        case .hologram: return "Hologramm (Bernstein)"
+        case .face: return "Gesicht (Silber)"
         case .core: return "Energiekern (sparsam)"
         }
     }
@@ -106,7 +107,7 @@ final class AppSettings {
             Keys.webSearch: true,
             Keys.conversationMode: true,
             Keys.silenceTimeout: 1.4,
-            Keys.appearance: AtlasAppearance.face.rawValue,
+            Keys.appearance: AtlasAppearance.hologram.rawValue,
             Keys.wakeWord: false,
             Keys.tools: true,
             Keys.memory: true,
@@ -125,7 +126,7 @@ final class AppSettings {
         webSearchEnabled = defaults.bool(forKey: Keys.webSearch)
         conversationMode = defaults.bool(forKey: Keys.conversationMode)
         silenceTimeout = defaults.double(forKey: Keys.silenceTimeout)
-        appearance = AtlasAppearance(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .face
+        appearance = AtlasAppearance(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .hologram
         wakeWordEnabled = defaults.bool(forKey: Keys.wakeWord)
         toolsEnabled = defaults.bool(forKey: Keys.tools)
         memoryEnabled = defaults.bool(forKey: Keys.memory)
