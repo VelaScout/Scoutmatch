@@ -10,6 +10,7 @@ enum KeychainStore {
 
     enum Key: String {
         case anthropicAPIKey = "anthropic-api-key"
+        case elevenLabsAPIKey = "elevenlabs-api-key"
     }
 
     @discardableResult

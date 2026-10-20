@@ -1,30 +1,51 @@
 import AVFoundation
 import Foundation
 
-/// Sprachausgabe von ATLAS (AVSpeechSynthesizer).
-/// Antworten werden satzweise eingereiht, damit ATLAS sofort losspricht.
+/// Sprachausgabe von ATLAS: Apple-Stimme (AVSpeechSynthesizer) oder – falls eingerichtet –
+/// die Premium-Stimme von ElevenLabs. Antworten werden satzweise eingereiht, damit ATLAS
+/// sofort losspricht.
 @MainActor
 final class SpeechSynthesizer: NSObject {
     /// Alle eingereihten Sätze wurden gesprochen.
     var onFinishedAll: (() -> Void)?
     /// Wird bei jedem gesprochenen Wort mit dessen Buchstabenzahl ausgelöst –
-    /// Grundlage für die Mundbewegungen des Gesichts.
+    /// Grundlage für das Pulsieren des ATLAS-Kerns.
     var onWord: ((Int) -> Void)?
 
     private let synthesizer = AVSpeechSynthesizer()
+    private let premium = PremiumVoice()
     private var queued: Set<ObjectIdentifier> = []
+    /// Zuletzt verwendete Apple-Stimme – für den Fall, dass die Premium-Stimme ausfällt.
+    private var fallbackVoice: (identifier: String, language: AtlasLanguage, rate: Double) = ("", .german, 0.5)
 
-    var isSpeaking: Bool { !queued.isEmpty }
+    var isSpeaking: Bool { !queued.isEmpty || premium.isSpeaking }
 
     override init() {
         super.init()
         synthesizer.delegate = self
+        premium.onWord = { [weak self] length in self?.onWord?(length) }
+        premium.onFinishedAll = { [weak self] in self?.checkFinished() }
+        premium.onFallback = { [weak self] text in
+            guard let self else { return }
+            self.speakWithApple(text, voiceIdentifier: self.fallbackVoice.identifier,
+                                language: self.fallbackVoice.language, rate: self.fallbackVoice.rate)
+        }
     }
 
-    func speak(_ text: String, voiceIdentifier: String, language: AtlasLanguage, rate: Double) {
+    /// - Parameter premium: Zugangsdaten der Premium-Stimme; `nil` = Apple-Stimme.
+    func speak(_ text: String, voiceIdentifier: String, language: AtlasLanguage, rate: Double,
+               premium config: PremiumVoice.Config? = nil) {
         let cleaned = SpeechTextCleaner.clean(text)
         guard !cleaned.isEmpty else { return }
+        fallbackVoice = (voiceIdentifier, language, rate)
+        if let config {
+            premium.speak(cleaned, config: config)
+        } else {
+            speakWithApple(cleaned, voiceIdentifier: voiceIdentifier, language: language, rate: rate)
+        }
+    }
 
+    private func speakWithApple(_ cleaned: String, voiceIdentifier: String, language: AtlasLanguage, rate: Double) {
         try? AudioSessionManager.activate()
 
         let utterance = AVSpeechUtterance(string: cleaned)
@@ -41,6 +62,11 @@ final class SpeechSynthesizer: NSObject {
     func stop() {
         queued.removeAll()
         synthesizer.stopSpeaking(at: .immediate)
+        premium.stop()
+    }
+
+    private func checkFinished() {
+        if !isSpeaking { onFinishedAll?() }
     }
 
     // MARK: - Stimmen
@@ -84,7 +110,7 @@ final class SpeechSynthesizer: NSObject {
 
     fileprivate func utteranceFinished(_ id: ObjectIdentifier) {
         guard queued.remove(id) != nil else { return }
-        if queued.isEmpty { onFinishedAll?() }
+        checkFinished()
     }
 }
 

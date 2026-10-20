@@ -592,7 +592,8 @@ final class ConversationEngine {
         synthesizer.speak(sentence,
                           voiceIdentifier: settings.voiceIdentifier,
                           language: settings.language,
-                          rate: settings.speechRate)
+                          rate: settings.speechRate,
+                          premium: settings.premiumVoiceConfig)
     }
 
     private func handleSpeechFinished() {

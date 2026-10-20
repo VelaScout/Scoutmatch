@@ -12,7 +12,7 @@ Ihr persönlicher KI-Assistent für **iPhone und Mac** – eine native SwiftUI-A
 | Bereich | Funktionen |
 |---|---|
 | **Erscheinung** | Ein 3D-Kern aus rund 1.900 Lichtpunkten im Stil von J.A.R.V.I.S.: dreht sich räumlich, die Oberfläche wogt wie ein Klangfeld zu Ihrer Stimme, beim Nachdenken kreist ein Analyse-Strahl, beim Sprechen pulsiert er im Wortrhythmus und sendet Schallwellen aus. Umgeben von einem präzisen HUD mit Skalen, Segmentbögen, Audiowelle und Statusanzeigen. Alternativ eine besonders sparsame Darstellung. |
-| **Sprache** | Sprechen statt Tippen, automatische Pausenerkennung, Gesprächsmodus, Unterbrechen per Tippen, Deutsch und britisches Englisch, wählbare Stimme. |
+| **Sprache** | Sprechen statt Tippen, automatische Pausenerkennung, Gesprächsmodus, Unterbrechen per Tippen, Deutsch und britisches Englisch, wählbare Stimme – optional eine menschlich klingende Premium-Stimme (ElevenLabs). |
 | **Wake-Word** | Bei geöffneter App „Atlas“ sagen → „Ja, Sir?“. Oder direkt: „Atlas, wie wird das Wetter morgen?“. Die Erkennung läuft ausschließlich auf dem Gerät. |
 | **Siri & Kurzbefehle** | „Siri, starte ATLAS“, „Siri, frag ATLAS“ (Antwort ohne App-Öffnen), „Siri, ATLAS Tagesübersicht“, „Siri, plane morgen mit ATLAS“. Auf den Action-Button legbar. |
 | **Intelligenz** | Fragen, Internetrecherche, Texte, Analysen, Studium und Lernen, Finanzrechnungen, Strategien, verständliche Erklärungen. Modell wählbar (Opus, Sonnet, Haiku). |
@@ -122,6 +122,15 @@ Aufgaben mit Kalender/Erinnerungen brauchen 2–3 Anfragen (~2–4 Cent), Intern
 - Liegt verschlüsselt im Schlüsselbund des Geräts (iPhone: nur dieses Gerät, nicht in Backups).
 - Wird ausschließlich per HTTPS direkt an `api.anthropic.com` gesendet.
 - Bei Verdacht: in der Anthropic-Konsole löschen und neu erstellen.
+
+### Optional: Premium-Stimme (klingt nicht nach Siri)
+Die eingebauten Apple-Stimmen klingen schnell nach Siri. Für eine wirklich geschmeidige, menschliche Stimme nutzt ATLAS auf Wunsch **ElevenLabs**:
+1. Auf **https://elevenlabs.io** ein Konto anlegen. Ein bezahlter Tarif (ab ca. 5 $ im Monat) reicht für den täglichen Gebrauch.
+2. Profil → **API Keys** → neuen Schlüssel erstellen und kopieren.
+3. In ATLAS: *Einstellungen → Premium-Stimme* einschalten, Schlüssel einfügen, **Verbindung testen**, dann **Stimme probehören**.
+4. Stimme wählen: „George“ (warm, britisch) oder „Daniel“ (ruhig, sachlich). Beide sprechen auch fließend Deutsch. Jede andere Stimme aus der ElevenLabs-Bibliothek lässt sich über ihre Stimmen-ID eintragen.
+
+Der Schlüssel liegt wie der Claude-Schlüssel nur im Schlüsselbund des Geräts. Fällt ElevenLabs aus, spricht automatisch die Apple-Stimme weiter.
 
 ---
 

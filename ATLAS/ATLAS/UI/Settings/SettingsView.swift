@@ -11,7 +11,11 @@ struct SettingsView: View {
     @State private var apiKeyInput = ""
     @State private var hasAPIKey = KeychainStore.has(.anthropicAPIKey)
     @State private var confirmDeleteHistory = false
-    @State private var previewSynthesizer = AVSpeechSynthesizer()
+    @State private var previewSpeaker = SpeechSynthesizer()
+    @State private var elevenKeyInput = ""
+    @State private var hasElevenKey = KeychainStore.has(.elevenLabsAPIKey)
+    @State private var premiumTestResult: String?
+    @State private var testingPremium = false
 
     var body: some View {
         @Bindable var settings = settings
@@ -56,6 +60,54 @@ struct SettingsView: View {
                     Text(PlatformBridge.isMac
                          ? "Tipp: Unter Systemeinstellungen → Bedienungshilfen → Gesprochene Inhalte → Systemstimme → Stimmen verwalten können Sie hochwertige Stimmen laden (z. B. Englisch (UK) „Daniel“)."
                          : "Tipp: Laden Sie unter iPhone-Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen eine „Premium“- oder „Erweitert“-Stimme herunter (z. B. Englisch (UK) „Daniel“). Diese klingen deutlich natürlicher.")
+                }
+
+                Section {
+                    Toggle("Premium-Stimme verwenden", isOn: $settings.premiumVoiceEnabled)
+                    if settings.premiumVoiceEnabled {
+                        if hasElevenKey {
+                            Label("ElevenLabs-Schlüssel gespeichert", systemImage: "lock.fill")
+                                .foregroundStyle(.green)
+                        } else {
+                            SecureField("ElevenLabs-API-Schlüssel", text: $elevenKeyInput)
+                                .atlasNoAutocapitalization()
+                            Button("Schlüssel speichern") {
+                                KeychainStore.save(elevenKeyInput.trimmingCharacters(in: .whitespacesAndNewlines),
+                                                   for: .elevenLabsAPIKey)
+                                elevenKeyInput = ""
+                                hasElevenKey = KeychainStore.has(.elevenLabsAPIKey)
+                            }
+                            .disabled(elevenKeyInput.isEmpty)
+                        }
+                        Picker("Stimme", selection: $settings.premiumVoiceID) {
+                            ForEach(PremiumVoice.presets, id: \.id) { Text($0.name).tag($0.id) }
+                            if !PremiumVoice.presets.contains(where: { $0.id == settings.premiumVoiceID }) {
+                                Text("Eigene Stimme").tag(settings.premiumVoiceID)
+                            }
+                        }
+                        TextField("Eigene Stimmen-ID (optional)", text: $settings.premiumVoiceID)
+                            .atlasNoAutocapitalization()
+                            .font(.footnote.monospaced())
+                        Button(testingPremium ? "Teste …" : "Verbindung testen") {
+                            testPremium()
+                        }
+                        .disabled(!hasElevenKey || testingPremium)
+                        if let premiumTestResult {
+                            Text(premiumTestResult)
+                                .font(.footnote)
+                                .foregroundStyle(premiumTestResult.hasPrefix("✓") ? .green : .orange)
+                        }
+                        if hasElevenKey {
+                            Button("ElevenLabs-Schlüssel entfernen", role: .destructive) {
+                                KeychainStore.delete(.elevenLabsAPIKey)
+                                hasElevenKey = false
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Premium-Stimme")
+                } footer: {
+                    Text("Eine KI-Stimme von ElevenLabs, die wie ein echter Mensch klingt – deutlich geschmeidiger als die Systemstimmen. Benötigt ein Konto auf elevenlabs.io (ab ca. 5 $ im Monat) und einen API-Schlüssel. Die Antworttexte werden dafür an ElevenLabs gesendet. Ohne Verbindung spricht automatisch die Apple-Stimme.")
                 }
 
                 Section {
@@ -191,14 +243,20 @@ struct SettingsView: View {
         let text = settings.language == .german
             ? "Guten Tag\(settings.sirSuffix). Ich bin ATLAS. Wie kann ich Ihnen behilflich sein?"
             : "Good day\(settings.sirSuffix). I am ATLAS. How may I be of assistance?"
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = SpeechSynthesizer.voice(for: settings.voiceIdentifier, language: settings.language)
-        utterance.rate = Float(settings.speechRate)
-            * (AVSpeechUtteranceMaximumSpeechRate - AVSpeechUtteranceMinimumSpeechRate)
-            + AVSpeechUtteranceMinimumSpeechRate
-        utterance.pitchMultiplier = 0.95
-        previewSynthesizer.stopSpeaking(at: .immediate)
-        previewSynthesizer.speak(utterance)
+        previewSpeaker.stop()
+        previewSpeaker.speak(text, voiceIdentifier: settings.voiceIdentifier, language: settings.language,
+                             rate: settings.speechRate, premium: settings.premiumVoiceConfig)
+    }
+
+    private func testPremium() {
+        guard let key = KeychainStore.read(.elevenLabsAPIKey) else { return }
+        testingPremium = true
+        premiumTestResult = nil
+        Task {
+            let error = await PremiumVoice.test(config: PremiumVoice.Config(apiKey: key, voiceID: settings.premiumVoiceID))
+            premiumTestResult = error ?? "✓ Verbindung steht – tippen Sie auf „Stimme probehören“."
+            testingPremium = false
+        }
     }
 
     private func deleteHistory() {

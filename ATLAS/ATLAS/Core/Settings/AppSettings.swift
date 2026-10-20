@@ -74,6 +74,9 @@ final class AppSettings {
     var language: AtlasLanguage { didSet { defaults.set(language.rawValue, forKey: Keys.language) } }
     var voiceIdentifier: String { didSet { defaults.set(voiceIdentifier, forKey: Keys.voiceIdentifier) } }
     var speechRate: Double { didSet { defaults.set(speechRate, forKey: Keys.speechRate) } }
+    /// Premium-Stimme (ElevenLabs) statt Apple-Stimme verwenden.
+    var premiumVoiceEnabled: Bool { didSet { defaults.set(premiumVoiceEnabled, forKey: Keys.premiumVoice) } }
+    var premiumVoiceID: String { didSet { defaults.set(premiumVoiceID, forKey: Keys.premiumVoiceID) } }
     var model: AtlasModel { didSet { defaults.set(model.rawValue, forKey: Keys.model) } }
     var effort: AtlasEffort { didSet { defaults.set(effort.rawValue, forKey: Keys.effort) } }
     var webSearchEnabled: Bool { didSet { defaults.set(webSearchEnabled, forKey: Keys.webSearch) } }
@@ -101,6 +104,8 @@ final class AppSettings {
             Keys.language: AtlasLanguage.german.rawValue,
             Keys.voiceIdentifier: "",
             Keys.speechRate: 0.5,
+            Keys.premiumVoice: false,
+            Keys.premiumVoiceID: PremiumVoice.presets[0].id,
             Keys.model: AtlasModel.opus.rawValue,
             Keys.effort: AtlasEffort.low.rawValue,
             Keys.webSearch: true,
@@ -120,6 +125,8 @@ final class AppSettings {
         language = AtlasLanguage(rawValue: defaults.string(forKey: Keys.language) ?? "") ?? .german
         voiceIdentifier = defaults.string(forKey: Keys.voiceIdentifier) ?? ""
         speechRate = defaults.double(forKey: Keys.speechRate)
+        premiumVoiceEnabled = defaults.bool(forKey: Keys.premiumVoice)
+        premiumVoiceID = defaults.string(forKey: Keys.premiumVoiceID) ?? PremiumVoice.presets[0].id
         model = AtlasModel(rawValue: defaults.string(forKey: Keys.model) ?? "") ?? .opus
         effort = AtlasEffort(rawValue: defaults.string(forKey: Keys.effort) ?? "") ?? .low
         webSearchEnabled = defaults.bool(forKey: Keys.webSearch)
@@ -135,6 +142,12 @@ final class AppSettings {
         eveningReviewMinutes = defaults.integer(forKey: Keys.eveningMinutes)
     }
 
+    /// Zugangsdaten der Premium-Stimme, falls eingeschaltet und ein Schlüssel hinterlegt ist.
+    var premiumVoiceConfig: PremiumVoice.Config? {
+        guard premiumVoiceEnabled, let key = KeychainStore.read(.elevenLabsAPIKey), !key.isEmpty else { return nil }
+        return PremiumVoice.Config(apiKey: key, voiceID: premiumVoiceID)
+    }
+
     /// Anrede für kurze feste Sätze, z. B. „Ja, Sir?“
     var sirSuffix: String { addressAsSir ? ", Sir" : "" }
 
@@ -144,6 +157,8 @@ final class AppSettings {
         static let language = "language"
         static let voiceIdentifier = "voiceIdentifier"
         static let speechRate = "speechRate"
+        static let premiumVoice = "premiumVoiceEnabled"
+        static let premiumVoiceID = "premiumVoiceID"
         static let model = "model"
         static let effort = "effort"
         static let webSearch = "webSearchEnabled"
