@@ -79,8 +79,14 @@ final class PremiumVoice: NSObject {
             let data = await item.audio.value
             guard isPlaying else { return } // inzwischen gestoppt
             guard let data, let player = try? AVAudioPlayer(data: data) else {
-                onFallback?(item.text)
-                playNext()
+                // Den Rest dieser Antwort komplett an die Apple-Stimme übergeben –
+                // nie zwei Stimmen gleichzeitig.
+                let remaining = ([item.text] + queue.map(\.text)).joined(separator: " ")
+                queue.forEach { $0.audio.cancel() }
+                queue.removeAll()
+                isPlaying = false
+                previousText = ""
+                onFallback?(remaining)
                 return
             }
             try? AudioSessionManager.activate()

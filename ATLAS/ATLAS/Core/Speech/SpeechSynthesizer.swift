@@ -17,6 +17,8 @@ final class SpeechSynthesizer: NSObject {
     private var queued: Set<ObjectIdentifier> = []
     /// Zuletzt verwendete Apple-Stimme – für den Fall, dass die Premium-Stimme ausfällt.
     private var fallbackVoice: (identifier: String, language: AtlasLanguage, rate: Double) = ("", .german, 0.5)
+    /// Die Premium-Stimme ist in dieser Antwort ausgefallen – der Rest läuft über die Apple-Stimme.
+    private var premiumFailed = false
 
     var isSpeaking: Bool { !queued.isEmpty || premium.isSpeaking }
 
@@ -27,6 +29,7 @@ final class SpeechSynthesizer: NSObject {
         premium.onFinishedAll = { [weak self] in self?.checkFinished() }
         premium.onFallback = { [weak self] text in
             guard let self else { return }
+            self.premiumFailed = true
             self.speakWithApple(text, voiceIdentifier: self.fallbackVoice.identifier,
                                 language: self.fallbackVoice.language, rate: self.fallbackVoice.rate)
         }
@@ -39,7 +42,7 @@ final class SpeechSynthesizer: NSObject {
         let cleaned = SpeechTextCleaner.clean(text).replacingOccurrences(of: "A.T.L.A.S.", with: "Atlas")
         guard !cleaned.isEmpty else { return }
         fallbackVoice = (voiceIdentifier, language, rate)
-        if let config {
+        if let config, !premiumFailed {
             premium.speak(cleaned, config: config)
         } else {
             speakWithApple(cleaned, voiceIdentifier: voiceIdentifier, language: language, rate: rate)
@@ -62,13 +65,17 @@ final class SpeechSynthesizer: NSObject {
     }
 
     func stop() {
+        premiumFailed = false
         queued.removeAll()
         synthesizer.stopSpeaking(at: .immediate)
         premium.stop()
     }
 
     private func checkFinished() {
-        if !isSpeaking { onFinishedAll?() }
+        if !isSpeaking {
+            premiumFailed = false
+            onFinishedAll?()
+        }
     }
 
     // MARK: - Stimmen

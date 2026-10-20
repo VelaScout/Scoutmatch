@@ -289,11 +289,12 @@ struct ClaudeProvider: AIProvider {
             return tool
         }
         if options.webSearch {
-            let toolType = options.model == "claude-haiku-5-5" ? "web_search_20250305" : "web_search_20260209"
+            // Einfache Websuche: deutlich schneller als die Variante mit Code-Filterung –
+            // wichtig für Sprachantworten. Höchstens zwei Suchen pro Antwort.
             tools.append([
-                "type": toolType,
+                "type": "web_search_20250305",
                 "name": "web_search",
-                "max_uses": 3,
+                "max_uses": 2,
                 "user_location": [
                     "type": "approximate",
                     "timezone": TimeZone.current.identifier,

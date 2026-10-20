@@ -105,6 +105,8 @@ final class ConversationEngine {
     @ObservationIgnored private var standbyFailures = 0
     /// Kurze Denk-Laute („Hm, Moment …“) in der laufenden Antwort.
     @ObservationIgnored private var fillersThisTurn = 0
+    /// Das Modell hat in dieser Antwort schon etwas gesagt – dann keine zusätzlichen Denk-Laute.
+    @ObservationIgnored private var modelSpokeThisTurn = false
     @ObservationIgnored private var fillerTask: Task<Void, Never>?
 
     private let endPhrases: Set<String> = [
@@ -591,17 +593,30 @@ final class ConversationEngine {
                     case .text(let delta):
                         full += delta
                         self.responseText = SpeechTextCleaner.clean(full)
-                        for sentence in chunker.feed(delta) { self.say(sentence) }
+                        for sentence in chunker.feed(delta) {
+                            self.modelSpokeThisTurn = true
+                            self.say(sentence)
+                        }
                     case .toolStarted(let name):
                         // Angefangene Sätze vor der Werkzeugnutzung aussprechen.
-                        if let rest = chunker.flush() { self.say(rest) }
+                        // Kurze Vorrede vor einer Suche („Ich schau mal nach …“) nicht vorlesen –
+                        // die Wartezeit überbrückt A.T.L.A.S. selbst; so klingt es nach einer Antwort.
+                        if let rest = chunker.flush(), self.modelSpokeThisTurn || rest.count > 150 {
+                            self.modelSpokeThisTurn = true
+                            self.say(rest)
+                        }
                         if Self.slowTools.contains(name) { self.sayFiller(.tool) }
                         if !full.isEmpty { full += " " }
                         self.statusDetail = ToolCatalog.statusText(for: name)
                     case .toolFinished:
                         self.statusDetail = nil
                     case .searching:
-                        if let rest = chunker.flush() { self.say(rest) }
+                        // Kurze Vorrede vor einer Suche („Ich schau mal nach …“) nicht vorlesen –
+                        // die Wartezeit überbrückt A.T.L.A.S. selbst; so klingt es nach einer Antwort.
+                        if let rest = chunker.flush(), self.modelSpokeThisTurn || rest.count > 150 {
+                            self.modelSpokeThisTurn = true
+                            self.say(rest)
+                        }
                         self.sayFiller(.searching)
                         if !full.isEmpty { full += " " }
                         self.statusDetail = "Recherchiert im Internet"
@@ -641,6 +656,7 @@ final class ConversationEngine {
     /// Kommt nach gut einer Sekunde noch keine Antwort, sagt A.T.L.A.S. etwas wie „Hm, Moment …“.
     private func scheduleThinkingFiller(generation turn: Int) {
         fillersThisTurn = 0
+        modelSpokeThisTurn = false
         fillerTask?.cancel()
         fillerTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.1))
@@ -650,7 +666,8 @@ final class ConversationEngine {
     }
 
     private func sayFiller(_ kind: FillerKind) {
-        guard settings.thinkingFillers, fillersThisTurn < 2, state == .thinking, !synthesizer.isSpeaking else { return }
+        guard settings.thinkingFillers, fillersThisTurn < 2, !modelSpokeThisTurn, state == .thinking,
+              !synthesizer.isSpeaking else { return }
         fillersThisTurn += 1
         let english = settings.language == .britishEnglish
         let options: [String]
