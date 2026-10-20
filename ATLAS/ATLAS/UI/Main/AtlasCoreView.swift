@@ -43,11 +43,9 @@ struct AtlasCoreView: View {
             let sinceWord = date.timeIntervalSince(lastWordDate)
             let kick = exp(-sinceWord * 7)
             return 0.3 + 0.45 * kick + 0.1 * (sin(t * 11) * 0.5 + 0.5)
-        case .thinking:
-            return 0.3 + 0.1 * sin(t * 4)
         case .standby:
             return 0.12 + 0.06 * (sin(t * 2) * 0.5 + 0.5)
-        case .idle, .error:
+        case .idle, .error, .thinking:
             return 0.08 + 0.05 * (sin(t * 1.4) * 0.5 + 0.5)
         }
     }
@@ -57,7 +55,7 @@ struct AtlasCoreView: View {
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let radius = Double(min(size.width, size.height)) / 2 * 0.92
         let e = energy(at: date, t: t)
-        let spin: Double = state == .thinking ? 2.4 : (state == .listening ? 0.9 : 0.35)
+        let spin: Double = state == .listening ? 0.9 : 0.35
 
         // Äußerer Lichtschein
         let glowRadius = radius * (0.55 + 0.25 * e)

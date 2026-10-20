@@ -9,8 +9,8 @@ import SwiftUI
 ///   der Kern zündet.
 /// - Kern: Plasmakern, 3D-Kugel aus rund 1.500 feinen Lichtstreifen, drei Gyroskop-Ringe, Energieblitze,
 ///   Splitter-Schale, Lichtstrahlen, schwebender Staub, HUD-Skala und Rahmen mit Telemetrie.
-/// - Reaktionen: Zuhören → Oberfläche folgt Ihrer Stimme; Nachdenken → schnellere Drehung, mehr
-///   Blitze, Analyse-Strahl; Sprechen → Pulsieren im Wortrhythmus und Schallwellen.
+/// - Reaktionen: Zuhören → Oberfläche folgt Ihrer Stimme; Sprechen → Pulsieren im Wortrhythmus und
+///   Schallwellen. Nachdenken sieht bewusst aus wie Ruhe – kein sichtbarer „Denk“-Effekt.
 /// - Mit Finger oder Maus drehbar. Pausiert, sobald die App nicht sichtbar ist.
 struct AtlasHologramView: View {
     let state: ConversationEngine.State
@@ -237,18 +237,17 @@ struct AtlasHologramView: View {
         switch state {
         case .listening, .confirming: return 0.35 + smoothedLevel * 0.65
         case .speaking: return 0.3 + envelope * 0.3
-        case .thinking: return 0.5 + 0.15 * sin(t * 4)
         case .standby: return 0.2 + 0.05 * sin(t * 2)
-        case .idle, .error: return 0.18 + 0.05 * sin(t * 1.1)
+        // Nachdenken sieht bewusst aus wie Ruhe – kein sichtbares „Denken“.
+        case .idle, .error, .thinking: return 0.18 + 0.05 * sin(t * 1.1)
         }
     }
 
     private var statusLabel: String {
         switch state {
-        case .idle: return "BEREIT"
+        case .idle, .thinking: return "BEREIT"
         case .standby: return "BEREITSCHAFT"
         case .listening: return "HÖRT ZU"
-        case .thinking: return "ANALYSE"
         case .speaking: return "AUSGABE"
         case .confirming: return "BESTÄTIGUNG"
         case .error: return "HINWEIS"
@@ -269,7 +268,7 @@ struct AtlasHologramView: View {
         }
         let en = energy(t: t, envelope: envelope)
         let pulse = state == .speaking ? envelope : 0
-        let spin = (state == .thinking ? 2.4 : 1.0) * motion
+        let spin = motion
         let base = Self.layout(for: size)
         let ay = t * 0.16 * spin + dragYaw
         let ax = 0.38 + sin(t * 0.11) * 0.12 * motion + dragPitch
@@ -418,7 +417,7 @@ struct AtlasHologramView: View {
     private func drawSphere(_ ctx: inout GraphicsContext, L: Layout, t: Double, en: Double, spin: Double,
                             ay: Double, ax: Double) {
         let amplitude = 0.03 + 0.14 * en
-        let fieldTime = t * (state == .thinking ? 1.8 : 1)
+        let fieldTime = t
         let breathing = sin(t * 1.2) * 0.008
         let trailStep = 0.16 * spin * 0.12
         let bucketCount = 7
@@ -467,7 +466,6 @@ struct AtlasHologramView: View {
     private func drawBolts(_ ctx: inout GraphicsContext, L: Layout, t: Double) {
         let period: Double
         switch state {
-        case .thinking: period = 0.06
         case .speaking: period = 0.09
         default: period = 0.28
         }
@@ -549,7 +547,7 @@ struct AtlasHologramView: View {
         }
     }
 
-    /// Skala, Segmentbögen und Analyse-Strahl rund um den Kern.
+    /// Skala und Segmentbögen rund um den Kern.
     private func drawHUD(_ ctx: inout GraphicsContext, L: Layout, t: Double, en: Double, spin: Double) {
         let scaleR = L.R * 2.0
         var minor = Path(), major = Path()
@@ -577,21 +575,6 @@ struct AtlasHologramView: View {
                        startAngle: .radians(start), endAngle: .radians(start + span), clockwise: false)
             ctx.stroke(arc, with: .color(ice.opacity(0.5 + 0.3 * en)),
                        style: StrokeStyle(lineWidth: 1.3 * L.unit, lineCap: .round))
-        }
-
-        if state == .thinking {
-            var band = circle(L.cx, L.cy, scaleR)
-            band.addPath(circle(L.cx, L.cy, L.R * 1.4))
-            ctx.fill(band,
-                     with: .conicGradient(
-                        Gradient(stops: [
-                            .init(color: ice.opacity(0), location: 0),
-                            .init(color: ice.opacity(0.22), location: 0.14),
-                            .init(color: ice.opacity(0), location: 0.145),
-                            .init(color: ice.opacity(0), location: 1),
-                        ]),
-                        center: CGPoint(x: L.cx, y: L.cy), angle: .radians(t * 3.2 - 0.9)),
-                     style: FillStyle(eoFill: true))
         }
     }
 

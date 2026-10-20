@@ -166,7 +166,9 @@ struct MainView: View {
         switch engine.state {
         case .listening, .confirming: text = engine.liveTranscript
         case .error(let message): text = message
-        default: text = engine.statusDetail ?? engine.responseText
+        // Beim Nachdenken keine Statusanzeige – Ihre Frage bleibt einfach stehen.
+        case .thinking: text = engine.liveTranscript
+        default: text = engine.responseText
         }
         return Text(text)
             .font(.callout)
