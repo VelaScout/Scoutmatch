@@ -21,7 +21,11 @@ final class SpeechRecognizer {
             case .noMicrophone:
                 return "Es wurde kein Mikrofon gefunden."
             case .onDeviceUnavailable:
-                return "Für das Wake-Word „Atlas“ wird Spracherkennung direkt auf dem Gerät benötigt. Bitte laden Sie in den Systemeinstellungen die Diktiersprache herunter oder schalten Sie das Wake-Word aus."
+                #if os(macOS)
+                return "Für das Wake-Word „Atlas“ wird Spracherkennung direkt auf dem Mac benötigt. Bitte schalten Sie unter Systemeinstellungen → Tastatur → Diktieren das Diktieren ein (Sprache Deutsch), warten Sie den Download ab und sagen Sie dann „Schalte das Wake-Word ein“."
+                #else
+                return "Für das Wake-Word „Atlas“ wird Spracherkennung direkt auf dem iPhone benötigt. Bitte schalten Sie unter Einstellungen → Allgemein → Tastatur das Diktieren ein (Sprache Deutsch) und sagen Sie dann „Schalte das Wake-Word ein“."
+                #endif
             }
         }
     }

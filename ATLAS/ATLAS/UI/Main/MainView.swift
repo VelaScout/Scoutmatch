@@ -52,6 +52,10 @@ struct MainView: View {
             sheetContent(for: screen).atlasSheetSize()
         }
         .atlasFullScreenCover(isPresented: $showOnboarding) { OnboardingView() }
+        .onChange(of: showOnboarding) { _, showing in
+            // Nach der Einrichtung sofort auf „Atlas“ hören.
+            if !showing { engine.wakeWordSettingChanged() }
+        }
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.pdf, .image]) { result in
             handleImportedFile(result)

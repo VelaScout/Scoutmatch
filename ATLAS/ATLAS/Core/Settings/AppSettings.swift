@@ -112,7 +112,7 @@ final class AppSettings {
             Keys.conversationMode: true,
             Keys.silenceTimeout: 1.4,
             Keys.appearance: AtlasAppearance.hologram.rawValue,
-            Keys.wakeWord: false,
+            Keys.wakeWord: true,
             Keys.tools: true,
             Keys.memory: true,
             Keys.morningEnabled: false,

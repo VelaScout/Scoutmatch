@@ -54,7 +54,8 @@ final class SpeechSynthesizer: NSObject {
         // AVSpeechUtterance-Rate: 0 = sehr langsam, 0.5 = normal, 1 = sehr schnell.
         utterance.rate = Float(rate) * (AVSpeechUtteranceMaximumSpeechRate - AVSpeechUtteranceMinimumSpeechRate)
             + AVSpeechUtteranceMinimumSpeechRate
-        utterance.pitchMultiplier = 0.95
+        // Tonhöhe unverändert lassen: Verstellen klingt bei hochwertigen Stimmen künstlich.
+        utterance.pitchMultiplier = 1.0
         utterance.postUtteranceDelay = 0
         queued.insert(ObjectIdentifier(utterance))
         synthesizer.speak(utterance)
@@ -81,10 +82,12 @@ final class SpeechSynthesizer: NSObject {
         return bestVoice(for: language)
     }
 
-    /// Wählt die hochwertigste installierte Stimme; bevorzugt eine männliche Butler-Stimme.
+    /// Wählt die hochwertigste installierte Stimme. Qualität geht vor: innerhalb der besten
+    /// Qualitätsstufe wird eine männliche Butler-Stimme bevorzugt.
     static func bestVoice(for language: AtlasLanguage) -> AVSpeechSynthesisVoice? {
         let voices = availableVoices(for: language)
-        return voices.first(where: { $0.gender == .male }) ?? voices.first
+        let bestTier = voices.filter { $0.quality == voices.first?.quality }
+        return bestTier.first(where: { $0.gender == .male }) ?? voices.first
             ?? AVSpeechSynthesisVoice(language: language.rawValue)
     }
 

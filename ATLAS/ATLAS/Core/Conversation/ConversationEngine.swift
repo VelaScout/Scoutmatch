@@ -302,7 +302,7 @@ final class ConversationEngine {
     private func goIdle() {
         isInConversation = false
         wakeTriggered = false
-        if settings.wakeWordEnabled && sceneActive {
+        if settings.wakeWordEnabled && sceneActive && KeychainStore.has(.anthropicAPIKey) {
             Task { await startStandby() }
         } else {
             recognizer.stop()
@@ -314,7 +314,7 @@ final class ConversationEngine {
     // MARK: - Wake-Word „Atlas“
 
     private func startStandby() async {
-        guard settings.wakeWordEnabled, sceneActive else { return }
+        guard settings.wakeWordEnabled, sceneActive, KeychainStore.has(.anthropicAPIKey) else { return }
         guard state == .idle || state == .standby || state.isError else { return }
         guard await ensurePermissions() else { return }
         // Während der Berechtigungsabfrage kann sich der Zustand geändert haben.
@@ -331,7 +331,7 @@ final class ConversationEngine {
 
     /// Text nach dem letzten „Atlas“ – oder nil, wenn das Wort nicht vorkommt.
     private func commandAfterWakeWord(_ text: String) -> String? {
-        guard let range = text.range(of: #"(?i)\b(at+las+|at las)\b"#, options: [.regularExpression, .backwards])
+        guard let range = text.range(of: #"(?i)\b(a[td]+ ?las+)\b"#, options: [.regularExpression, .backwards])
         else { return nil }
         return String(text[range.upperBound...])
             .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters))
@@ -554,7 +554,7 @@ final class ConversationEngine {
             // Premium-Stimme: größere Abschnitte – klingt fließender und spart Ladepausen.
             var chunker = premiumVoice
                 ? SentenceChunker(firstMinimum: 70, minimum: 220)
-                : SentenceChunker(firstMinimum: 30, minimum: 120)
+                : SentenceChunker(firstMinimum: 60, minimum: 260)
             do {
                 for try await event in self.provider.runTurn(history: turns, options: options, tools: tools) {
                     guard self.generation == currentGeneration, !Task.isCancelled else { break }

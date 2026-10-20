@@ -7,7 +7,7 @@ import SwiftUI
 ///   schießen zu einem riesigen „A.T.L.A.S.“ zusammen (Blitz, Druckwelle, Beben), ein Scan-Strahl
 ///   fährt darüber, der Untertitel tippt sich ein – dann zerfällt der Schriftzug spiralförmig und
 ///   der Kern zündet.
-/// - Kern: Plasmakern, 3D-Kugel aus rund 1.600 Lichtstreifen, drei Gyroskop-Ringe, Energieblitze,
+/// - Kern: Plasmakern, 3D-Kugel aus rund 1.200 Lichtstreifen, drei Gyroskop-Ringe, Energieblitze,
 ///   Splitter-Schale, Lichtstrahlen, schwebender Staub, HUD-Skala und Rahmen mit Telemetrie.
 /// - Reaktionen: Zuhören → Oberfläche folgt Ihrer Stimme; Nachdenken → schnellere Drehung, mehr
 ///   Blitze, Analyse-Strahl; Sprechen → Pulsieren im Wortrhythmus und Schallwellen.
@@ -40,6 +40,8 @@ struct AtlasHologramView: View {
                 Canvas { context, size in
                     draw(in: &context, size: size, date: timeline.date)
                 }
+                // Über Metal (Grafikchip) zeichnen – deutlich flüssiger bei vielen Lichtstreifen.
+                .drawingGroup()
             }
             .task(id: geometry.size) {
                 guard showsIntro, intro == nil, !reduceMotion, geometry.size.width > 10 else { return }
@@ -120,7 +122,7 @@ struct AtlasHologramView: View {
     /// Gleichmäßig verteilte Punkte auf der Einheitskugel (Fibonacci-Gitter).
     fileprivate static let sphere: [SpherePoint] = {
         let random = AtlasHologramView.seeded(5)
-        let count = 1600
+        let count = 1200
         let golden = Double.pi * (3 - sqrt(5))
         return (0..<count).map { i in
             let y = 1 - 2 * (Double(i) + 0.5) / Double(count)
@@ -134,7 +136,7 @@ struct AtlasHologramView: View {
     /// Splitter-Schale außen: Bogenstücke und schräge Funken.
     private static let shards: [Shard] = {
         let random = AtlasHologramView.seeded(9)
-        return (0..<1100).map { _ in
+        return (0..<800).map { _ in
             let tangential = random() < 0.7
             return Shard(radius: 1.02 + 0.32 * pow(random(), 1.8),
                          angle: random() * 2 * .pi,
@@ -214,7 +216,7 @@ struct AtlasHologramView: View {
     private func energy(t: Double, envelope: Double) -> Double {
         switch state {
         case .listening, .confirming: return 0.35 + smoothedLevel * 0.65
-        case .speaking: return 0.35 + envelope * 0.65
+        case .speaking: return 0.3 + envelope * 0.3
         case .thinking: return 0.5 + 0.15 * sin(t * 4)
         case .standby: return 0.2 + 0.05 * sin(t * 2)
         case .idle, .error: return 0.18 + 0.05 * sin(t * 1.1)
@@ -239,8 +241,12 @@ struct AtlasHologramView: View {
         let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 100_000)
         let motion = reduceMotion ? 0.25 : 1.0
         let sinceWord = date.timeIntervalSince(lastWordDate)
-        let envelope = AtlasMotion.speechEnvelope(isSpeaking: state == .speaking, sinceWord: sinceWord,
-                                                  wordDuration: lastWordDuration, wordLength: spokenWordLength)
+        // Über ein kurzes Zeitfenster gemittelt: ruhiges Atmen statt hektischem Zucken pro Silbe.
+        var envelope = 0.0
+        for lag in [0.0, 0.06, 0.12, 0.18] {
+            envelope += AtlasMotion.speechEnvelope(isSpeaking: state == .speaking, sinceWord: max(0, sinceWord - lag),
+                                                   wordDuration: lastWordDuration, wordLength: spokenWordLength) / 4
+        }
         let en = energy(t: t, envelope: envelope)
         let pulse = state == .speaking ? envelope : 0
         let spin = (state == .thinking ? 2.4 : 1.0) * motion
@@ -262,8 +268,7 @@ struct AtlasHologramView: View {
 
         if effects.reveal > 0 {
             let reveal = effects.reveal
-            let speakPulse = state == .speaking ? 0.012 * (0.5 + 0.5 * sin(t * 7)) : 0
-            let grow = (0.6 + 0.4 * Self.easeOutBack(reveal)) * (1 + 0.07 * pulse + speakPulse)
+            let grow = (0.6 + 0.4 * Self.easeOutBack(reveal)) * (1 + 0.02 * pulse)
             let L = Layout(side: base.side, R: base.R * grow, cx: base.cx, cy: base.cy, unit: base.unit)
 
             var core = ctx
@@ -271,16 +276,6 @@ struct AtlasHologramView: View {
             drawDust(&core, size: size, t: t)
             drawRays(&core, L: L, t: t, en: en)
             drawSpaceGlow(&core, L: L, en: en, pulse: pulse)
-
-            // Weiches Überstrahlen (Bloom) der hellsten Teile
-            core.drawLayer { glow in
-                glow.addFilter(.blur(radius: 9 * L.unit))
-                glow.blendMode = .plusLighter
-                drawGyros(&glow, L: L, t: t, en: en, spin: spin, ay: ay, ax: ax, backOnly: false)
-                drawPlasma(&glow, L: L, t: t, en: en, pulse: pulse)
-                drawSwirls(&glow, L: L, t: t, en: en, spin: spin)
-                drawBolts(&glow, L: L, t: t)
-            }
 
             drawGyros(&core, L: L, t: t, en: en, spin: spin, ay: ay, ax: ax, backOnly: false)
             drawPlasma(&core, L: L, t: t, en: en, pulse: pulse)
@@ -343,7 +338,7 @@ struct AtlasHologramView: View {
         let radius = L.R * 2.6
         ctx.fill(circle(L.cx, L.cy, radius), with: .radialGradient(
             Gradient(stops: [
-                .init(color: Self.blue.opacity(0.25 + 0.2 * en + 0.15 * pulse), location: 0),
+                .init(color: Self.blue.opacity(0.25 + 0.2 * en + 0.06 * pulse), location: 0),
                 .init(color: Self.deep.opacity(0.14 + 0.06 * en), location: 0.4),
                 .init(color: Self.deep.opacity(0), location: 1),
             ]), center: CGPoint(x: L.cx, y: L.cy), startRadius: 0, endRadius: radius))
@@ -351,7 +346,7 @@ struct AtlasHologramView: View {
 
     /// Gleißender Plasmakern in der Mitte.
     private func drawPlasma(_ ctx: inout GraphicsContext, L: Layout, t: Double, en: Double, pulse: Double) {
-        let radius = L.R * (0.5 + 0.08 * sin(t * 2.3) + 0.15 * en + 0.1 * pulse)
+        let radius = L.R * (0.5 + 0.08 * sin(t * 2.3) + 0.15 * en + 0.04 * pulse)
         ctx.fill(circle(L.cx, L.cy, radius), with: .radialGradient(
             Gradient(stops: [
                 .init(color: Color.white.opacity(0.95), location: 0),
@@ -389,6 +384,8 @@ struct AtlasHologramView: View {
             ctx.stroke(back, with: .color(Self.deep.opacity(0.35)), style: StrokeStyle(lineWidth: width * 3, lineCap: .round))
             ctx.stroke(back, with: .color(Self.blue.opacity(0.35)), style: StrokeStyle(lineWidth: width, lineCap: .round))
             if backOnly { continue }
+            ctx.stroke(front, with: .color(Self.blue.opacity(0.07 + 0.05 * en)),
+                       style: StrokeStyle(lineWidth: width * 6, lineCap: .round))
             ctx.stroke(front, with: .color(Self.blue.opacity(0.3 + 0.2 * en)),
                        style: StrokeStyle(lineWidth: width * 2.2, lineCap: .round))
             ctx.stroke(front, with: .color(ice.opacity(0.65)), style: StrokeStyle(lineWidth: width * 0.5, lineCap: .round))
@@ -492,7 +489,7 @@ struct AtlasHologramView: View {
             let alpha = shard.brightness * flicker * (0.45 + 0.75 * en)
             guard alpha >= 0.05 else { continue }
             let angle = shard.angle + shard.speed * t * spin
-            let r = shard.radius * L.R * (1 + 0.04 * pulse + sin(t * 2 + shard.phase) * 0.01 * en)
+            let r = shard.radius * L.R * (1 + 0.012 * pulse + sin(t * 2 + shard.phase) * 0.01 * en)
             let index = min(bucketCount - 1, Int(alpha * Double(bucketCount)))
             if shard.tangential {
                 let span = shard.length / shard.radius
@@ -526,7 +523,7 @@ struct AtlasHologramView: View {
             guard s >= 0, s <= 0.9 else { continue }
             let k = s / 0.9
             ctx.stroke(circle(L.cx, L.cy, L.R * (1.4 + k * 0.9)),
-                       with: .color(ice.opacity(0.55 * (1 - k) * (1 - k))), lineWidth: (2 - k) * L.unit)
+                       with: .color(ice.opacity(0.25 * (1 - k) * (1 - k))), lineWidth: (1.4 - k * 0.6) * L.unit)
         }
     }
 
