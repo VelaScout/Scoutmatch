@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Der A.T.L.A.S.-Kern (Standard-Darstellung): ein blauer Energiereaktor.
 ///
-/// - Start (ca. 7 s): Lichtpunkte fliegen mit Leuchtspuren in Wirbeln über den ganzen Bildschirm,
+/// - Start (gut 9 s): Lichtpunkte fliegen mit Leuchtspuren in Wirbeln über den ganzen Bildschirm,
 ///   schießen zu einem riesigen „A.T.L.A.S.“ zusammen (Blitz, Druckwelle, Beben), ein Scan-Strahl
 ///   fährt darüber, der Untertitel tippt sich ein – dann zerfällt der Schriftzug spiralförmig und
 ///   der Kern zündet.
@@ -48,10 +48,22 @@ struct AtlasHologramView: View {
                 .drawingGroup()
             }
             .task(id: geometry.size) {
-                guard !introPrepared, geometry.size.width > 10 else { return }
+                guard geometry.size.width > 10 else { return }
+                if let current = intro {
+                    // Größe hat sich während des Starts geändert (z. B. Wechsel in den Vollbildmodus):
+                    // kurz abwarten, dann für die neue Größe neu planen – mit derselben Startzeit,
+                    // damit die Bewegung nahtlos weiterläuft und der Schriftzug mittig steht.
+                    guard Date.now.timeIntervalSince(current.start) < Intro.dissolveStart else { return }
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled else { return }
+                    intro = Intro.make(size: geometry.size, layout: Self.layout(for: geometry.size),
+                                       scale: Double(displayScale), start: current.start)
+                    return
+                }
+                guard !introPrepared else { return }
                 if showsIntro, !reduceMotion {
                     intro = Intro.make(size: geometry.size, layout: Self.layout(for: geometry.size),
-                                       scale: Double(displayScale))
+                                       scale: Double(displayScale), start: .now)
                 }
                 introPrepared = true
             }
@@ -642,7 +654,8 @@ extension AtlasHologramView {
             var flash: Double
         }
 
-        static let fly = 3.0, form = 1.1, hold = 1.9, dissolve = 1.2
+        // Bewusst gemächlich: wirkt mächtiger (insgesamt gut 9 Sekunden).
+        static let fly = 3.8, form = 1.6, hold = 2.4, dissolve = 1.7
         static var holdStart: Double { fly + form }
         static var dissolveStart: Double { fly + form + hold }
         static var end: Double { fly + form + hold + dissolve }
@@ -654,10 +667,10 @@ extension AtlasHologramView {
         let fontSize: Double
         let wordTop, wordBottom: Double
         let cx, cy, halfW, halfH, width: Double
-        let start = Date.now
+        let start: Date
 
         @MainActor
-        static func make(size: CGSize, layout L: Layout, scale: Double) -> Intro {
+        static func make(size: CGSize, layout L: Layout, scale: Double, start: Date) -> Intro {
             let width = Double(size.width), height = Double(size.height)
             var fontSize = min(height * 0.22, 260)
             if let measured = textPoints(fontSize: fontSize, step: 1000)?.width, measured > width * 0.92 {
@@ -685,7 +698,7 @@ extension AtlasHologramView {
                 let direction = random() < 0.82 ? 1.0 : -1.0
                 list.append(Flyer(
                     theta0: random() * 2 * .pi,
-                    omega: direction * (0.6 + 0.9 * random()) / (0.3 + radius),
+                    omega: direction * (0.45 + 0.7 * random()) / (0.3 + radius),
                     radius: radius, phase: random() * 2 * .pi, phase2: random() * 2 * .pi,
                     size: 0.45 + random() * 0.9, delay: random() * 0.25,
                     tx: L.cx + target.0 + (random() - 0.5) * step * 0.5,
@@ -709,7 +722,8 @@ extension AtlasHologramView {
 
             return Intro(flyers: list, wordImage: wordImage, fontSize: fontSize,
                          wordTop: L.cy - textHeight / 2, wordBottom: L.cy + textHeight / 2,
-                         cx: width / 2, cy: height / 2, halfW: width * 0.62, halfH: height * 0.62, width: width)
+                         cx: width / 2, cy: height / 2, halfW: width * 0.62, halfH: height * 0.62, width: width,
+                         start: start)
         }
 
         /// Rastert den Schriftzug und liefert Punktpositionen relativ zur Mitte sowie die Textmaße.
@@ -784,7 +798,7 @@ extension AtlasHologramView {
             let bucketCount = 6
             var buckets = [Path](repeating: Path(), count: bucketCount)
             var widths = [Double](repeating: 0, count: bucketCount)
-            let fadeIn = min(1, e / 0.8)
+            let fadeIn = min(1, max(0, e / 1.2))
             for f in flyers {
                 var a: Double, size = f.size
                 var head: (x: Double, y: Double), tail: (x: Double, y: Double)?
