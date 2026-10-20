@@ -502,6 +502,7 @@ final class ConversationEngine {
         )
         let turns = trimmedHistory()
         let tools: (any ToolExecuting)? = toolsOn ? toolbox : nil
+        let premiumVoice = settings.premiumVoiceConfig != nil
 
         generation += 1
         let currentGeneration = generation
@@ -509,7 +510,10 @@ final class ConversationEngine {
         responseTask = Task { [weak self] in
             guard let self else { return }
             var full = ""
-            var chunker = SentenceChunker()
+            // Premium-Stimme: größere Abschnitte – klingt fließender und spart Ladepausen.
+            var chunker = premiumVoice
+                ? SentenceChunker(firstMinimum: 70, minimum: 220)
+                : SentenceChunker(firstMinimum: 30, minimum: 120)
             do {
                 for try await event in self.provider.runTurn(history: turns, options: options, tools: tools) {
                     guard self.generation == currentGeneration, !Task.isCancelled else { break }

@@ -85,6 +85,12 @@ struct SettingsView: View {
                                 Text("Eigene Stimme").tag(settings.premiumVoiceID)
                             }
                         }
+                        NavigationLink {
+                            VoiceStudioView()
+                        } label: {
+                            Label("Eigene Stimme erschaffen", systemImage: "waveform.badge.plus")
+                        }
+                        .disabled(!hasElevenKey)
                         TextField("Eigene Stimmen-ID (optional)", text: $settings.premiumVoiceID)
                             .atlasNoAutocapitalization()
                             .font(.footnote.monospaced())

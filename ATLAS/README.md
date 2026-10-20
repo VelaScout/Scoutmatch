@@ -129,6 +129,7 @@ Die eingebauten Apple-Stimmen klingen schnell nach Siri. Für eine wirklich gesc
 2. Profil → **API Keys** → neuen Schlüssel erstellen und kopieren.
 3. In ATLAS: *Einstellungen → Premium-Stimme* einschalten, Schlüssel einfügen, **Verbindung testen**, dann **Stimme probehören**.
 4. Stimme wählen: „George“ (warm, britisch) oder „Daniel“ (ruhig, sachlich). Beide sprechen auch fließend Deutsch. Jede andere Stimme aus der ElevenLabs-Bibliothek lässt sich über ihre Stimmen-ID eintragen.
+5. **Eigene Stimme erschaffen (empfohlen):** *Einstellungen → Premium-Stimme → Eigene Stimme erschaffen*. Beschreibung anpassen (z. B. tiefer, wärmer, jünger), **Stimmen entwerfen**, die Varianten anhören, eine auswählen, **Als ATLAS-Stimme verwenden**. Der Probetext mischt Deutsch und Englisch – so hören Sie sofort, dass englische Begriffe wie „Advanced Thinking“ ohne deutschen Akzent gesprochen werden. Die Stimme gehört nur Ihnen.
 
 Der Schlüssel liegt wie der Claude-Schlüssel nur im Schlüsselbund des Geräts. Fällt ElevenLabs aus, spricht automatisch die Apple-Stimme weiter.
 
