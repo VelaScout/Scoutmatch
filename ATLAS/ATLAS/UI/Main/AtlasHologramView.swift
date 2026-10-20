@@ -7,7 +7,7 @@ import SwiftUI
 ///   schießen zu einem riesigen „A.T.L.A.S.“ zusammen (Blitz, Druckwelle, Beben), ein Scan-Strahl
 ///   fährt darüber, der Untertitel tippt sich ein – dann zerfällt der Schriftzug spiralförmig und
 ///   der Kern zündet.
-/// - Kern: Plasmakern, 3D-Kugel aus rund 1.200 Lichtstreifen, drei Gyroskop-Ringe, Energieblitze,
+/// - Kern: Plasmakern, 3D-Kugel aus rund 1.500 feinen Lichtstreifen, drei Gyroskop-Ringe, Energieblitze,
 ///   Splitter-Schale, Lichtstrahlen, schwebender Staub, HUD-Skala und Rahmen mit Telemetrie.
 /// - Reaktionen: Zuhören → Oberfläche folgt Ihrer Stimme; Nachdenken → schnellere Drehung, mehr
 ///   Blitze, Analyse-Strahl; Sprechen → Pulsieren im Wortrhythmus und Schallwellen.
@@ -122,7 +122,7 @@ struct AtlasHologramView: View {
     /// Gleichmäßig verteilte Punkte auf der Einheitskugel (Fibonacci-Gitter).
     fileprivate static let sphere: [SpherePoint] = {
         let random = AtlasHologramView.seeded(5)
-        let count = 1200
+        let count = 1500
         let golden = Double.pi * (3 - sqrt(5))
         return (0..<count).map { i in
             let y = 1 - 2 * (Double(i) + 0.5) / Double(count)
@@ -312,7 +312,7 @@ struct AtlasHologramView: View {
             var y = (d.y * h - t * 3 * d.z).truncatingRemainder(dividingBy: h)
             if x < 0 { x += w }
             if y < 0 { y += h }
-            let s = 0.4 + d.z * 1.1
+            let s = 0.25 + d.z * 0.65
             path.addEllipse(in: CGRect(x: x - s, y: y - s, width: s * 2, height: s * 2))
         }
         ctx.fill(path, with: .color(Self.iceColor.opacity(0.18)))
@@ -330,7 +330,7 @@ struct AtlasHologramView: View {
             path.addLine(to: end)
             ctx.stroke(path, with: .linearGradient(
                 Gradient(colors: [ice.opacity(alpha * 2), ice.opacity(0)]), startPoint: center, endPoint: end),
-                       lineWidth: ray.width * L.unit * 2)
+                       lineWidth: ray.width * L.unit * 0.8)
         }
     }
 
@@ -338,7 +338,7 @@ struct AtlasHologramView: View {
         let radius = L.R * 2.6
         ctx.fill(circle(L.cx, L.cy, radius), with: .radialGradient(
             Gradient(stops: [
-                .init(color: Self.blue.opacity(0.25 + 0.2 * en + 0.06 * pulse), location: 0),
+                .init(color: Self.blue.opacity(0.2 + 0.14 * en + 0.04 * pulse), location: 0),
                 .init(color: Self.deep.opacity(0.14 + 0.06 * en), location: 0.4),
                 .init(color: Self.deep.opacity(0), location: 1),
             ]), center: CGPoint(x: L.cx, y: L.cy), startRadius: 0, endRadius: radius))
@@ -350,8 +350,8 @@ struct AtlasHologramView: View {
         ctx.fill(circle(L.cx, L.cy, radius), with: .radialGradient(
             Gradient(stops: [
                 .init(color: Color.white.opacity(0.95), location: 0),
-                .init(color: Self.hot.opacity(0.8), location: 0.15),
-                .init(color: ice.opacity(0.35 + 0.2 * en), location: 0.45),
+                .init(color: Self.hot.opacity(0.9), location: 0.12),
+                .init(color: ice.opacity(0.35 + 0.15 * en), location: 0.35),
                 .init(color: Self.blue.opacity(0), location: 1),
             ]), center: CGPoint(x: L.cx, y: L.cy), startRadius: 0, endRadius: radius))
     }
@@ -381,14 +381,13 @@ struct AtlasHologramView: View {
                 }
             }
             let width = gyro.width * L.unit
-            ctx.stroke(back, with: .color(Self.deep.opacity(0.35)), style: StrokeStyle(lineWidth: width * 3, lineCap: .round))
-            ctx.stroke(back, with: .color(Self.blue.opacity(0.35)), style: StrokeStyle(lineWidth: width, lineCap: .round))
+                        ctx.stroke(back, with: .color(Self.blue.opacity(0.4)), style: StrokeStyle(lineWidth: width * 0.35, lineCap: .round))
             if backOnly { continue }
             ctx.stroke(front, with: .color(Self.blue.opacity(0.07 + 0.05 * en)),
-                       style: StrokeStyle(lineWidth: width * 6, lineCap: .round))
+                       style: StrokeStyle(lineWidth: width * 3, lineCap: .round))
             ctx.stroke(front, with: .color(Self.blue.opacity(0.3 + 0.2 * en)),
-                       style: StrokeStyle(lineWidth: width * 2.2, lineCap: .round))
-            ctx.stroke(front, with: .color(ice.opacity(0.65)), style: StrokeStyle(lineWidth: width * 0.5, lineCap: .round))
+                       style: StrokeStyle(lineWidth: width * 1.1, lineCap: .round))
+            ctx.stroke(front, with: .color(Self.hot.opacity(0.85)), style: StrokeStyle(lineWidth: width * 0.28, lineCap: .round))
         }
     }
 
@@ -408,7 +407,7 @@ struct AtlasHologramView: View {
                                       ax: ax + p.jitter * p.trail, cx: L.cx, cy: L.cy, R: L.R)
             let depth = (now.z + 1.15) / 2.3
             let twinkle = 0.6 + 0.4 * sin(t * (1.5 + p.seed * 3) + p.seed * 40)
-            let alpha = min(0.999, (0.04 + depth * depth) * twinkle * (0.8 + 0.35 * en))
+            let alpha = min(0.999, (0.04 + depth * depth) * twinkle * (1.05 + 0.4 * en))
             guard alpha >= 0.05 else { continue }
             let index = Int(alpha * Double(bucketCount))
             buckets[index].move(to: CGPoint(x: before.x, y: before.y))
@@ -416,7 +415,7 @@ struct AtlasHologramView: View {
         }
         for (index, path) in buckets.enumerated() where !path.isEmpty {
             let a = Double(index + 1) / Double(bucketCount)
-            let width = L.unit * (0.6 + Double(index) * 0.22)
+            let width = L.unit * (0.35 + Double(index) * 0.11)
             let color: Color = index >= bucketCount - 2 ? Self.hot : (index >= bucketCount - 4 ? ice : Self.blue)
             ctx.stroke(path, with: .color(color.opacity(a)), style: StrokeStyle(lineWidth: width, lineCap: .round))
         }
@@ -436,7 +435,7 @@ struct AtlasHologramView: View {
                 if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
             }
             ctx.stroke(path, with: .color(Self.hot.opacity(0.5 + 0.35 * en)),
-                       style: StrokeStyle(lineWidth: 1.4 * L.unit, lineCap: .round))
+                       style: StrokeStyle(lineWidth: 0.8 * L.unit, lineCap: .round))
         }
     }
 
@@ -474,9 +473,9 @@ struct AtlasHologramView: View {
             }
             path.addLine(to: CGPoint(x: x2, y: y2))
             ctx.stroke(path, with: .color(ice.opacity(0.35 * (1 - k))),
-                       style: StrokeStyle(lineWidth: 4 * L.unit, lineCap: .round, lineJoin: .round))
+                       style: StrokeStyle(lineWidth: 2.2 * L.unit, lineCap: .round, lineJoin: .round))
             ctx.stroke(path, with: .color(Color.white.opacity(0.9 * (1 - k))),
-                       style: StrokeStyle(lineWidth: L.unit, lineCap: .round, lineJoin: .round))
+                       style: StrokeStyle(lineWidth: 0.6 * L.unit, lineCap: .round, lineJoin: .round))
         }
     }
 
@@ -486,7 +485,7 @@ struct AtlasHologramView: View {
         var buckets = [Path](repeating: Path(), count: bucketCount)
         for shard in Self.shards {
             let flicker = 0.55 + 0.45 * sin(t * shard.flicker + shard.phase)
-            let alpha = shard.brightness * flicker * (0.45 + 0.75 * en)
+            let alpha = shard.brightness * flicker * (0.6 + 0.8 * en)
             guard alpha >= 0.05 else { continue }
             let angle = shard.angle + shard.speed * t * spin
             let r = shard.radius * L.R * (1 + 0.012 * pulse + sin(t * 2 + shard.phase) * 0.01 * en)
@@ -510,7 +509,7 @@ struct AtlasHologramView: View {
         }
         for (index, path) in buckets.enumerated() where !path.isEmpty {
             let a = Double(index + 1) / Double(bucketCount)
-            let width = L.unit * (0.7 + Double(index) * 0.3)
+            let width = L.unit * (0.4 + Double(index) * 0.14)
             ctx.stroke(path, with: .color((index >= bucketCount - 2 ? Self.hot : ice).opacity(a)),
                        style: StrokeStyle(lineWidth: width, lineCap: .round))
         }
@@ -544,8 +543,8 @@ struct AtlasHologramView: View {
                 minor.move(to: from); minor.addLine(to: to)
             }
         }
-        ctx.stroke(minor, with: .color(ice.opacity(0.22)), lineWidth: 0.7 * L.unit)
-        ctx.stroke(major, with: .color(ice.opacity(0.55)), lineWidth: 1.2 * L.unit)
+        ctx.stroke(minor, with: .color(ice.opacity(0.22)), lineWidth: 0.45 * L.unit)
+        ctx.stroke(major, with: .color(ice.opacity(0.55)), lineWidth: 0.8 * L.unit)
 
         for i in 0..<4 {
             let start = Double(i) * .pi / 2 + 0.3 - t * 0.18 * spin
@@ -554,7 +553,7 @@ struct AtlasHologramView: View {
             arc.addArc(center: CGPoint(x: L.cx, y: L.cy), radius: scaleR + 9 * L.unit,
                        startAngle: .radians(start), endAngle: .radians(start + span), clockwise: false)
             ctx.stroke(arc, with: .color(ice.opacity(0.5 + 0.3 * en)),
-                       style: StrokeStyle(lineWidth: 2.4 * L.unit, lineCap: .round))
+                       style: StrokeStyle(lineWidth: 1.3 * L.unit, lineCap: .round))
         }
 
         if state == .thinking {
@@ -586,7 +585,7 @@ struct AtlasHologramView: View {
             brackets.addLine(to: CGPoint(x: c.x, y: c.y))
             brackets.addLine(to: CGPoint(x: c.x + c.sx * length, y: c.y))
         }
-        ctx.stroke(brackets, with: .color(ice.opacity(0.45)), lineWidth: 1.2)
+        ctx.stroke(brackets, with: .color(ice.opacity(0.5)), lineWidth: 0.8)
 
         var text = ctx
         text.blendMode = .normal
@@ -672,7 +671,7 @@ extension AtlasHologramView {
                     theta0: random() * 2 * .pi,
                     omega: direction * (0.6 + 0.9 * random()) / (0.3 + radius),
                     radius: radius, phase: random() * 2 * .pi, phase2: random() * 2 * .pi,
-                    size: 0.6 + random() * 1.3, delay: random() * 0.25,
+                    size: 0.45 + random() * 0.9, delay: random() * 0.25,
                     tx: L.cx + target.0 + (random() - 0.5) * step * 0.5,
                     ty: L.cy + target.1 + (random() - 0.5) * step * 0.5,
                     sphereIndex: (i * 7) % AtlasHologramView.sphere.count))
@@ -801,7 +800,7 @@ extension AtlasHologramView {
                 let color = index >= bucketCount - 2 ? AtlasHologramView.hot
                     : (index >= bucketCount - 4 ? AtlasHologramView.iceColor : AtlasHologramView.blue)
                 ctx.stroke(path, with: .color(AtlasHologramView.blue.opacity(a * 0.3)),
-                           style: StrokeStyle(lineWidth: widths[index] * 2.6, lineCap: .round, lineJoin: .round))
+                           style: StrokeStyle(lineWidth: widths[index] * 1.8, lineCap: .round, lineJoin: .round))
                 ctx.stroke(path, with: .color(color.opacity(a)),
                            style: StrokeStyle(lineWidth: widths[index], lineCap: .round, lineJoin: .round))
             }
