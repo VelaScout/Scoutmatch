@@ -27,9 +27,6 @@ struct AtlasHologramView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.displayScale) private var displayScale
 
-    @State private var smoothedLevel: Double = 0
-    @State private var lastWordDate = Date.distantPast
-    @State private var lastWordDuration: Double = 0.3
     @State private var dragYaw: Double = 0
     @State private var dragPitch: Double = 0
     @State private var dragStart: (yaw: Double, pitch: Double)?
@@ -78,13 +75,6 @@ struct AtlasHologramView: View {
                 }
                 .onEnded { _ in dragStart = nil }
         )
-        .onChange(of: inputLevel) { _, newValue in
-            smoothedLevel = smoothedLevel * 0.6 + Double(newValue) * 0.4
-        }
-        .onChange(of: spokenWordCount) { _, _ in
-            lastWordDate = .now
-            lastWordDuration = AtlasMotion.wordDuration(length: spokenWordLength, speechRate: speechRate)
-        }
         .accessibilityElement()
         .accessibilityLabel("A.T.L.A.S., \(state.label)")
         .accessibilityAddTraits(.isButton)
@@ -142,7 +132,7 @@ struct AtlasHologramView: View {
     /// Gleichmäßig verteilte Punkte auf der Einheitskugel (Fibonacci-Gitter).
     fileprivate static let sphere: [SpherePoint] = {
         let random = AtlasHologramView.seeded(5)
-        let count = 1500
+        let count = 1200
         let golden = Double.pi * (3 - sqrt(5))
         return (0..<count).map { i in
             let y = 1 - 2 * (Double(i) + 0.5) / Double(count)
@@ -235,7 +225,7 @@ struct AtlasHologramView: View {
 
     private func energy(t: Double, envelope: Double) -> Double {
         switch state {
-        case .listening, .confirming: return 0.35 + smoothedLevel * 0.65
+        case .listening, .confirming: return 0.35 + Double(AudioMeter.shared.input) * 0.65
         case .speaking: return 0.3 + envelope * 0.3
         case .standby: return 0.2 + 0.05 * sin(t * 2)
         // Nachdenken sieht bewusst aus wie Ruhe – kein sichtbares „Denken“.
@@ -259,13 +249,8 @@ struct AtlasHologramView: View {
     private func draw(in context: inout GraphicsContext, size: CGSize, date: Date) {
         let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 100_000)
         let motion = reduceMotion ? 0.25 : 1.0
-        let sinceWord = date.timeIntervalSince(lastWordDate)
-        // Über ein kurzes Zeitfenster gemittelt: ruhiges Atmen statt hektischem Zucken pro Silbe.
-        var envelope = 0.0
-        for lag in [0.0, 0.06, 0.12, 0.18] {
-            envelope += AtlasMotion.speechEnvelope(isSpeaking: state == .speaking, sinceWord: max(0, sinceWord - lag),
-                                                   wordDuration: lastWordDuration, wordLength: spokenWordLength) / 4
-        }
+        // Echte Lautstärke der Stimme, direkt aus der Audio-Leitung – weich und flüssig.
+        let envelope = state == .speaking ? Double(AudioMeter.shared.output) : 0
         let en = energy(t: t, envelope: envelope)
         let pulse = state == .speaking ? envelope : 0
         let spin = motion
@@ -306,7 +291,7 @@ struct AtlasHologramView: View {
             drawBolts(&core, L: L, t: t)
             drawShell(&core, L: L, t: t, en: en, spin: spin, pulse: pulse)
             if state == .speaking {
-                drawSoundWaves(&core, L: L, sinceWord: sinceWord)
+                drawSoundWaves(&core, L: L, t: t, level: envelope)
             }
             drawHUD(&core, L: L, t: t, en: en, spin: spin)
 
@@ -536,14 +521,14 @@ struct AtlasHologramView: View {
         }
     }
 
-    /// Jedes gesprochene Wort sendet zwei Lichtringe aus.
-    private func drawSoundWaves(_ ctx: inout GraphicsContext, L: Layout, sinceWord: Double) {
-        for lag in [0.0, 0.42] {
-            let s = sinceWord - lag
-            guard s >= 0, s <= 0.9 else { continue }
-            let k = s / 0.9
+    /// Beim Sprechen laufen sanfte Lichtringe nach außen – so hell, wie die Stimme laut ist.
+    private func drawSoundWaves(_ ctx: inout GraphicsContext, L: Layout, t: Double, level: Double) {
+        guard level > 0.02 else { return }
+        for offset in [0.0, 0.5] {
+            let k = (t * 0.9 + offset).truncatingRemainder(dividingBy: 1)
+            let fade = min(1, level * 1.6)
             ctx.stroke(circle(L.cx, L.cy, L.R * (1.4 + k * 0.9)),
-                       with: .color(ice.opacity(0.25 * (1 - k) * (1 - k))), lineWidth: (1.4 - k * 0.6) * L.unit)
+                       with: .color(ice.opacity(0.25 * fade * (1 - k) * (1 - k))), lineWidth: (1.4 - k * 0.6) * L.unit)
         }
     }
 
@@ -687,7 +672,7 @@ extension AtlasHologramView {
                     tx: L.cx + target.0 + (random() - 0.5) * step * 0.5,
                     ty: L.cy + target.1 + (random() - 0.5) * step * 0.5,
                     sphereIndex: (i * 7) % AtlasHologramView.sphere.count,
-                    stays: i % 2 == 0, cloud: 0.9 + 0.55 * pow(random(), 1.6)))
+                    stays: i % 3 == 0, cloud: 0.9 + 0.55 * pow(random(), 1.6)))
             }
             let wordRenderer = ImageRenderer(content:
                 Text("A.T.L.A.S.")

@@ -37,7 +37,6 @@ final class SpeechRecognizer {
     /// Die Erkennung wurde vom System beendet (z. B. Fehler oder Zeitlimit).
     var onStop: ((Error?) -> Void)?
 
-    private let audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var sessionID = UUID()
@@ -74,7 +73,8 @@ final class SpeechRecognizer {
             throw RecognizerError.onDeviceUnavailable
         }
 
-        try AudioSessionManager.activate()
+        // Gemeinsame Audio-Leitung mit Echo-Unterdrückung (A.T.L.A.S. hört sich nicht selbst).
+        try AudioHub.shared.enableInput()
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
@@ -85,21 +85,9 @@ final class SpeechRecognizer {
             request.requiresOnDeviceRecognition = true
         }
 
-        let inputNode = audioEngine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else { throw RecognizerError.noMicrophone }
-
         let id = UUID()
         sessionID = id
-
-        inputNode.removeTap(onBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format,
-                             block: Self.makeTapBlock(request: request) { [weak self] level in
-                                 Task { @MainActor in self?.onLevel?(level) }
-                             })
-
-        audioEngine.prepare()
-        try audioEngine.start()
+        AudioHub.shared.setInputHandler(Self.makeInputHandler(request: request))
 
         self.request = request
         task = recognizer.recognitionTask(with: request, resultHandler: Self.makeResultHandler { [weak self] text, isFinal, error in
@@ -116,11 +104,11 @@ final class SpeechRecognizer {
     }
 
     func stop() {
-        guard isRunning || audioEngine.isRunning else { return }
+        guard isRunning else { return }
         isRunning = false
         sessionID = UUID()
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        // Das Mikrofon der gemeinsamen Leitung bleibt bereit; nur die Erkennung hört auf.
+        AudioHub.shared.setInputHandler(nil)
         request?.endAudio()
         task?.cancel()
         request = nil
@@ -132,14 +120,10 @@ final class SpeechRecognizer {
 
     /// Die Audio-Callbacks laufen auf einem Hintergrund-Thread. Deshalb werden sie
     /// bewusst `nonisolated` erzeugt und leiten nur Daten an den Main Thread weiter.
-    nonisolated private static func makeTapBlock(
-        request: SFSpeechAudioBufferRecognitionRequest,
-        level: @escaping @Sendable (Float) -> Void
-    ) -> AVAudioNodeTapBlock {
-        { buffer, _ in
-            request.append(buffer)
-            level(rmsLevel(of: buffer))
-        }
+    nonisolated private static func makeInputHandler(
+        request: SFSpeechAudioBufferRecognitionRequest
+    ) -> (AVAudioPCMBuffer) -> Void {
+        { buffer in request.append(buffer) }
     }
 
     nonisolated private static func makeResultHandler(
@@ -148,17 +132,5 @@ final class SpeechRecognizer {
         { result, error in
             handler(result?.bestTranscription.formattedString, result?.isFinal ?? false, error)
         }
-    }
-
-    nonisolated private static func rmsLevel(of buffer: AVAudioPCMBuffer) -> Float {
-        guard let channel = buffer.floatChannelData?[0] else { return 0 }
-        let frames = Int(buffer.frameLength)
-        guard frames > 0 else { return 0 }
-        var sum: Float = 0
-        for i in 0..<frames { sum += channel[i] * channel[i] }
-        let rms = sqrt(sum / Float(frames))
-        // In Dezibel umrechnen und auf 0...1 abbilden (-50 dB = still, -10 dB = laut).
-        let db = 20 * log10(max(rms, 0.000_01))
-        return min(max((db + 50) / 40, 0), 1)
     }
 }

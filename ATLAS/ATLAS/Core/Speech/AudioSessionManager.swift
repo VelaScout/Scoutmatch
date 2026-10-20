@@ -6,9 +6,11 @@ enum AudioSessionManager {
     static func activate() throws {
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
+        // Hören und Sprechen laufen dauerhaft parallel (Echo-Unterdrückung über die Audio-Leitung).
+        // Andere Apps wie Spotify laufen weiter.
         try session.setCategory(.playAndRecord,
                                 mode: .default,
-                                options: [.defaultToSpeaker, .allowBluetoothA2DP, .duckOthers])
+                                options: [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers])
         try session.setActive(true)
         #endif
     }

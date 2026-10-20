@@ -3,10 +3,9 @@ import Foundation
 
 /// Premium-Stimme über ElevenLabs: eine KI-Stimme, die wie ein echter Mensch klingt.
 ///
-/// Sätze werden nacheinander als Audio geladen (der nächste schon während der aktuelle
-/// läuft) und abgespielt. Weil ElevenLabs keine Wort-Zeitpunkte liefert, werden die
-/// Wort-Ereignisse für die Animation gleichmäßig über die Satzdauer verteilt.
-/// Schlägt die Verbindung fehl, übernimmt automatisch die Apple-Stimme.
+/// Jeder Abschnitt wird als Strom geladen (rohes PCM, 24 kHz) und schon abgespielt, während
+/// der Rest noch eintrifft – A.T.L.A.S. beginnt dadurch deutlich schneller zu sprechen.
+/// Die Wiedergabe übernimmt `SpeechSynthesizer` über die gemeinsame Audio-Leitung.
 @MainActor
 final class PremiumVoice: NSObject {
     struct Config: Equatable {
@@ -22,102 +21,89 @@ final class PremiumVoice: NSObject {
         ("Daniel – ruhig, britisch, sachlich", "onwK4e9ZLuTAKqWW03F9"),
     ]
 
-    var onWord: ((Int) -> Void)?
-    var onFinishedAll: (() -> Void)?
-    /// Wird aufgerufen, wenn ein Satz nicht geladen werden konnte – der Text soll dann
-    /// mit der Apple-Stimme gesprochen werden.
-    var onFallback: ((String) -> Void)?
-
-    private struct Item {
-        let text: String
-        var audio: Task<Data?, Never>
+    enum StreamError: Error {
+        case http(Int)
+        case invalidRequest
     }
 
-    private var queue: [Item] = []
-    private var player: AVAudioPlayer?
-    private var wordTask: Task<Void, Never>?
-    private var isPlaying = false
-    /// Zuletzt angeforderter Text – ElevenLabs nutzt ihn für eine fließende Betonung über Abschnitte hinweg.
-    private var previousText = ""
-
-    var isSpeaking: Bool { isPlaying || !queue.isEmpty }
-
-    func speak(_ text: String, config: Config) {
-        let request = Self.request(text: text, config: config, previousText: previousText)
-        previousText = text
-        // Laden beginnt sofort – so ist der nächste Satz meist fertig, wenn der vorige endet.
-        let audio = Task<Data?, Never> {
-            guard let request,
-                  let result = try? await URLSession.shared.data(for: request),
-                  (result.1 as? HTTPURLResponse)?.statusCode == 200, !result.0.isEmpty else { return nil }
-            return result.0
-        }
-        queue.append(Item(text: text, audio: audio))
-        if !isPlaying { playNext() }
-    }
-
-    func stop() {
-        for item in queue { item.audio.cancel() }
-        queue.removeAll()
-        previousText = ""
-        wordTask?.cancel()
-        player?.stop()
-        player = nil
-        isPlaying = false
-    }
-
-    private func playNext() {
-        guard !queue.isEmpty else {
-            isPlaying = false
-            previousText = ""
-            onFinishedAll?()
-            return
-        }
-        isPlaying = true
-        let item = queue.removeFirst()
-        Task {
-            let data = await item.audio.value
-            guard isPlaying else { return } // inzwischen gestoppt
-            guard let data, let player = try? AVAudioPlayer(data: data) else {
-                // Den Rest dieser Antwort komplett an die Apple-Stimme übergeben –
-                // nie zwei Stimmen gleichzeitig.
-                let remaining = ([item.text] + queue.map(\.text)).joined(separator: " ")
-                queue.forEach { $0.audio.cancel() }
-                queue.removeAll()
-                isPlaying = false
-                previousText = ""
-                onFallback?(remaining)
-                return
+    /// Startet sofort das Laden und liefert die Audiopuffer (im angegebenen Format), sobald sie eintreffen.
+    nonisolated static func stream(text: String, config: Config, previousText: String,
+                                   format: AVAudioFormat) -> AsyncThrowingStream<AVAudioPCMBuffer, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task.detached(priority: .userInitiated) {
+                do {
+                    guard let request = streamRequest(text: text, config: config, previousText: previousText) else {
+                        throw StreamError.invalidRequest
+                    }
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    guard status == 200 else { throw StreamError.http(status) }
+                    // 0,1 Sekunden je Puffer (24.000 Abtastwerte/s × 2 Byte)
+                    let chunkSize = 4_800
+                    var pending = Data()
+                    pending.reserveCapacity(chunkSize * 2)
+                    for try await byte in bytes {
+                        pending.append(byte)
+                        if pending.count >= chunkSize {
+                            if let buffer = makeBuffer(pending, format: format) { continuation.yield(buffer) }
+                            pending.removeAll(keepingCapacity: true)
+                        }
+                    }
+                    if pending.count >= 2, let buffer = makeBuffer(pending, format: format) {
+                        continuation.yield(buffer)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
             }
-            try? AudioSessionManager.activate()
-            self.player = player
-            player.delegate = self
-            player.prepareToPlay()
-            player.play()
-            animateWords(of: item.text, duration: player.duration)
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
-    /// Verteilt die Wörter gleichmäßig über die Abspieldauer – treibt das Pulsieren des Kerns.
-    private func animateWords(of text: String, duration: TimeInterval) {
-        let words = text.split(whereSeparator: { $0.isWhitespace })
-        guard !words.isEmpty, duration > 0 else { return }
-        let interval = duration / Double(words.count)
-        wordTask?.cancel()
-        wordTask = Task { [weak self] in
-            for word in words {
-                guard !Task.isCancelled else { return }
-                self?.onWord?(word.count)
-                try? await Task.sleep(for: .seconds(interval))
+    /// 16-Bit-PCM (Little Endian) → Float-Puffer im Wiedergabeformat.
+    nonisolated private static func makeBuffer(_ data: Data, format: AVAudioFormat) -> AVAudioPCMBuffer? {
+        let frames = data.count / 2
+        guard frames > 0, let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)),
+              let channel = buffer.floatChannelData?[0] else { return nil }
+        data.withUnsafeBytes { raw in
+            for i in 0..<frames {
+                let low = UInt16(raw[i * 2])
+                let high = UInt16(raw[i * 2 + 1])
+                channel[i] = Float(Int16(bitPattern: low | (high << 8))) / 32_768
             }
         }
+        buffer.frameLength = AVAudioFrameCount(frames)
+        return buffer
     }
 
-    fileprivate func finishedCurrent() {
-        wordTask?.cancel()
-        player = nil
-        guard isPlaying else { return }
-        playNext()
+    nonisolated private static func streamRequest(text: String, config: Config, previousText: String) -> URLRequest? {
+        let voice = config.voiceID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !voice.isEmpty,
+              let url = URL(string: "https://api.elevenlabs.io/v1/text-to-speech/\(voice)/stream?output_format=pcm_24000")
+        else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        request.setValue(config.apiKey, forHTTPHeaderField: "xi-api-key")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body(text: text, config: config, previousText: previousText))
+        return request
+    }
+
+    nonisolated private static func body(text: String, config: Config, previousText: String) -> [String: Any] {
+        var body: [String: Any] = [
+            "text": text,
+            "model_id": config.model,
+            "voice_settings": [
+                "stability": 0.45,         // lebendig, aber ruhig
+                "similarity_boost": 0.8,
+                "style": 0.2,
+                "use_speaker_boost": true,
+            ],
+        ]
+        if !previousText.isEmpty { body["previous_text"] = String(previousText.suffix(500)) }
+        return body
     }
 
     private static func request(text: String, config: Config, previousText: String = "") -> URLRequest? {
@@ -161,16 +147,6 @@ final class PremiumVoice: NSObject {
         } catch {
             return "Keine Verbindung zu ElevenLabs."
         }
-    }
-}
-
-extension PremiumVoice: AVAudioPlayerDelegate {
-    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor in self.finishedCurrent() }
-    }
-
-    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-        Task { @MainActor in self.finishedCurrent() }
     }
 }
 

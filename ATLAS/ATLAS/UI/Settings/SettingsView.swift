@@ -35,6 +35,7 @@ struct SettingsView: View {
                     TextField("Ihr Vorname (optional)", text: $settings.userName)
                     Toggle("Begrüßung beim Öffnen", isOn: $settings.greetOnLaunch)
                     Toggle("Denkpausen überbrücken („Hm, Moment …“)", isOn: $settings.thinkingFillers)
+                    Toggle("Unterbrechen per Stimme („Stopp“)", isOn: $settings.bargeIn)
                 }
 
                 Section("Darstellung") {

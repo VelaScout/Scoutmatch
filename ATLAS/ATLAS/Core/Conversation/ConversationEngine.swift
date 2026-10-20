@@ -107,6 +107,9 @@ final class ConversationEngine {
     @ObservationIgnored private var fillersThisTurn = 0
     /// Das Modell hat in dieser Antwort schon etwas gesagt – dann keine zusätzlichen Denk-Laute.
     @ObservationIgnored private var modelSpokeThisTurn = false
+    /// Bereits erkannte Wörter, wenn der Nutzer A.T.L.A.S. ins Wort gefallen ist.
+    @ObservationIgnored private var listeningPrefix = ""
+    @ObservationIgnored private var lastCaptionUpdate = Date.distantPast
     @ObservationIgnored private var fillerTask: Task<Void, Never>?
 
     private let endPhrases: Set<String> = [
@@ -301,6 +304,7 @@ final class ConversationEngine {
         } else {
             // Kein Mikrofon im Hintergrund – niemals heimlich zuhören.
             haltEverything()
+            AudioHub.shared.shutdown()
             learnFromConversation()
         }
     }
@@ -324,6 +328,8 @@ final class ConversationEngine {
         } else {
             recognizer.stop()
             inputLevel = 0
+            // Ohne Wake-Word ist das Mikrofon in Ruhe komplett aus.
+            if !synthesizer.isSpeaking { AudioHub.shared.shutdown() }
             if !state.isError { state = .idle }
         }
     }
@@ -376,10 +382,11 @@ final class ConversationEngine {
         return permissionsGranted
     }
 
-    func startListening() async {
+    func startListening(prefix: String = "") async {
         guard await ensurePermissions() else { return }
         do {
-            liveTranscript = ""
+            listeningPrefix = prefix
+            liveTranscript = prefix
             wakeTriggered = false
             listenAfterSpeech = false
             try recognizer.start(language: settings.language)
@@ -407,15 +414,48 @@ final class ConversationEngine {
             if wakeTriggered {
                 liveTranscript = commandAfterWakeWord(text) ?? text
             } else {
-                liveTranscript = text
+                liveTranscript = listeningPrefix.isEmpty ? text : listeningPrefix + " " + text
             }
             // Nach jeder neuen Erkennung beginnt die Pausenerkennung von vorn.
             scheduleSilenceTimer(after: settings.silenceTimeout)
         case .confirming:
             handleConfirmationSpeech(text)
+        case .thinking, .speaking:
+            handleBargeIn(text)
         default:
             break
         }
+    }
+
+    // MARK: - Unterbrechen per Stimme
+
+    private static let stopWords: Set<String> = [
+        "stopp", "stop", "halt", "warte", "ruhe", "still", "pause", "atlas", "moment", "aufhören", "hör",
+    ]
+    private static let fillerWords: Set<String> = ["bitte", "mal", "doch", "jetzt", "kurz", "ok", "okay", "auf", "ja", "nein"]
+
+    /// Während A.T.L.A.S. denkt oder spricht, hört er weiter zu (mit Echo-Unterdrückung).
+    private func startBargeInListening() {
+        guard settings.bargeIn, permissionsGranted, sceneActive else { return }
+        try? recognizer.start(language: settings.language)
+    }
+
+    /// Sagt der Nutzer „Stopp“ oder etwas Neues, verstummt A.T.L.A.S. sofort und hört zu.
+    private func handleBargeIn(_ text: String) {
+        let words = normalize(text).split(separator: " ").map(String.init)
+        guard !words.isEmpty else { return }
+        // Nur die letzten Wörter zählen – und nichts, was A.T.L.A.S. selbst gerade gesagt hat.
+        let echo = Set(normalize(synthesizer.spokenLog).split(separator: " ").map(String.init))
+        let recent = words.suffix(6).filter { !echo.contains($0) }
+        let hasStop = recent.contains { Self.stopWords.contains($0) }
+        let userIsTalking = recent.count >= 3 && AudioMeter.shared.input > 0.3
+        guard hasStop || userIsTalking else { return }
+
+        let onlyStop = recent.allSatisfy { Self.stopWords.contains($0) || Self.fillerWords.contains($0) }
+        interrupt()
+        Haptics.soft()
+        let prefix = onlyStop ? "" : recent.joined(separator: " ")
+        Task { await self.startListening(prefix: prefix) }
     }
 
     private func scheduleSilenceTimer(after seconds: Double) {
@@ -438,6 +478,14 @@ final class ConversationEngine {
                 if self.state == .standby {
                     self.state = .idle
                     await self.startStandby()
+                }
+            }
+        case .thinking, .speaking:
+            // Weiter auf Unterbrechungen achten.
+            Task {
+                try? await Task.sleep(for: .milliseconds(200))
+                if self.state == .thinking || self.state == .speaking, !self.recognizer.isRunning {
+                    self.startBargeInListening()
                 }
             }
         default:
@@ -578,6 +626,7 @@ final class ConversationEngine {
         generation += 1
         let currentGeneration = generation
         scheduleThinkingFiller(generation: currentGeneration)
+        startBargeInListening()
 
         responseTask = Task { [weak self] in
             guard let self else { return }
@@ -592,7 +641,11 @@ final class ConversationEngine {
                     switch event {
                     case .text(let delta):
                         full += delta
-                        self.responseText = SpeechTextCleaner.clean(full)
+                        // Untertitel höchstens ~8× pro Sekunde aktualisieren – schont die Animation.
+                        if Date.now.timeIntervalSince(lastCaptionUpdate) > 0.12 {
+                            self.responseText = SpeechTextCleaner.clean(full)
+                            self.lastCaptionUpdate = .now
+                        }
                         for sentence in chunker.feed(delta) {
                             self.modelSpokeThisTurn = true
                             self.say(sentence)
@@ -712,6 +765,7 @@ final class ConversationEngine {
         streamFinished = true
         statusDetail = nil
         let text = full.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty { responseText = SpeechTextCleaner.clean(text) }
         if !text.isEmpty {
             history.append(ChatTurn(role: .assistant, text: text))
             persist(role: .assistant, text: SpeechTextCleaner.clean(text))

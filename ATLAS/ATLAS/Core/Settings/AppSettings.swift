@@ -77,6 +77,8 @@ final class AppSettings {
     var greetOnLaunch: Bool { didSet { defaults.set(greetOnLaunch, forKey: Keys.greetOnLaunch) } }
     /// Denkpausen mit kurzen Lauten überbrücken („Hm, Moment …“).
     var thinkingFillers: Bool { didSet { defaults.set(thinkingFillers, forKey: Keys.thinkingFillers) } }
+    /// Während A.T.L.A.S. spricht weiter zuhören – „Stopp“ oder eine neue Frage unterbricht ihn sofort.
+    var bargeIn: Bool { didSet { defaults.set(bargeIn, forKey: Keys.bargeIn) } }
     var language: AtlasLanguage { didSet { defaults.set(language.rawValue, forKey: Keys.language) } }
     var voiceIdentifier: String { didSet { defaults.set(voiceIdentifier, forKey: Keys.voiceIdentifier) } }
     var speechRate: Double { didSet { defaults.set(speechRate, forKey: Keys.speechRate) } }
@@ -117,6 +119,7 @@ final class AppSettings {
             Keys.userName: "",
             Keys.greetOnLaunch: true,
             Keys.thinkingFillers: true,
+            Keys.bargeIn: true,
             Keys.language: AtlasLanguage.german.rawValue,
             Keys.voiceIdentifier: "",
             Keys.speechRate: 0.5,
@@ -127,7 +130,7 @@ final class AppSettings {
             Keys.effort: AtlasEffort.low.rawValue,
             Keys.webSearch: true,
             Keys.conversationMode: true,
-            Keys.silenceTimeout: 1.0,
+            Keys.silenceTimeout: 0.8,
             Keys.appearance: AtlasAppearance.hologram.rawValue,
             Keys.wakeWord: true,
             Keys.tools: true,
@@ -151,6 +154,7 @@ final class AppSettings {
         userName = defaults.string(forKey: Keys.userName) ?? ""
         greetOnLaunch = defaults.bool(forKey: Keys.greetOnLaunch)
         thinkingFillers = defaults.bool(forKey: Keys.thinkingFillers)
+        bargeIn = defaults.bool(forKey: Keys.bargeIn)
         language = AtlasLanguage(rawValue: defaults.string(forKey: Keys.language) ?? "") ?? .german
         voiceIdentifier = defaults.string(forKey: Keys.voiceIdentifier) ?? ""
         speechRate = defaults.double(forKey: Keys.speechRate)
@@ -198,6 +202,7 @@ final class AppSettings {
         static let userName = "userName"
         static let greetOnLaunch = "greetOnLaunch"
         static let thinkingFillers = "thinkingFillers"
+        static let bargeIn = "bargeInEnabled"
         static let language = "language"
         static let voiceIdentifier = "voiceIdentifier"
         static let speechRate = "speechRate"

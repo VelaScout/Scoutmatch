@@ -8,20 +8,12 @@ struct AtlasCoreView: View {
     let spokenWordCount: Int
 
     @Environment(\.scenePhase) private var scenePhase
-    @State private var smoothedLevel: Double = 0
-    @State private var lastWordDate = Date.distantPast
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: scenePhase != .active)) { timeline in
             Canvas { context, size in
                 draw(in: &context, size: size, time: timeline.date)
             }
-        }
-        .onChange(of: inputLevel) { _, newValue in
-            smoothedLevel = smoothedLevel * 0.6 + Double(newValue) * 0.4
-        }
-        .onChange(of: spokenWordCount) { _, _ in
-            lastWordDate = .now
         }
         .accessibilityElement()
         .accessibilityLabel("A.T.L.A.S., \(state.label)")
@@ -38,11 +30,9 @@ struct AtlasCoreView: View {
     private func energy(at date: Date, t: Double) -> Double {
         switch state {
         case .listening, .confirming:
-            return 0.15 + smoothedLevel * 0.85
+            return 0.15 + Double(AudioMeter.shared.input) * 0.85
         case .speaking:
-            let sinceWord = date.timeIntervalSince(lastWordDate)
-            let kick = exp(-sinceWord * 7)
-            return 0.3 + 0.45 * kick + 0.1 * (sin(t * 11) * 0.5 + 0.5)
+            return 0.3 + 0.55 * Double(AudioMeter.shared.output)
         case .standby:
             return 0.12 + 0.06 * (sin(t * 2) * 0.5 + 0.5)
         case .idle, .error, .thinking:

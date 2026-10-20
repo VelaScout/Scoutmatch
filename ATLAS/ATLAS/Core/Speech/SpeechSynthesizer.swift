@@ -1,37 +1,46 @@
 import AVFoundation
 import Foundation
 
-/// Sprachausgabe von ATLAS: Apple-Stimme (AVSpeechSynthesizer) oder – falls eingerichtet –
-/// die Premium-Stimme von ElevenLabs. Antworten werden satzweise eingereiht, damit ATLAS
-/// sofort losspricht.
+/// Sprachausgabe von A.T.L.A.S.: Premium-Stimme (ElevenLabs, als Strom) oder Apple-Stimme.
+///
+/// Alles läuft über die gemeinsame `AudioHub`-Leitung: Die Abschnitte einer Antwort werden
+/// nacheinander erzeugt und lückenlos hintereinander abgespielt – keine Pausen zwischen Sätzen.
+/// Die Premium-Stimme wird gestreamt (sie beginnt, bevor der Satz fertig geladen ist), die
+/// nächsten Abschnitte laden bereits parallel. Fällt sie aus, übernimmt die Apple-Stimme den
+/// Rest der Antwort – nie zwei Stimmen gleichzeitig.
 @MainActor
 final class SpeechSynthesizer: NSObject {
-    /// Alle eingereihten Sätze wurden gesprochen.
+    /// Alle eingereihten Abschnitte wurden gesprochen.
     var onFinishedAll: (() -> Void)?
-    /// Wird bei jedem gesprochenen Wort mit dessen Buchstabenzahl ausgelöst –
-    /// Grundlage für das Pulsieren des ATLAS-Kerns.
+    /// Früher für die Mundbewegung genutzt; die Animation liest jetzt direkt die Lautstärke.
     var onWord: ((Int) -> Void)?
 
-    private let synthesizer = AVSpeechSynthesizer()
-    private let premium = PremiumVoice()
-    private var queued: Set<ObjectIdentifier> = []
-    /// Zuletzt verwendete Apple-Stimme – für den Fall, dass die Premium-Stimme ausfällt.
-    private var fallbackVoice: (identifier: String, language: AtlasLanguage, rate: Double) = ("", .german, 0.5)
-    /// Die Premium-Stimme ist in dieser Antwort ausgefallen – der Rest läuft über die Apple-Stimme.
-    private var premiumFailed = false
+    private struct Item {
+        let text: String
+        let voiceIdentifier: String
+        let language: AtlasLanguage
+        let rate: Double
+        let premium: AsyncThrowingStream<AVAudioPCMBuffer, Error>?
+    }
 
-    var isSpeaking: Bool { !queued.isEmpty || premium.isSpeaking }
+    private let apple = AVSpeechSynthesizer()
+    private let hub = AudioHub.shared
+    private var items: [Item] = []
+    private var worker: Task<Void, Never>?
+    private var premiumFailed = false
+    private var previousPremiumText = ""
+    private var appleWaiter: AppleWaiter?
+    /// Was A.T.L.A.S. in der laufenden Antwort gesagt hat – damit er sich beim Zuhören
+    /// nicht mit sich selbst verwechselt.
+    private(set) var spokenLog = ""
+
+    var isSpeaking: Bool { worker != nil || !items.isEmpty || hub.isPlaying }
 
     override init() {
         super.init()
-        synthesizer.delegate = self
-        premium.onWord = { [weak self] length in self?.onWord?(length) }
-        premium.onFinishedAll = { [weak self] in self?.checkFinished() }
-        premium.onFallback = { [weak self] text in
-            guard let self else { return }
-            self.premiumFailed = true
-            self.speakWithApple(text, voiceIdentifier: self.fallbackVoice.identifier,
-                                language: self.fallbackVoice.language, rate: self.fallbackVoice.rate)
+        apple.delegate = self
+        _ = NotificationCenter.default.addObserver(forName: AudioHub.drainedNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkFinished() }
         }
     }
 
@@ -41,41 +50,108 @@ final class SpeechSynthesizer: NSObject {
         // Geschrieben „A.T.L.A.S.“, gesprochen „Atlas“ – nicht buchstabiert
         let cleaned = SpeechTextCleaner.clean(text).replacingOccurrences(of: "A.T.L.A.S.", with: "Atlas")
         guard !cleaned.isEmpty else { return }
-        fallbackVoice = (voiceIdentifier, language, rate)
+        try? hub.startIfNeeded()
+        spokenLog += " " + cleaned
+        var stream: AsyncThrowingStream<AVAudioPCMBuffer, Error>?
         if let config, !premiumFailed {
-            premium.speak(cleaned, config: config)
-        } else {
-            speakWithApple(cleaned, voiceIdentifier: voiceIdentifier, language: language, rate: rate)
+            // Laden beginnt sofort – parallel zu den Abschnitten davor.
+            stream = PremiumVoice.stream(text: cleaned, config: config, previousText: previousPremiumText,
+                                         format: hub.playbackFormat)
+            previousPremiumText = cleaned
+        }
+        items.append(Item(text: cleaned, voiceIdentifier: voiceIdentifier, language: language, rate: rate, premium: stream))
+        startWorker()
+    }
+
+    /// Verstummt sofort.
+    func stop() {
+        worker?.cancel()
+        worker = nil
+        items.removeAll()
+        apple.stopSpeaking(at: .immediate)
+        appleWaiter?.finish()
+        appleWaiter = nil
+        hub.stopPlayback()
+        premiumFailed = false
+        previousPremiumText = ""
+        spokenLog = ""
+    }
+
+    private func startWorker() {
+        guard worker == nil else { return }
+        worker = Task { [weak self] in
+            await self?.drain()
+            guard let self, !Task.isCancelled else { return }
+            self.worker = nil
+            self.checkFinished()
         }
     }
 
-    private func speakWithApple(_ cleaned: String, voiceIdentifier: String, language: AtlasLanguage, rate: Double) {
-        try? AudioSessionManager.activate()
+    private func drain() async {
+        while !Task.isCancelled, !items.isEmpty {
+            let item = items.removeFirst()
+            await render(item)
+        }
+    }
 
-        let utterance = AVSpeechUtterance(string: cleaned)
-        utterance.voice = Self.voice(for: voiceIdentifier, language: language)
+    private func render(_ item: Item) async {
+        if let stream = item.premium, !premiumFailed {
+            var played = false
+            do {
+                for try await buffer in stream {
+                    if Task.isCancelled { return }
+                    played = true
+                    hub.play(buffer)
+                }
+                if played { return }
+            } catch {
+                if Task.isCancelled || played { return }
+            }
+            // Premium-Stimme ausgefallen (z. B. Kontingent aufgebraucht): Rest mit Apple-Stimme.
+            premiumFailed = true
+        }
+        await renderWithApple(item)
+    }
+
+    /// Lässt die Apple-Stimme den Text als Audio erzeugen und reiht ihn lückenlos ein.
+    private func renderWithApple(_ item: Item) async {
+        let utterance = AVSpeechUtterance(string: item.text)
+        utterance.voice = Self.voice(for: item.voiceIdentifier, language: item.language)
         // AVSpeechUtterance-Rate: 0 = sehr langsam, 0.5 = normal, 1 = sehr schnell.
-        utterance.rate = Float(rate) * (AVSpeechUtteranceMaximumSpeechRate - AVSpeechUtteranceMinimumSpeechRate)
+        utterance.rate = Float(item.rate) * (AVSpeechUtteranceMaximumSpeechRate - AVSpeechUtteranceMinimumSpeechRate)
             + AVSpeechUtteranceMinimumSpeechRate
         // Tonhöhe unverändert lassen: Verstellen klingt bei hochwertigen Stimmen künstlich.
         utterance.pitchMultiplier = 1.0
         utterance.postUtteranceDelay = 0
-        queued.insert(ObjectIdentifier(utterance))
-        synthesizer.speak(utterance)
+
+        let waiter = AppleWaiter()
+        appleWaiter = waiter
+        let sink = AppleSink(hub: hub)
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            waiter.set(continuation)
+            apple.write(utterance, toBufferCallback: Self.makeBufferCallback(sink: sink, waiter: waiter))
+        }
+        if appleWaiter === waiter { appleWaiter = nil }
     }
 
-    func stop() {
-        premiumFailed = false
-        queued.removeAll()
-        synthesizer.stopSpeaking(at: .immediate)
-        premium.stop()
+    /// Der Rückruf kommt auf einem Hintergrund-Thread – deshalb `nonisolated` erzeugt.
+    nonisolated private static func makeBufferCallback(sink: AppleSink, waiter: AppleWaiter) -> AVSpeechSynthesizer.BufferCallback {
+        { buffer in
+            guard let pcm = buffer as? AVAudioPCMBuffer, pcm.frameLength > 0 else {
+                // Ein leerer Puffer markiert das Ende des Abschnitts.
+                waiter.finish()
+                return
+            }
+            sink.play(pcm)
+        }
     }
 
     private func checkFinished() {
-        if !isSpeaking {
-            premiumFailed = false
-            onFinishedAll?()
-        }
+        guard !isSpeaking else { return }
+        premiumFailed = false
+        previousPremiumText = ""
+        spokenLog = ""
+        onFinishedAll?()
     }
 
     // MARK: - Stimmen
@@ -90,7 +166,7 @@ final class SpeechSynthesizer: NSObject {
     }
 
     /// Wählt die hochwertigste installierte Stimme. Qualität geht vor: innerhalb der besten
-    /// Qualitätsstufe wird eine männliche Butler-Stimme bevorzugt.
+    /// Qualitätsstufe wird eine männliche Stimme bevorzugt.
     static func bestVoice(for language: AtlasLanguage) -> AVSpeechSynthesisVoice? {
         let voices = availableVoices(for: language)
         let bestTier = voices.filter { $0.quality == voices.first?.quality }
@@ -116,26 +192,60 @@ final class SpeechSynthesizer: NSObject {
         default: return "Standard"
         }
     }
-
-    // MARK: - Delegate (wird auf einem Hintergrund-Thread aufgerufen)
-
-    fileprivate func utteranceFinished(_ id: ObjectIdentifier) {
-        guard queued.remove(id) != nil else { return }
-        checkFinished()
-    }
 }
 
 extension SpeechSynthesizer: AVSpeechSynthesizerDelegate {
+    // Sicherheitsnetz: Falls kein leerer End-Puffer kommt, beendet das Ende des Abschnitts das Warten.
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        let id = ObjectIdentifier(utterance)
-        Task { @MainActor in self.utteranceFinished(id) }
+        Task { @MainActor in self.appleWaiter?.finish() }
     }
 
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
-                                       willSpeakRangeOfSpeechString characterRange: NSRange,
-                                       utterance: AVSpeechUtterance) {
-        let length = characterRange.length
-        Task { @MainActor in self.onWord?(length) }
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        Task { @MainActor in self.appleWaiter?.finish() }
+    }
+}
+
+/// Wandelt die Puffer der Apple-Stimme ins Wiedergabeformat und reiht sie ein (Hintergrund-Thread).
+private final class AppleSink: @unchecked Sendable {
+    private let hub: AudioHub
+    private let converter: PCMStreamConverter
+    private let lock = NSLock()
+
+    init(hub: AudioHub) {
+        self.hub = hub
+        converter = PCMStreamConverter(target: hub.playbackFormat)
+    }
+
+    func play(_ buffer: AVAudioPCMBuffer) {
+        let converted = lock.withLock { converter.convert(buffer) }
+        if let converted { hub.play(converted) }
+    }
+}
+
+/// Wartet genau einmal auf das Ende eines Abschnitts – auch wenn abgebrochen wird.
+private final class AppleWaiter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var finished = false
+
+    func set(_ continuation: CheckedContinuation<Void, Never>) {
+        let resumeNow: Bool = lock.withLock {
+            if finished { return true }
+            self.continuation = continuation
+            return false
+        }
+        if resumeNow { continuation.resume() }
+    }
+
+    func finish() {
+        let pending: CheckedContinuation<Void, Never>? = lock.withLock {
+            guard !finished else { return nil }
+            finished = true
+            let pending = continuation
+            continuation = nil
+            return pending
+        }
+        pending?.resume()
     }
 }
 
