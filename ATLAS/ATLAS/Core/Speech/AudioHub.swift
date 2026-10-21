@@ -34,6 +34,13 @@ final class AudioMeter: @unchecked Sendable {
 
     /// Lautstärke eines Puffers zwischen 0 (still) und 1 (laut).
     static func level(of buffer: AVAudioPCMBuffer) -> Float {
+        let rms = rms(of: buffer)
+        let db = 20 * log10(max(rms, 0.000_01))
+        return min(max((db + 50) / 40, 0), 1)
+    }
+
+    /// Rohe Effektivlautstärke (0 = digitale Stille).
+    static func rms(of buffer: AVAudioPCMBuffer) -> Float {
         let frames = Int(buffer.frameLength)
         guard frames > 0 else { return 0 }
         var sum: Float = 0
@@ -47,9 +54,7 @@ final class AudioMeter: @unchecked Sendable {
         } else {
             return 0
         }
-        let rms = sqrt(sum / Float(frames))
-        let db = 20 * log10(max(rms, 0.000_01))
-        return min(max((db + 50) / 40, 0), 1)
+        return sqrt(sum / Float(frames))
     }
 }
 
@@ -75,6 +80,14 @@ final class AudioHub: @unchecked Sendable {
     private var outputReady = false
     private var inputReady = false
     private var voiceProcessingActive = false
+    /// Mikrofon-Puffer mit hörbarem Inhalt – zur Kontrolle, ob überhaupt Ton ankommt.
+    private var audibleInputBuffers = 0
+
+    /// Gespeichert, wenn die Echo-Unterdrückung auf diesem Gerät keinen Mikrofonton liefert.
+    static let voiceProcessingUnavailableKey = "voiceProcessingUnavailable"
+
+    /// Läuft die Echo-Unterdrückung (Voraussetzung, um A.T.L.A.S. per Stimme zu unterbrechen)?
+    var echoCancellationActive: Bool { inputReady && voiceProcessingActive }
     private var pendingBuffers = 0
     private var generation = 0
     private var inputHandler: ((AVAudioPCMBuffer) -> Void)?
@@ -130,6 +143,19 @@ final class AudioHub: @unchecked Sendable {
         input.installTap(onBus: 0, bufferSize: 1024, format: format, block: makeInputTap())
         inputReady = true
         try startIfNeeded()
+
+        if voiceProcessing {
+            // Absicherung: Liefert die Echo-Unterdrückung auf diesem Mac/iPhone keinen Ton,
+            // ohne sie weitermachen – lieber ohne Unterbrechen per Stimme als gar nicht hören.
+            let before = lock.withLock { audibleInputBuffers }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                guard let self, self.voiceProcessingActive, self.engine.isRunning else { return }
+                let now = self.lock.withLock { self.audibleInputBuffers }
+                guard now == before else { return }
+                UserDefaults.standard.set(true, forKey: Self.voiceProcessingUnavailableKey)
+                try? self.enableInput(voiceProcessing: false)
+            }
+        }
     }
 
     /// Hält alles an (App im Hintergrund): Mikrofon aus, Wiedergabe aus.
@@ -144,6 +170,10 @@ final class AudioHub: @unchecked Sendable {
     /// Empfänger der Mikrofon-Puffer, z. B. die Spracherkennung (`nil` = niemand).
     func setInputHandler(_ handler: ((AVAudioPCMBuffer) -> Void)?) {
         lock.withLock { inputHandler = handler }
+    }
+
+    private func countAudibleInput() {
+        lock.withLock { audibleInputBuffers += 1 }
     }
 
     private func deliverInput(_ buffer: AVAudioPCMBuffer) {
@@ -202,6 +232,8 @@ final class AudioHub: @unchecked Sendable {
     private func makeInputTap() -> AVAudioNodeTapBlock {
         { [weak self] buffer, _ in
             AudioMeter.shared.setInput(AudioMeter.level(of: buffer))
+            // Schon leises Raumrauschen zählt – nur echte digitale Stille nicht.
+            if AudioMeter.rms(of: buffer) > 0.000_001 { self?.countAudibleInput() }
             self?.deliverInput(buffer)
         }
     }

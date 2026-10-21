@@ -74,7 +74,10 @@ final class SpeechRecognizer {
         }
 
         // Gemeinsame Audio-Leitung mit Echo-Unterdrückung (A.T.L.A.S. hört sich nicht selbst).
-        try AudioHub.shared.enableInput(voiceProcessing: UserDefaults.standard.bool(forKey: "bargeInEnabled"))
+        let defaults = UserDefaults.standard
+        let echoCancellation = defaults.bool(forKey: "bargeInEnabled")
+            && !defaults.bool(forKey: AudioHub.voiceProcessingUnavailableKey)
+        try AudioHub.shared.enableInput(voiceProcessing: echoCancellation)
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true

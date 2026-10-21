@@ -446,7 +446,8 @@ final class ConversationEngine {
 
     /// Während A.T.L.A.S. denkt oder spricht, hört er weiter zu (mit Echo-Unterdrückung).
     private func startBargeInListening() {
-        guard settings.bargeIn, permissionsGranted, sceneActive else { return }
+        // Nur mit Echo-Unterdrückung – sonst würde A.T.L.A.S. sich selbst hören und unterbrechen.
+        guard settings.bargeIn, permissionsGranted, sceneActive, AudioHub.shared.echoCancellationActive else { return }
         try? recognizer.start(language: settings.language)
     }
 
