@@ -71,7 +71,7 @@ class FailureTests(test_agent.AgentServerTests):
         def offline(url, timeout):
             raise urllib.error.URLError('Keine Verbindung')
         env = t.Environment(home=self.home, roots=[self.home], runner=FakeRunner(), fetch=offline, is_mac=False)
-        self.agent.tools = t.build_tools(env)
+        self.agent.base_tools = t.build_tools(env)
         self.ollama.script = [tool_call('search_web', query='Wetter Berlin'), answer('Ich bin gerade offline.')]
         _, events = self.run_agent(self.body('Suche im Internet nach dem Wetter in Berlin'))
         tool_message = [m for m in self.ollama.chat_requests()[1]['messages'] if m['role'] == 'tool'][0]

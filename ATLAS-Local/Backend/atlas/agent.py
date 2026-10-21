@@ -25,7 +25,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 from . import intents
 from . import llm as llm_mod
@@ -221,6 +221,9 @@ class Agent:
         self.log = log or (lambda *_: None)
         # Erfahrungsspeicher (atlas.learning.Learning) – optional, damit Tests ohne Datenbank laufen.
         self.learning = learning
+        # Zusätzliche Werkzeuge, die sich zur Laufzeit ändern (freigegebene, selbst entwickelte Fähigkeiten).
+        self.dynamic_tools: Callable[[], dict[str, Tool]] | None = None
+        self.base_tools = tools
 
     # -- Kontext ---------------------------------------------------------------
     def context(self, request: Request, query: str, budget: int = 9_000) -> list[dict]:
@@ -298,6 +301,12 @@ class Agent:
     # -- Hauptablauf -------------------------------------------------------------
     def run(self, request: Request, stop: threading.Event) -> Iterator[dict]:
         started = time.monotonic()
+        self.tools = dict(self.base_tools)
+        if self.dynamic_tools:
+            try:
+                self.tools.update(self.dynamic_tools())
+            except Exception as exc:  # eine defekte Fähigkeit darf ATLAS nicht lahmlegen
+                self.log(f'Fähigkeiten nicht geladen: {exc}')
         self.current_memories = list(request.memories)
         text = last_user_text(request.history)
         if not text:
