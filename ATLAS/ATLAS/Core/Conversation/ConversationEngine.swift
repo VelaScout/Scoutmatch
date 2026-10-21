@@ -486,7 +486,7 @@ final class ConversationEngine {
                 self.listeningHint = PlatformBridge.isMac
                     ? "Ich höre nichts vom Mikrofon. Bitte prüfen: Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon → A.T.L.A.S. an, und Systemeinstellungen → Ton → Eingang: das richtige Mikrofon."
                     : "Ich höre nichts vom Mikrofon. Bitte prüfen: Einstellungen → A.T.L.A.S. → Mikrofon an."
-            } else {
+            } else if self.listeningHint?.hasPrefix("Ich höre nichts") == true {
                 self.listeningHint = nil
             }
         }
@@ -504,6 +504,20 @@ final class ConversationEngine {
     private func handleRecognizerStop(_ error: Error?) {
         switch state {
         case .listening:
+            if let error, liveTranscript.trimmingCharacters(in: .whitespaces).isEmpty {
+                // Fehler der Spracherkennung sichtbar machen statt still neu zu starten.
+                let nsError = error as NSError
+                listeningHint = "Spracherkennung: \(nsError.localizedDescription) (\(nsError.domain) \(nsError.code))"
+                silenceTask?.cancel()
+                recognizer.stop()
+                state = .idle
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    guard self.state == .idle else { return }
+                    self.goIdle()
+                }
+                return
+            }
             finishListening()
         case .standby:
             // Die Erkennung endet nach etwa einer Minute von selbst – nahtlos neu starten.

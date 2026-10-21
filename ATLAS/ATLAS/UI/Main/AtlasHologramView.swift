@@ -592,7 +592,12 @@ struct AtlasHologramView: View {
         label("A.T.L.A.S.", m + 10, m + 14, .leading)
         label(String(format: "SYNC %.1f%%", 99.2 + sin(t * 0.7) * 0.5), w - m - 10, m + 14, .trailing)
         label("STATUS · \(statusLabel)", m + 10, h - m - 14, .leading)
-        label(String(format: "%.1f HZ", 120 + en * 260 + sin(t * 3) * 6), w - m - 10, h - m - 14, .trailing)
+        if state == .listening || state == .standby {
+            // Echter Mikrofonpegel – zeigt sofort, ob A.T.L.A.S. Sie hört.
+            label(String(format: "MIK %03.0f%%", Double(AudioMeter.shared.input) * 100), w - m - 10, h - m - 14, .trailing)
+        } else {
+            label(String(format: "%.1f HZ", 120 + en * 260 + sin(t * 3) * 6), w - m - 10, h - m - 14, .trailing)
+        }
     }
 
     private func circle(_ x: Double, _ y: Double, _ r: Double) -> Path {
