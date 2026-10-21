@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var hasElevenKey = KeychainStore.has(.elevenLabsAPIKey)
     @State private var openAIKeyInput = ""
     @State private var hasOpenAIKey = KeychainStore.has(.openAIAPIKey)
+    @State private var localVoices: [String] = []
     @State private var premiumTestResult: String?
     @State private var testingPremium = false
 
@@ -109,6 +110,30 @@ struct SettingsView: View {
                                     hasOpenAIKey = false
                                 }
                             }
+                        } else if settings.premiumProvider == .local {
+                            TextField("Adresse der KI-Stimme", text: $settings.localVoiceURL)
+                                .atlasNoAutocapitalization()
+                                .font(.footnote.monospaced())
+                            if localVoices.isEmpty {
+                                TextField("Stimme (leer = Standard)", text: $settings.localVoiceName)
+                                    .atlasNoAutocapitalization()
+                            } else {
+                                Picker("Stimme", selection: $settings.localVoiceName) {
+                                    Text("Standard").tag("")
+                                    ForEach(localVoices, id: \.self) { Text($0 == "eigene" ? "Eigene (stimme.wav)" : $0).tag($0) }
+                                }
+                            }
+                            Button(testingPremium ? "Verbinde …" : "Verbinden & Stimmen laden") {
+                                testingPremium = true
+                                premiumTestResult = nil
+                                Task {
+                                    let result = await PremiumVoice.checkLocal(baseURL: settings.localVoiceURL)
+                                    localVoices = result.voices
+                                    premiumTestResult = result.error ?? "✓ Eigene KI-Stimme ist bereit – \(result.voices.count) Stimmen."
+                                    testingPremium = false
+                                }
+                            }
+                            .disabled(testingPremium)
                         } else {
                             if hasElevenKey {
                                 Label("ElevenLabs-Schlüssel gespeichert", systemImage: "lock.fill")
@@ -157,7 +182,9 @@ struct SettingsView: View {
                 } header: {
                     Text("Premium-Stimme")
                 } footer: {
-                    Text(settings.premiumProvider == .openAI
+                    Text(settings.premiumProvider == .local
+                         ? "Ihre eigene, kostenlose KI-Stimme: Sie läuft auf Ihrem Mac (freie Sprach-KI XTTS, private Nutzung). Einrichtung einmalig im Terminal: Ordner „ATLAS/VoiceServer“ → „bash install.sh“. Danach startet sie automatisch mit dem Mac. Eigene Stimme: eine klare Hörprobe als „stimme.wav“ in diesen Ordner legen. Vom iPhone aus statt 127.0.0.1 den Namen Ihres Macs eintragen, z. B. http://Mein-MacBook.local:5002 (beide im selben WLAN). Läuft sie nicht, spricht automatisch die Apple-Stimme."
+                         : settings.premiumProvider == .openAI
                          ? "OpenAI-Stimmen klingen sehr natürlich und sprechen alle Sprachen akzentfrei. Benötigt einen API-Schlüssel von platform.openai.com mit etwas Guthaben (das ChatGPT-Abo zählt nicht; Kosten: etwa 1–2 Cent pro Minute Sprache). Im Feld darunter beschreiben Sie, wie die Stimme sprechen soll. Selbst entworfene Stimmen aus einer Text-Beschreibung lässt OpenAI nur in seinem eigenen Live-Modus zu – hier funktionieren die eingebauten Stimmen und Stimmen aus Hörproben. Die Antworttexte werden dafür an OpenAI gesendet. Ohne Verbindung spricht automatisch die Apple-Stimme."
                          : "Eine KI-Stimme von ElevenLabs, die wie ein echter Mensch klingt – deutlich geschmeidiger als die Systemstimmen. Benötigt ein Konto auf elevenlabs.io und einen API-Schlüssel (kleines kostenloses Kontingent pro Monat). Die Antworttexte werden dafür an ElevenLabs gesendet. Ohne Verbindung spricht automatisch die Apple-Stimme.")
                 }

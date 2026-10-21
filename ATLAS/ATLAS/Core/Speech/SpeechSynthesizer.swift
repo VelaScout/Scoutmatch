@@ -55,7 +55,22 @@ final class SpeechSynthesizer: NSObject {
         guard !cleaned.isEmpty else { return }
         try? hub.startIfNeeded()
         spokenLog += " " + cleaned
-        if let config, !premiumFailed {
+        if let config, config.provider == .local, !premiumFailed {
+            // Eigene KI-Stimme: Fremdsprachige Stellen (und der Name „Atlas“) mit der richtigen
+            // Sprache – gleiche Stimme, aber akzentfrei.
+            let marked = named.replacingOccurrences(of: #"(?<![>\w])Atlas(?![\w<])"#, with: "<en>Atlas</en>",
+                                                     options: .regularExpression)
+            for segment in LanguageSegments.split(marked) {
+                let part = SpeechTextCleaner.clean(segment.text)
+                guard !part.isEmpty else { continue }
+                var segmentConfig = config
+                if let locale = segment.locale { segmentConfig.language = String(locale.prefix(2)) }
+                let stream = PremiumVoice.stream(text: part, config: segmentConfig, previousText: "",
+                                                 format: hub.playbackFormat)
+                items.append(Item(text: part, voiceIdentifier: voiceIdentifier, language: language,
+                                  locale: segment.locale, rate: rate, premium: stream))
+            }
+        } else if let config, !premiumFailed {
             // Die Premium-Stimme spricht alle Sprachen selbst akzentfrei – Laden beginnt sofort.
             // „Atlas“ englisch: OpenAI bekommt es per Stil-Anweisung, ElevenLabs als Lautschrift-Schreibweise.
             let premiumText = config.provider == .elevenLabs

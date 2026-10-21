@@ -3,10 +3,16 @@ import Foundation
 
 /// Anbieter der Premium-Stimme.
 enum PremiumProvider: String, CaseIterable, Identifiable, Sendable {
-    case elevenLabs, openAI
+    case elevenLabs, openAI, local
 
     var id: String { rawValue }
-    var displayName: String { self == .openAI ? "OpenAI" : "ElevenLabs" }
+    var displayName: String {
+        switch self {
+        case .elevenLabs: return "ElevenLabs"
+        case .openAI: return "OpenAI"
+        case .local: return "Eigene KI-Stimme (Mac, kostenlos)"
+        }
+    }
 }
 
 /// Premium-Stimme über ElevenLabs: eine KI-Stimme, die wie ein echter Mensch klingt.
@@ -24,6 +30,10 @@ final class PremiumVoice: NSObject {
         var provider: PremiumProvider = .elevenLabs
         /// Nur OpenAI: wie die Stimme sprechen soll (Ton, Tempo, Stimmung).
         var instructions = ""
+        /// Nur eigene KI-Stimme: Adresse des Sprach-Servers auf dem Mac.
+        var baseURL = ""
+        /// Sprache des Abschnitts („de“, „en“ …) – die eigene KI-Stimme braucht sie.
+        var language = "de"
     }
 
     /// Eingebaute OpenAI-Stimmen (laut OpenAI klingen „cedar“ und „marin“ am natürlichsten).
@@ -51,9 +61,12 @@ final class PremiumVoice: NSObject {
         AsyncThrowingStream { continuation in
             let task = Task.detached(priority: .userInitiated) {
                 do {
-                    let built = config.provider == .openAI
-                        ? openAIRequest(text: text, config: config, format: "pcm")
-                        : streamRequest(text: text, config: config, previousText: previousText)
+                    let built: URLRequest?
+                    switch config.provider {
+                    case .openAI: built = openAIRequest(text: text, config: config, format: "pcm")
+                    case .local: built = localRequest(text: text, config: config)
+                    case .elevenLabs: built = streamRequest(text: text, config: config, previousText: previousText)
+                    }
                     guard let request = built else {
                         throw StreamError.invalidRequest
                     }
@@ -111,6 +124,35 @@ final class PremiumVoice: NSObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: body(text: text, config: config, previousText: previousText))
         return request
+    }
+
+    /// Eigene KI-Stimme (XTTS auf dem Mac) – liefert ebenfalls PCM mit 24 kHz als Strom.
+    nonisolated private static func localRequest(text: String, config: Config) -> URLRequest? {
+        guard let url = URL(string: config.baseURL.trimmingCharacters(in: .whitespacesAndNewlines) + "/tts") else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 60
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "text": text, "language": config.language, "voice": config.voiceID,
+        ])
+        return request
+    }
+
+    /// Prüft, ob die eigene KI-Stimme läuft; liefert die verfügbaren Stimmen oder eine Fehlermeldung.
+    static func checkLocal(baseURL: String) async -> (voices: [String], error: String?) {
+        guard let url = URL(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines) + "/health") else {
+            return ([], "Die Adresse ist ungültig.")
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 5
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+            return (json["voices"] as? [String] ?? [], nil)
+        } catch {
+            return ([], "Die eigene KI-Stimme antwortet nicht. Läuft sie auf dem Mac? (Anleitung: Ordner „VoiceServer“, install.sh)")
+        }
     }
 
     /// OpenAI-Sprachausgabe; „pcm“ liefert genau unser Format (24 kHz, 16 Bit, Mono) als Strom.
@@ -181,6 +223,9 @@ final class PremiumVoice: NSObject {
 
     /// Prüft den Schlüssel mit einem kurzen Probesatz; liefert eine Fehlermeldung oder nil.
     static func test(config: Config) async -> String? {
+        if config.provider == .local {
+            return await checkLocal(baseURL: config.baseURL).error
+        }
         if config.provider == .openAI {
             guard let probe = openAIRequest(text: "Hallo! Alles klar bei Ihnen?", config: config, format: "mp3") else {
                 return "Bitte eine Stimme wählen."

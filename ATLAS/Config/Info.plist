@@ -66,5 +66,12 @@
 			</dict>
 		</dict>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>A.T.L.A.S. verbindet sich mit Ihrer eigenen KI-Stimme, die auf Ihrem Mac im Heimnetz läuft.</string>
 </dict>
 </plist>

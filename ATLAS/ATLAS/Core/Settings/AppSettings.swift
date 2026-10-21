@@ -89,6 +89,10 @@ final class AppSettings {
     var openAIVoice: String { didSet { defaults.set(openAIVoice, forKey: Keys.openAIVoice) } }
     /// Wie die OpenAI-Stimme sprechen soll („entspannt, locker …“).
     var openAIVoiceStyle: String { didSet { defaults.set(openAIVoiceStyle, forKey: Keys.openAIVoiceStyle) } }
+    /// Eigene KI-Stimme: Adresse des Sprach-Servers (auf dem Mac selbst „http://127.0.0.1:5002“,
+    /// vom iPhone aus z. B. „http://Mein-Mac.local:5002“) und gewählte Stimme.
+    var localVoiceURL: String { didSet { defaults.set(localVoiceURL, forKey: Keys.localVoiceURL) } }
+    var localVoiceName: String { didSet { defaults.set(localVoiceName, forKey: Keys.localVoiceName) } }
     var model: AtlasModel { didSet { defaults.set(model.rawValue, forKey: Keys.model) } }
     var effort: AtlasEffort { didSet { defaults.set(effort.rawValue, forKey: Keys.effort) } }
     var webSearchEnabled: Bool { didSet { defaults.set(webSearchEnabled, forKey: Keys.webSearch) } }
@@ -134,6 +138,8 @@ final class AppSettings {
             Keys.premiumProvider: PremiumProvider.elevenLabs.rawValue,
             Keys.openAIVoice: "cedar",
             Keys.openAIVoiceStyle: PremiumVoice.defaultOpenAIStyle,
+            Keys.localVoiceURL: "http://127.0.0.1:5002",
+            Keys.localVoiceName: "",
             // Sonnet antwortet spürbar schneller – wichtig für ein flüssiges Gespräch.
             Keys.model: AtlasModel.sonnet.rawValue,
             Keys.effort: AtlasEffort.low.rawValue,
@@ -183,6 +189,8 @@ final class AppSettings {
         premiumVoiceID = defaults.string(forKey: Keys.premiumVoiceID) ?? PremiumVoice.presets[0].id
         premiumProvider = PremiumProvider(rawValue: defaults.string(forKey: Keys.premiumProvider) ?? "") ?? .elevenLabs
         openAIVoice = defaults.string(forKey: Keys.openAIVoice) ?? "cedar"
+        localVoiceURL = defaults.string(forKey: Keys.localVoiceURL) ?? "http://127.0.0.1:5002"
+        localVoiceName = defaults.string(forKey: Keys.localVoiceName) ?? ""
         let style = defaults.string(forKey: Keys.openAIVoiceStyle) ?? PremiumVoice.defaultOpenAIStyle
         openAIVoiceStyle = style == PremiumVoice.previousOpenAIStyle ? PremiumVoice.defaultOpenAIStyle : style
         model = AtlasModel(rawValue: defaults.string(forKey: Keys.model) ?? "") ?? .sonnet
@@ -215,12 +223,20 @@ final class AppSettings {
         case .openAI:
             guard let key = KeychainStore.read(.openAIAPIKey), !key.isEmpty else { return nil }
             return PremiumVoice.Config(apiKey: key, voiceID: openAIVoice, provider: .openAI, instructions: openAIVoiceStyle)
+        case .local:
+            guard !localVoiceURL.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+            return PremiumVoice.Config(apiKey: "", voiceID: localVoiceName, provider: .local, baseURL: localVoiceURL,
+                                       language: String(language.rawValue.prefix(2)))
         }
     }
 
     /// Ist für den gewählten Anbieter ein Schlüssel hinterlegt?
     var hasPremiumKey: Bool {
-        KeychainStore.has(premiumProvider == .openAI ? .openAIAPIKey : .elevenLabsAPIKey)
+        switch premiumProvider {
+        case .openAI: return KeychainStore.has(.openAIAPIKey)
+        case .elevenLabs: return KeychainStore.has(.elevenLabsAPIKey)
+        case .local: return true
+        }
     }
 
     /// Anrede für kurze feste Sätze, z. B. „Ja, Sir?“
@@ -249,6 +265,8 @@ final class AppSettings {
         static let premiumProvider = "premiumProvider"
         static let openAIVoice = "openAIVoice"
         static let openAIVoiceStyle = "openAIVoiceStyle"
+        static let localVoiceURL = "localVoiceURL"
+        static let localVoiceName = "localVoiceName"
         static let model = "model"
         static let effort = "effort"
         static let webSearch = "webSearchEnabled"
