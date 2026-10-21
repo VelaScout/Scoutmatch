@@ -3,6 +3,7 @@ from .intents import plan
 from . import agent as agent_mod
 from . import llm
 from .memory import MemoryIndex
+from .learning import Learning
 from .tools import Environment, build_tools
 import contextlib
 import json
@@ -62,6 +63,12 @@ def allowed_roots():
     return roots
 
 OLLAMA_CLIENT=llm.Ollama(opener=HTTP)
+_LEARNING=None
+def learning():
+    global _LEARNING
+    with LOCK:
+        if _LEARNING is None:_LEARNING=Learning(database)
+        return _LEARNING
 BRIDGE=agent_mod.Bridge()
 _AGENT=None
 def agent():
@@ -70,7 +77,8 @@ def agent():
         if _AGENT is None:
             memory=MemoryIndex(database,embed=lambda model,texts:OLLAMA_CLIENT.embed(model,texts))
             log=lambda message:print(f'{stamp()} {message}',flush=True)
-            _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(Environment(roots=allowed_roots(),vision=OLLAMA_CLIENT.see)),BRIDGE,memory,log=log)
+            _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(Environment(roots=allowed_roots(),vision=OLLAMA_CLIENT.see)),BRIDGE,memory,
+                                   log=log,learning=learning())
         return _AGENT
 
 def agent_request(obj):

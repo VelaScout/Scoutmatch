@@ -212,13 +212,15 @@ def in_background(work, stop: threading.Event, every: float = 8.0) -> Iterator[d
 
 class Agent:
     def __init__(self, llm: Ollama, tools: dict[str, Tool], bridge: Bridge, memory: MemoryIndex | None = None,
-                 limits: Limits | None = None, log=None):
+                 limits: Limits | None = None, log=None, learning=None):
         self.llm = llm
         self.tools = tools
         self.bridge = bridge
         self.memory = memory
         self.limits = limits or Limits()
         self.log = log or (lambda *_: None)
+        # Erfahrungsspeicher (atlas.learning.Learning) – optional, damit Tests ohne Datenbank laufen.
+        self.learning = learning
 
     # -- Kontext ---------------------------------------------------------------
     def context(self, request: Request, query: str, budget: int = 9_000) -> list[dict]:
@@ -327,12 +329,23 @@ class Agent:
                 yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
                 return
 
+        if self.learning and is_correction(text):
+            learned = self.learning.learn_correction(text)
+            if learned and learned.get('rule'):
+                self.log(f"Gelernt aus Korrektur (Regel {learned['rule']}, {learned['scope']})")
+                yield {'type': 'learned', 'rule': learned['rule'], 'scope': learned['scope']}
+                yield {'type': 'status', 'label': 'Merkt sich die Korrektur'}
+
         mode = route(text, has_tools=True)
         if mode == 'chat':
             model = self.llm.fast_model(request.model)
             self.llm.reasoning_only(model)          # einmalige Prüfung, danach zwischengespeichert
             yield {'type': 'status', 'label': 'Denkt nach', 'mode': 'chat', 'model': model}
             messages = self.context(request, text)
+            if self.learning:
+                rules = self.learning.context_for(text, rules_only=True)
+                if rules:
+                    messages[0]['content'] += '\n\n' + rules
             first = None
             for piece in self.llm.stream(model, messages, stop=stop):
                 if first is None:
@@ -353,6 +366,11 @@ class Agent:
         schemas, native = self.toolset(text, request.native_tools)
         messages = self.context(request, text, budget=6_000)
         messages[0]['content'] += '\n\n' + AGENT_RULES
+        if self.learning:
+            experience = self.learning.context_for(text)
+            if experience:
+                messages[0]['content'] += '\n\nAus deiner Erfahrung:\n' + experience
+                yield {'type': 'status', 'label': 'Nutzt frühere Erfahrungen'}
         plan: list[str] = []
         if mode == 'plan':
             yield {'type': 'status', 'label': 'Plant die Aufgabe', 'mode': 'plan', 'model': model}
@@ -434,6 +452,12 @@ class Agent:
         else:
             reason = 'zu viele Schritte'
 
+        if self.learning:
+            try:
+                self.learning.record(text, mode, model, actions, finished, time.monotonic() - started,
+                                     cancelled=stop.is_set())
+            except Exception as exc:  # Lernen darf eine Antwort nie verhindern
+                self.log(f'Erfahrung nicht gespeichert: {exc}')
         if stop.is_set():
             yield {'type': 'cancelled'}
             return
