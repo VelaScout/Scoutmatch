@@ -24,6 +24,7 @@ NATIVE_TOOLS = [
     {'name': 'get_calendar_events', 'description': 'Termine lesen', 'input_schema': {'type': 'object', 'properties': {'days': {'type': 'integer'}}}},
     {'name': 'remember', 'description': 'Merken', 'input_schema': {'type': 'object', 'properties': {'content': {'type': 'string'}}}},
     {'name': 'list_memories', 'description': 'Erinnerungen', 'input_schema': {'type': 'object', 'properties': {}}},
+    {'name': 'forget', 'description': 'Vergessen', 'input_schema': {'type': 'object', 'properties': {'content': {'type': 'string'}}}},
 ]
 
 
@@ -317,6 +318,38 @@ class AgentServerTests(unittest.TestCase):
         self.assertIn('korrigiert dich', first['messages'][0]['content'])
         self.assertEqual(self.native_seen[0]['name'], 'remember')
         self.assertIn('kurz', self.text(events))
+
+
+    def test_duplicate_memory_is_not_stored_twice(self):
+        self.ollama.script = [tool_call('remember', content='[Vorliebe] Trinkt morgens Cappuccino.'),
+                              answer('Weiß ich schon.')]
+        self.run_agent(self.body('Merk dir bitte, dass ich morgens Cappuccino trinke',
+                                 memories=['[Vorliebe] Trinkt morgens Cappuccino']))
+        self.assertEqual([e for e in self.native_seen if e['name'] == 'remember'], [])
+        # „Merk dir …“ ist ein Schnellweg ohne Modell – auch dort greift die Duplikatprüfung.
+        _, events = self.run_agent(self.body('Merk dir: Trinkt morgens Cappuccino',
+                                             memories=['[Vorliebe] Trinkt morgens Cappuccino']))
+        self.assertIn('Das weiß ich schon', self.text(events))
+        self.assertEqual([e for e in self.native_seen if e['name'] == 'remember'], [])
+
+    def test_duplicate_from_model_is_reported_back(self):
+        self.ollama.script = [tool_call('remember', content='[Vorliebe] Trinkt morgens Cappuccino.'), answer('Weiß ich schon.')]
+        self.run_agent(self.body('Ich trinke übrigens morgens immer Cappuccino, merk dir das',
+                                 memories=['[Vorliebe] Trinkt morgens Cappuccino']))
+        self.assertEqual([e for e in self.native_seen if e['name'] == 'remember'], [])
+        tool_message = [m for m in self.ollama.chat_requests()[1]['messages'] if m['role'] == 'tool'][0]
+        self.assertIn('bereits gespeichert', tool_message['content'])
+
+    def test_similar_memory_suggests_update(self):
+        self.native_answers['remember'] = {'content': 'Gemerkt.'}
+        self.ollama.script = [tool_call('remember', content='[Persönlich] Wohnt jetzt in Hamburg, Altona'),
+                              tool_call('forget', content='Wohnt in Berlin'), answer('Notiert: Hamburg.')]
+        self.native_answers['forget'] = {'content': 'Vergessen.'}
+        self.ollama.models.append('nomic-embed-text')
+        self.run_agent(self.body('Merk dir: Ich wohne jetzt in Hamburg', memories=['[Persönlich] Wohnt in Berlin, Altona']))
+        self.assertEqual([e['name'] for e in self.native_seen], ['remember', 'forget'])
+        tool_message = [m for m in self.ollama.chat_requests()[1]['messages'] if m['role'] == 'tool'][0]
+        self.assertIn('Ähnliche ältere Erinnerung', tool_message['content'])
 
 
 class RouterAndMemoryTests(unittest.TestCase):

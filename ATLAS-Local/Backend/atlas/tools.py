@@ -21,6 +21,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import tempfile
 import time
 import urllib.parse
 import urllib.request
@@ -110,9 +111,12 @@ class Environment:
         self.vision = vision
 
     def run(self, args: list[str], timeout: float = 20, cwd: Path | None = None,
-            input_text: str | None = None) -> subprocess.CompletedProcess:
-        return self.runner(args, capture_output=True, text=True, timeout=timeout,
-                           cwd=str(cwd) if cwd else None, input=input_text)
+            input_text: str | None = None, extra_env: dict | None = None) -> subprocess.CompletedProcess:
+        options = {'capture_output': True, 'text': True, 'timeout': timeout,
+                   'cwd': str(cwd) if cwd else None, 'input': input_text}
+        if extra_env:
+            options['env'] = {**os.environ, **extra_env}
+        return self.runner(args, **options)
 
     # -- Pfade ---------------------------------------------------------------
     def resolve(self, raw: str, *, must_exist: bool = False, for_write: bool = False) -> Path:
@@ -542,61 +546,114 @@ def system_info(env: Environment) -> Result:
     return Result(True, '\n'.join(f'{k}: {v}' for k, v in info.items()), verified=True, data=info)
 
 
+# Terminal: KEINE freie Shell. Nur Programme aus dieser Liste, ohne Shell ausgeführt (keine Pipes,
+# Umleitungen, Variablen oder Befehlsketten), Pfade nur innerhalb der freigegebenen Ordner.
 READ_ONLY_COMMANDS = {
-    'ls', 'pwd', 'cat', 'head', 'tail', 'wc', 'grep', 'rg', 'find', 'which', 'file', 'stat', 'du', 'df',
-    'echo', 'date', 'uname', 'sw_vers', 'whoami', 'tree', 'diff', 'sort', 'uniq', 'cut', 'md5', 'shasum',
+    'ls', 'pwd', 'cat', 'head', 'tail', 'wc', 'grep', 'rg', 'file', 'stat', 'du', 'df', 'date', 'uname', 'sw_vers',
+    'whoami', 'tree', 'diff', 'sort', 'uniq', 'md5', 'shasum', 'which', 'find',
 }
-READ_ONLY_SUBCOMMANDS = {
-    'git': {'status', 'log', 'diff', 'show', 'branch', 'remote', 'rev-parse', 'ls-files', 'blame'},
-    'python3': {'--version', '-V'}, 'swift': {'--version'}, 'xcodebuild': {'-version', '-list'},
-    'npm': {'ls', 'view', '--version'}, 'brew': {'list', 'info', '--version'},
-}
-BLOCKED_PATTERNS = [
-    r'\bsudo\b', r'\bsu\b', r'\brm\s+-[a-z]*r[a-z]*f?\s+(/|~|\$HOME)(\s|$)', r'\bmkfs', r'\bdd\b', r'\bdiskutil\s+(erase|partition)',
-    r'\b(curl|wget)\b[^|]*\|\s*(ba|z)?sh', r'\bchmod\s+-R\s+777\s+/', r'\bcsrutil\b', r'\bspctl\b',
-    r'\bnvram\b', r'\blaunchctl\s+(unload|bootout)\b', r'\bkillall\b', r'\bshutdown\b', r'\breboot\b',
-    r'\btccutil\b', r'\bsecurity\s+(delete|dump|find-generic-password)', r'\bxattr\s+-[a-z]*d[a-z]*\s.*quarantine',
-    r'>\s*/(etc|System|usr|bin)', r':\(\)\s*\{',
-]
-SHELL_META = re.compile(r'[;&|`$<>]|\$\(')
+GIT_READ = {'status', 'log', 'diff', 'show', 'rev-parse', 'ls-files', 'blame', 'branch', 'remote'}
+GIT_CONFIRM = {'add', 'commit', 'checkout', 'switch', 'stash', 'restore', 'pull', 'push', 'fetch', 'tag', 'init', 'mv'}
+FIND_FORBIDDEN = {'-delete', '-exec', '-execdir', '-ok', '-okdir', '-fprint', '-fprintf', '-fls'}
+SHELL_META = re.compile(r'[;&|`$<>\n\\]')
 
 
-def command_risk(args: dict) -> str:
+def command_risk(args: dict, env: 'Environment | None' = None) -> str:
+    """SAFE (lesend), CONFIRM (bauen, testen, Git ändern) oder BLOCKED (alles andere)."""
     command = str(args.get('command', ''))
-    if any(re.search(p, command) for p in BLOCKED_PATTERNS):
+    if not command.strip() or len(command) > 2000 or SHELL_META.search(command):
         return BLOCKED
-    if SHELL_META.search(command):
-        return CONFIRM
     try:
         parts = shlex.split(command)
     except ValueError:
-        return CONFIRM
-    if not parts:
         return BLOCKED
-    program = Path(parts[0]).name
-    if program in READ_ONLY_COMMANDS and program not in ('find',) :
+    program, rest = parts[0], parts[1:]
+    if '/' in program:
+        return BLOCKED
+    if env is not None and not paths_allowed(env, args.get('folder') or '~', rest):
+        return BLOCKED
+    if program in READ_ONLY_COMMANDS:
+        if program == 'find' and any(p in FIND_FORBIDDEN for p in rest):
+            return BLOCKED
         return SAFE
-    if program == 'find' and not any(p in ('-delete', '-exec', '-execdir', '-ok') for p in parts):
-        return SAFE
-    if program in READ_ONLY_SUBCOMMANDS and len(parts) > 1 and parts[1] in READ_ONLY_SUBCOMMANDS[program]:
-        return SAFE
-    return CONFIRM
+    sub = rest[0] if rest else ''
+    if program == 'git':
+        if sub == 'branch' and any(p in ('-d', '-D', '-m', '-M', '--delete') for p in rest):
+            return CONFIRM
+        if sub == 'remote' and len(rest) > 1 and rest[1] not in ('-v', 'show', 'get-url'):
+            return BLOCKED
+        if sub in GIT_READ:
+            return SAFE
+        if sub in GIT_CONFIRM and not any(p in ('--force', '-f', '--hard', '--force-with-lease') for p in rest):
+            return CONFIRM
+        return BLOCKED
+    if program in ('python3', 'python'):
+        if rest in (['--version'], ['-V']):
+            return SAFE
+        if len(rest) >= 2 and rest[0] == '-m' and rest[1] in ('pytest', 'unittest', 'py_compile', 'compileall'):
+            return CONFIRM
+        if rest and rest[0].endswith('.py') and not rest[0].startswith('-'):
+            return CONFIRM          # ein Skript des Projekts ausführen
+        return BLOCKED              # kein python -c, kein pip, keine Module nach Wahl
+    rules = {
+        'swift': ({'--version'}, {'build', 'test', 'run'}),
+        'xcodebuild': ({'-version', '-list'}, {'build', 'test', '-scheme', '-project', '-workspace', 'clean'}),
+        'npm': ({'ls', 'view', '--version', 'outdated'}, {'test', 'run', 'install', 'ci'}),
+        'brew': ({'list', 'info', '--version', 'outdated'}, set()),
+        'make': (set(), {sub} if sub and not sub.startswith('-') else {''}),
+        'cargo': ({'--version'}, {'build', 'test', 'check', 'run'}),
+        'go': ({'version', 'env'}, {'build', 'test', 'vet', 'run'}),
+        'swiftc': ({'--version'}, set()),
+    }
+    if program in rules:
+        safe, confirm = rules[program]
+        if sub in safe:
+            return SAFE
+        if sub in confirm or (program == 'xcodebuild' and any(p in ('build', 'test') for p in rest)):
+            return CONFIRM
+    return BLOCKED
+
+
+def paths_allowed(env: 'Environment', folder: str, arguments: list[str]) -> bool:
+    """Alle Pfad-Argumente müssen innerhalb der freigegebenen Ordner liegen."""
+    try:
+        cwd = env.resolve(folder, must_exist=True)
+    except ToolError:
+        return False
+    for argument in arguments:
+        value = argument.split('=', 1)[1] if argument.startswith('--') and '=' in argument else argument
+        if value.startswith('-') or not value:
+            continue
+        if value.startswith(('/', '~')) or '..' in Path(value).parts:
+            try:
+                candidate = value if value.startswith(('/', '~')) else str(cwd / value)
+                env.resolve(candidate)
+            except ToolError:
+                return False
+    return True
 
 
 def run_command(env: Environment, command: str, folder: str = '~', timeout: int = 60) -> Result:
-    if not command or len(command) > 2000:
-        raise ToolError('Befehl fehlt oder ist zu lang.')
-    if command_risk({'command': command}) == BLOCKED:
-        raise ToolError('Dieser Befehl ist aus Sicherheitsgründen gesperrt.')
+    """Führt einen Befehl aus der erlaubten Liste ohne Shell aus (Argumente als Liste)."""
+    if command_risk({'command': command, 'folder': folder}, env) == BLOCKED:
+        raise ToolError('Dieser Befehl ist nicht erlaubt. Erlaubt sind lesende Befehle (ls, cat, grep, git status …) '
+                        'sowie Bauen/Testen (python3 -m pytest/unittest, swift, xcodebuild, npm, cargo, go, make, git) – '
+                        'ohne Pipes, Umleitungen oder sudo.')
     cwd = env.resolve(folder, must_exist=True)
     if not cwd.is_dir():
         raise ToolError('Arbeitsordner ist kein Ordner.')
     limit = max(5, min(int(timeout or 60), 600))
     started = time.monotonic()
     try:
-        done = env.run(['/bin/zsh' if env.is_mac else '/bin/bash', '-lc', command], timeout=limit, cwd=cwd)
+        # Eigener, leerer Bytecode-Ordner je Lauf: Sonst testet Python nach einer Korrektur in derselben
+        # Sekunde womöglich den alten Code aus __pycache__.
+        with tempfile.TemporaryDirectory(prefix='atlas-run-') as cache:
+            done = env.run(shlex.split(command), timeout=limit, cwd=cwd,
+                           extra_env={'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONPYCACHEPREFIX': cache, 'NO_COLOR': '1'})
     except subprocess.TimeoutExpired:
         raise ToolError(f'Zeitlimit von {limit} s überschritten.')
+    except FileNotFoundError:
+        raise ToolError('Programm ist auf diesem Mac nicht installiert.')
     output = (done.stdout or '') + (('\n[stderr]\n' + done.stderr) if done.stderr else '')
     seconds = round(time.monotonic() - started, 1)
     text = f'Exit-Code {done.returncode} nach {seconds} s\n' + output[-MAX_OUTPUT:]
@@ -794,11 +851,13 @@ def build_tools(env: Environment) -> dict[str, Tool]:
              obj({'url': string('http(s)-Adresse.')}, ['url']), bind(fetch_webpage), category='web', label='Liest die Webseite'),
         Tool('system_info', 'Zeigt Systeminformationen: macOS-Version, Akku, freier Speicher, Arbeitsspeicher, Auslastung.',
              obj({}), bind(system_info), category='system', label='Prüft das System'),
-        Tool('run_command', 'Führt einen Terminalbefehl in einem Ordner aus (z. B. Tests, git status, Build). '
-                            'Lesende Befehle laufen direkt, alles andere wird bestätigt; gefährliche Befehle sind gesperrt.',
+        Tool('run_command', 'Führt einen erlaubten Terminalbefehl in einem Projektordner aus: lesend (ls, cat, grep, find, '
+                            'git status/diff/log) ohne Rückfrage; Bauen/Testen (python3 -m pytest|unittest, swift build|test, '
+                            'xcodebuild, npm test, cargo, go, make, git commit) mit Bestätigung. Keine Pipes, keine Shell.',
              obj({'command': string('Befehl, z. B. "python3 -m unittest".'), 'folder': path,
                   'timeout': {'type': 'integer', 'description': 'Sekunden, Standard 60.'}}, ['command']),
-             bind(run_command), category='terminal', label='Führt den Befehl aus', risk_for=command_risk,
+             bind(run_command), category='terminal', label='Führt den Befehl aus',
+             risk_for=lambda a: command_risk(a, env),
              describe=lambda a: f'Terminal ({a.get("folder", "~")}): {a.get("command")}'),
         Tool('take_screenshot', 'Macht ein Bildschirmfoto und speichert es.', obj({'path': path}), bind(take_screenshot),
              category='screen', label='Macht ein Bildschirmfoto'),

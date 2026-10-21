@@ -64,9 +64,10 @@ def plan(text):
         names=re.split(r'\s+(?:und|and)\s+|,\s*',direct[1])
         if 1<=len(names)<=3 and all(n in TARGETS for n in names):
             return {'kind':'tools','steps':[{'name':'local_open','input':dict(zip(('kind','target'),TARGETS[n]))} for n in dict.fromkeys(names)]}
-    memory=re.fullmatch(r'(?:bitte\s+)?(?:merk dir|merke dir|remember)[:,]?\s+(.+)',text,re.I|re.S)
+    memory=re.fullmatch(r'(?:bitte\s+)?(?:merk dir|merke dir|remember)(?:\s+bitte)?[:,]?\s+(?:(?:dass|that)\s+)?(.+?)[.!]?\s*',text,re.I|re.S)
     if memory and 1<=len(memory[1])<=1000:
-        return {'kind':'tools','steps':[{'name':'remember','input':{'content':memory[1].strip(),'category':'Sonstiges'}}]}
+        content=memory[1].strip()
+        return {'kind':'tools','steps':[{'name':'remember','input':{'content':content[:1].upper()+content[1:],'category':'Sonstiges'}}]}
     if t.rstrip('.?!') in ('was weißt du über mich','was hast du dir gemerkt','zeige meine erinnerungen','what do you remember about me'):
         return {'kind':'tools','steps':[{'name':'list_memories','input':{}}]}
     question=re.sub(r'^(?:was ist|was sind|was ergibt|wie viel ist|wieviel ist|wie viel sind|wieviel sind|wie viel macht|berechne|rechne|what is|calculate)\s+','',t)

@@ -265,6 +265,7 @@ class Agent:
     # -- Hauptablauf -------------------------------------------------------------
     def run(self, request: Request, stop: threading.Event) -> Iterator[dict]:
         started = time.monotonic()
+        self.current_memories = list(request.memories)
         text = last_user_text(request.history)
         if not text:
             raise ValueError('Keine Nutzerfrage gefunden.')
@@ -276,6 +277,16 @@ class Agent:
             return
         if direct['kind'] == 'tools' and request.native_tools is not None:
             names = {t.get('name') for t in request.native_tools}
+            remember = [step for step in direct['steps'] if step['name'] == 'remember']
+            verdict = self.check_memory(remember[0]['input']['content']) if remember else ('new', None)
+            if verdict[0] == 'duplicate':
+                yield {'type': 'delta', 'text': f'Das weiß ich schon: {verdict[1]}'}
+                yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
+                return
+            if verdict[0] == 'similar':
+                # Möglicherweise veraltete Erinnerung: das Modell entscheidet über Ersetzen (forget + remember).
+                yield from self.agent_loop(request, text, 'agent', stop, started)
+                return
             if all(step['name'] in names or step['name'] == 'local_open' for step in direct['steps']):
                 for step in direct['steps']:
                     result = yield from self.native_call(step['name'], step['input'], stop)
@@ -436,16 +447,39 @@ class Agent:
                    'verified': result.verified}
             output = result.output if not result.data else result.output + '\n' + json.dumps(result.data, ensure_ascii=False)[:2_000]
             return Action(name, tool.label, summary, result.ok, result.verified, output)
+        if name == 'remember' and name in native:
+            verdict = self.check_memory(str(args.get('content', '')))
+            if verdict[0] == 'duplicate':
+                yield {'type': 'step', 'tool': name, 'label': 'Merkt sich das', 'status': 'erledigt',
+                       'detail': 'Schon im Gedächtnis', 'verified': True}
+                return Action(name, 'Merkt sich das', 'Bereits gespeichert', True, True,
+                              f'Ist bereits gespeichert: „{verdict[1]}“. Nicht erneut speichern.')
         if name in native:
             label = STATUS_LABELS.get(name, 'Arbeitet')
             summary = f'{label}: ' + json.dumps(args, ensure_ascii=False)[:160]
             yield {'type': 'step', 'tool': name, 'label': label, 'status': 'läuft', 'detail': summary}
             result = yield from self.native_call(name, args, stop)
             ok = not result.get('isError')
+            if name == 'remember' and ok:
+                verdict = self.check_memory(str(args.get('content', '')))
+                if verdict[0] == 'similar':
+                    result['content'] = (str(result.get('content', '')) + f'\nÄhnliche ältere Erinnerung: „{verdict[1]}“. '
+                                         'Wenn sie dadurch veraltet ist, entferne sie mit forget.')
             yield {'type': 'step', 'tool': name, 'label': label, 'status': 'erledigt' if ok else 'fehlgeschlagen',
                    'detail': summary, 'verified': ok}
             return Action(name, label, summary, ok, ok, str(result.get('content', ''))[:8_000])
         return Action(name, name, name, False, False, f'Unbekanntes Werkzeug „{name}“. Nur die angebotenen Werkzeuge benutzen.')
+
+    def check_memory(self, content: str) -> tuple[str, str | None]:
+        memories = getattr(self, 'current_memories', [])
+        if not content.strip() or not memories:
+            return 'new', None
+        model = ''
+        if self.memory:
+            picked = self.llm.pick(['qwen3-embedding:0.6b', 'nomic-embed-text', 'nomic-embed-text:latest'])
+            model = picked if picked and 'embed' in picked else ''
+            return self.memory.compare(content, memories, model)
+        return 'new', None
 
     def native_call(self, name: str, args: dict, stop: threading.Event) -> Iterator[dict]:
         ident = self.bridge.register()

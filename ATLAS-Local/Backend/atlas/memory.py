@@ -45,6 +45,16 @@ def unpack(blob: bytes) -> list[float]:
     return list(struct.unpack(f'<{len(blob) // 4}f', blob))
 
 
+def normalized(text: str) -> str:
+    text = re.sub(r'^\[[^\]]*\]\s*', '', text or '')
+    return re.sub(r'[^a-zäöüß0-9 ]', '', text.lower()).strip()
+
+
+def jaccard(a: str, b: str) -> float:
+    left, right = words(a), words(b)
+    return len(left & right) / len(left | right) if left and right else 0.0
+
+
 class MemoryIndex:
     def __init__(self, connect: Callable[[], sqlite3.Connection],
                  embed: Callable[[str, list[str]], list[list[float]] | None] | None = None):
@@ -105,6 +115,31 @@ class MemoryIndex:
             if item not in chosen:
                 chosen.append(item)
         return chosen[:limit + 3]
+
+    def compare(self, content: str, memories: list[str], model: str = '') -> tuple[str, str | None]:
+        """('duplicate'|'similar'|'new', passende vorhandene Erinnerung)."""
+        target = normalized(content)
+        best, best_score = None, 0.0
+        for memory in memories:
+            if normalized(memory) == target:
+                return 'duplicate', memory
+            score = jaccard(content, memory)
+            if score > best_score:
+                best, best_score = memory, score
+        if model and memories:
+            vectors = self.vectors([content] + memories, model)
+            if vectors:
+                scored = [(cosine(vectors[0], v), m) for v, m in zip(vectors[1:], memories)]
+                semantic, memory = max(scored)
+                # Bedeutungsnähe allein ist nie ein Duplikat: „wohnt in Berlin“ und „wohnt in Hamburg“
+                # liegen semantisch dicht beieinander, widersprechen sich aber. Dann entscheidet das Modell.
+                if semantic >= 0.82 and best_score < 0.8:
+                    best, best_score = memory, max(best_score, 0.5)
+        if best_score >= 0.8:
+            return 'duplicate', best
+        if best_score >= 0.4:
+            return 'similar', best
+        return 'new', None
 
     # -- Zusammenfassungen langer Gespräche ----------------------------------
     def summary(self, turns: list[dict], summarize: Callable[[str], str]) -> str:

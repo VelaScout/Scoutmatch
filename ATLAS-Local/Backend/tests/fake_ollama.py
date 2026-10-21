@@ -83,7 +83,7 @@ class FakeOllama:
     def vector(text):
         """Deterministischer Themen-Vektor: ähnliche Wörter → ähnliche Vektoren."""
         topics = [r'kaffee|espresso|cappuccino', r'auto|fahr|tesla', r'sport|lauf|fitness', r'arbeit|projekt|firma',
-                  r'musik|song|spotify', r'essen|vegetar|kochen', r'anrede|herr|sir']
+                  r'musik|song|spotify', r'essen|vegetar|kochen', r'anrede|herr|sir', r'wohn|hamburg|berlin|umzug']
         lowered = text.lower()
         return [float(len(re.findall(t, lowered))) + 0.01 for t in topics]
 
