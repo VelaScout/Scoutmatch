@@ -595,6 +595,7 @@ final class AtlasToolbox: ToolExecuting {
         var error: ToolResult?
         switch setting {
         case "wake_word": error = flag { settings.wakeWordEnabled = $0 }
+        case "always_listen": error = flag { settings.alwaysListen = $0 }
         case "conversation_mode": error = flag { settings.conversationMode = $0 }
         case "address_sir": error = flag { settings.addressAsSir = $0 }
         case "formal_address":

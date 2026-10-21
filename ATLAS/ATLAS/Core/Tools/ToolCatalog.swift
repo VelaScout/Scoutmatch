@@ -237,10 +237,10 @@ enum ToolCatalog {
         ],
         [
             "name": "change_setting",
-            "description": "Ändert eine Einstellung von A.T.L.A.S. direkt per Zuruf, z. B. „schalte das Wake-Word ein“, „sprich schneller“, „nenn mich nicht mehr Sir“, „antworte auf Englisch“, „nimm das schnellste Modell“. Bestätige danach kurz, was geändert wurde.",
+            "description": "Ändert eine Einstellung von A.T.L.A.S. direkt per Zuruf, z. B. „schalte das Wake-Word ein“, „hör auf zuzuhören“ / „hör wieder immer zu“ (always_listen), „sprich schneller“, „nenn mich nicht mehr Sir“, „antworte auf Englisch“, „nimm das schnellste Modell“. Bestätige danach kurz, was geändert wurde.",
             "input_schema": object([
                 "setting": ["type": "string",
-                            "enum": ["wake_word", "conversation_mode", "address_sir", "formal_address", "web_search", "premium_voice", "device_tools", "memory", "speech_rate", "language", "model", "appearance", "morning_briefing", "evening_review"],
+                            "enum": ["wake_word", "always_listen", "conversation_mode", "address_sir", "formal_address", "web_search", "premium_voice", "device_tools", "memory", "speech_rate", "language", "model", "appearance", "morning_briefing", "evening_review"],
                             "description": "Welche Einstellung."],
                 "value": string("Neuer Wert: on/off für Schalter; slower/faster/normal für speech_rate; de/en für language; die gewünschte Anrede (z. B. „Herr Velasco“, leer = keine) für formal_address; opus/sonnet/haiku für model; core/minimal für appearance; für morning_briefing/evening_review on/off oder eine Uhrzeit HH:MM."),
             ], required: ["setting", "value"]),

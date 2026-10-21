@@ -97,6 +97,8 @@ final class AppSettings {
     var appearance: AtlasAppearance { didSet { defaults.set(appearance.rawValue, forKey: Keys.appearance) } }
     /// „Atlas“ rufen, solange die App geöffnet ist.
     var wakeWordEnabled: Bool { didSet { defaults.set(wakeWordEnabled, forKey: Keys.wakeWord) } }
+    /// Solange die App offen ist, durchgehend zuhören – einfach losreden, ohne „Atlas“.
+    var alwaysListen: Bool { didSet { defaults.set(alwaysListen, forKey: Keys.alwaysListen) } }
     /// Zugriff auf Kalender, Erinnerungen, Kontakte, Karten usw.
     var toolsEnabled: Bool { didSet { defaults.set(toolsEnabled, forKey: Keys.tools) } }
     /// Dauerhaftes Gedächtnis verwenden.
@@ -140,6 +142,7 @@ final class AppSettings {
             Keys.silenceTimeout: 0.8,
             Keys.appearance: AtlasAppearance.hologram.rawValue,
             Keys.wakeWord: true,
+            Keys.alwaysListen: true,
             Keys.tools: true,
             Keys.memory: true,
             Keys.autoLearn: true,
@@ -177,6 +180,7 @@ final class AppSettings {
         silenceTimeout = defaults.double(forKey: Keys.silenceTimeout)
         appearance = AtlasAppearance(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .hologram
         wakeWordEnabled = defaults.bool(forKey: Keys.wakeWord)
+        alwaysListen = defaults.bool(forKey: Keys.alwaysListen)
         toolsEnabled = defaults.bool(forKey: Keys.tools)
         memoryEnabled = defaults.bool(forKey: Keys.memory)
         autoLearn = defaults.bool(forKey: Keys.autoLearn)
@@ -240,6 +244,7 @@ final class AppSettings {
         static let silenceTimeout = "silenceTimeout"
         static let appearance = "appearance"
         static let wakeWord = "wakeWordEnabled"
+        static let alwaysListen = "alwaysListenEnabled"
         static let tools = "toolsEnabled"
         static let memory = "memoryEnabled"
         static let autoLearn = "autoLearnEnabled"

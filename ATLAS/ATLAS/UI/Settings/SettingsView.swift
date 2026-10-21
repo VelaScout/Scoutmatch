@@ -164,6 +164,8 @@ struct SettingsView: View {
 
                 Section {
                     Toggle("Gesprächsmodus", isOn: $settings.conversationMode)
+                    Toggle("Immer zuhören (einfach losreden)", isOn: $settings.alwaysListen)
+                        .onChange(of: settings.alwaysListen) { _, _ in engine.wakeWordSettingChanged() }
                     Toggle("Wake-Word „Atlas“", isOn: $settings.wakeWordEnabled)
                     VStack(alignment: .leading) {
                         Text("Pause bis zur Antwort: \(settings.silenceTimeout, specifier: "%.1f") s")
@@ -172,7 +174,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Gespräch")
                 } footer: {
-                    Text("Gesprächsmodus: Nach jeder Antwort hört A.T.L.A.S. automatisch weiter zu. Beenden mit „Danke, das ist alles“ oder Stopp.\n\nWake-Word: Solange A.T.L.A.S. geöffnet und im Vordergrund ist, hört er auf „Atlas“. Die Erkennung läuft ausschließlich auf dem Gerät, nichts wird übertragen, bis Sie „Atlas“ sagen. Das Mikrofon-Symbol des Systems bleibt sichtbar. Im Hintergrund oder bei gesperrtem Bildschirm hört A.T.L.A.S. nicht zu – nutzen Sie dafür „Siri, starte A.T.L.A.S.“. Kostet etwas mehr Akku.")
+                    Text("Immer zuhören: Solange A.T.L.A.S. geöffnet ist, hört er durchgehend zu – einfach losreden, er antwortet nach einer kurzen Pause. Die Spracherkennung läuft auf dem Gerät; erst ein vollständiger Satz wird als Frage an Claude geschickt. Achtung: Er reagiert dann auch auf Gespräche im Raum – bei Besuch einfach „Hör auf zuzuhören“ sagen oder hier ausschalten.\n\nGesprächsmodus: Nach jeder Antwort hört A.T.L.A.S. automatisch weiter zu. Beenden mit „Danke, das ist alles“ oder Stopp.\n\nWake-Word: Solange A.T.L.A.S. geöffnet und im Vordergrund ist, hört er auf „Atlas“. Die Erkennung läuft ausschließlich auf dem Gerät, nichts wird übertragen, bis Sie „Atlas“ sagen. Das Mikrofon-Symbol des Systems bleibt sichtbar. Im Hintergrund oder bei gesperrtem Bildschirm hört A.T.L.A.S. nicht zu – nutzen Sie dafür „Siri, starte A.T.L.A.S.“. Kostet etwas mehr Akku.")
                 }
 
                 Section {

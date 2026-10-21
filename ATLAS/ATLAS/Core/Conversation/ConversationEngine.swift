@@ -323,6 +323,16 @@ final class ConversationEngine {
         learnFromConversation()
         isInConversation = false
         wakeTriggered = false
+        // „Immer zuhören“: Solange die App offen ist, einfach losreden – ohne „Atlas“.
+        if settings.alwaysListen && sceneActive && KeychainStore.has(.anthropicAPIKey) && !state.isError {
+            Task {
+                try? await Task.sleep(for: .milliseconds(150))
+                guard self.state == .idle || self.state == .standby, self.sceneActive else { return }
+                await self.startListening(quiet: true)
+            }
+            if state != .listening { state = .idle }
+            return
+        }
         if settings.wakeWordEnabled && sceneActive && KeychainStore.has(.anthropicAPIKey) {
             Task { await startStandby() }
         } else {
@@ -382,7 +392,7 @@ final class ConversationEngine {
         return permissionsGranted
     }
 
-    func startListening(prefix: String = "") async {
+    func startListening(prefix: String = "", quiet: Bool = false) async {
         guard await ensurePermissions() else { return }
         do {
             listeningPrefix = prefix
@@ -392,7 +402,7 @@ final class ConversationEngine {
             try recognizer.start(language: settings.language)
             state = .listening
             isInConversation = true
-            Haptics.soft()
+            if !quiet { Haptics.soft() }
             scheduleSilenceTimer(after: noSpeechTimeout)
         } catch {
             state = .error(error.localizedDescription)
@@ -501,6 +511,13 @@ final class ConversationEngine {
         inputLevel = 0
 
         let spoken = liveTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Beim Dauerzuhören einzelne Geräusche oder „Äh“ überhören.
+        if settings.alwaysListen, !wakeTriggered, attachments.isEmpty,
+           spoken.split(separator: " ").count < 2, commandAfterWakeWord(spoken) == nil {
+            liveTranscript = ""
+            goIdle()
+            return
+        }
         guard !spoken.isEmpty || !attachments.isEmpty else {
             if wakeTriggered {
                 // Nur „Atlas“ gesagt → „Ja, Sir?“ und zuhören.
@@ -749,7 +766,7 @@ final class ConversationEngine {
 
     /// Mit Wake-Word kehrt ATLAS nach einem Fehler von selbst in die Bereitschaft zurück.
     private func recoverFromErrorLater() {
-        guard settings.wakeWordEnabled else { return }
+        guard settings.wakeWordEnabled || settings.alwaysListen else { return }
         Task {
             try? await Task.sleep(for: .seconds(6))
             if self.state.isError {
@@ -822,10 +839,15 @@ final class ConversationEngine {
 
     // MARK: - Ansagen
 
+    /// Frei für eine Ansage: in Ruhe, in Bereitschaft oder beim Dauerzuhören, solange niemand spricht.
+    private var isFree: Bool {
+        state == .idle || state == .standby || (state == .listening && liveTranscript.isEmpty)
+    }
+
     /// Kurze Ansage von A.T.L.A.S. (z. B. nach einer Übertragung) – nur, wenn er gerade frei ist.
     func announce(_ text: String) {
         responseText = text
-        guard state == .idle || state == .standby || state.isError else { return }
+        guard isFree || state.isError else { return }
         state = .speaking
         streamFinished = true
         isInConversation = false
@@ -837,8 +859,7 @@ final class ConversationEngine {
 
     /// Kurze Begrüßung beim Öffnen, wie ein persönlicher Butler – höchstens alle drei Stunden.
     func greetOnLaunch() {
-        guard settings.greetOnLaunch, sceneActive, KeychainStore.has(.anthropicAPIKey),
-              state == .idle || state == .standby else { return }
+        guard settings.greetOnLaunch, sceneActive, KeychainStore.has(.anthropicAPIKey), isFree else { return }
         let defaults = UserDefaults.standard
         let last = defaults.object(forKey: "lastGreeting") as? Date ?? .distantPast
         guard Date.now.timeIntervalSince(last) > 3 * 3600 else { return }
