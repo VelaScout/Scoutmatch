@@ -32,6 +32,10 @@ atlas_write_agent
 launchctl bootstrap "gui/$(id -u)" "$ATLAS_AGENT_PLIST"
 atlas_verify_service
 open "$destination"
-echo "Atlas 0.4.0 aktualisiert. Gesprächsdaten, Gedächtnis und Modelle bleiben erhalten."
+echo "Atlas 0.4.1 aktualisiert. Gesprächsdaten, Gedächtnis und Modelle bleiben erhalten."
 echo "Sicherungen: $ATLAS_INSTALL_ROOT (Backend-backup-$stamp, Daten-backup-$stamp) und ~/Applications/ATLAS Local-backup-$stamp.app"
-echo 'Optional: MAC_TESTEN.command prüft jetzt die echten Modellfähigkeiten (Dateien, Excel, PDF, Rechnen, Antwortzeiten).'
+echo 'Kurztest mit dem echten Modell (3 Aufgaben) …'
+mkdir -p build
+(cd Backend && "$ATLAS_VENV/bin/python3" -m atlas.realtests --quick --output ../build/MAC-ECHTE-MODELLTESTS.json) || true
+(cd Backend && "$ATLAS_VENV/bin/python3" -m atlas.summary ../build) || true
+echo 'Ausführlich (12 Aufgaben, ca. 5–10 Minuten): MAC_TESTEN.command'

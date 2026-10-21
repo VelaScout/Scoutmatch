@@ -10,7 +10,7 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var settings = settings
         Form {
-            Section("Atlas Local · 0.4.0") {
+            Section("Atlas Local · 0.4.1") {
                 Text(status).font(.callout).textSelection(.enabled)
                 Button("Verbindung prüfen") { Task { await check() } }.disabled(busy)
                 Picker("Modell", selection: $settings.model) {

@@ -19,7 +19,15 @@ CASES=[
  ('englisch','Explain in one English sentence what a local AI model is.',None),
 ]
 
+def warm_up(models):
+    """Wie die App: Modellliste laden und einmal prüfen, ob ein Modell ein Selbstgespräch voranstellt."""
+    try:
+        s.OLLAMA_CLIENT.installed(refresh=True)
+        for model in models:s.OLLAMA_CLIENT.reasoning_only(s.fast_variant(model))
+    except Exception:pass
+
 def benchmark(models):
+    warm_up(models)
     results=[];old_data,old_db=s.DATA,s.DB
     try:
         with tempfile.TemporaryDirectory() as td:
@@ -31,6 +39,7 @@ def benchmark(models):
                     item={'model':model,'case':name,'prompt':prompt,'answer':'','automatic_check':None}
                     try:
                         for event in s.chat_events(prompt,model,persist=False):
+                            if event['type']=='start':item['actual_model']=event.get('model')
                             if event['type']=='done':
                                 item.update(answer=event['answer'],metrics=event['metrics'],truncated=event['truncated'])
                         item['automatic_check']=check(item['answer']) if check else None

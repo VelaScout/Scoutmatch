@@ -29,6 +29,7 @@ class FakeOllama:
         self.responder = None      # Funktion(body) -> Antwort, wenn script leer ist
         self.broken = False        # liefert kaputtes JSON statt einer Antwort
         self.stream_incomplete = False
+        self.reasoning = False      # verhält sich wie ein Denk-Modell (Selbstgespräch bis </think>)
         fake = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -56,6 +57,9 @@ class FakeOllama:
                         self.wfile.write((json.dumps({'message': {'content': piece}, 'done': False}) + '\n').encode())
                     if not fake.stream_incomplete:
                         self.wfile.write((json.dumps({'done': True, 'done_reason': 'stop'}) + '\n').encode())
+                    return
+                if body['messages'][0]['content'] == FakeOllama.PROBE and not body.get('stream'):
+                    self.reply(answer('Der Nutzer will nur OK hören. Also schreibe ich OK.</think>\n\nOK' if fake.reasoning else 'OK'))
                     return
                 if fake.broken:
                     data = b'<html>kein json'
@@ -100,8 +104,15 @@ class FakeOllama:
         lowered = text.lower()
         return [float(len(re.findall(t, lowered))) + 0.01 for t in topics]
 
+    PROBE = 'Antworte nur mit dem Wort: OK'
+
     def chat_requests(self):
-        return [body for path, body in self.requests if path == '/api/chat']
+        """Chat-Anfragen ohne die einmalige Denkmodell-Prüfung (reasoning_only)."""
+        return [body for path, body in self.requests if path == '/api/chat'
+                and not (len(body['messages']) == 1 and body['messages'][0]['content'] == self.PROBE)]
+
+    def probe_requests(self):
+        return [body for path, body in self.requests if path == '/api/chat' and body['messages'][0]['content'] == self.PROBE]
 
     def close(self):
         self.server.shutdown()

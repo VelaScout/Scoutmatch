@@ -20,21 +20,31 @@ atlas_setup_venv() {
   echo 'Python-Umgebung bereit (Excel und PDF).'
 }
 
-# Empfohlene lokale Modelle: qwen3:4b (schnelle Antworten), qwen3:8b (Agent mit Werkzeugen),
-# nomic-embed-text (Gedächtnissuche). Mit ATLAS_SKIP_MODELS=1 überspringen.
+# Empfohlene lokale Modelle:
+# - qwen3:4b-instruct-2507 (schnelle Antworten OHNE Denkschritt – „qwen3:4b“ ist bei Ollama inzwischen
+#   womöglich die Denk-Variante, die vor jeder Antwort sekundenlang ein Selbstgespräch schreibt)
+# - qwen3:8b (Agent mit Werkzeugen), nomic-embed-text (Gedächtnissuche)
+# Mit ATLAS_SKIP_MODELS=1 überspringen.
+atlas_has_model() { ollama list 2>/dev/null | awk '{print $1}' | grep -Eqx "${1}(:latest)?"; }
 atlas_pull_models() {
   if [[ "${ATLAS_SKIP_MODELS:-0}" == 1 ]]; then echo 'Modelldownload übersprungen (ATLAS_SKIP_MODELS=1).'; return; fi
   local free_gb
   free_gb=$(df -g "$HOME" | awk 'NR==2 {print $4}')
-  for model in qwen3:4b nomic-embed-text qwen3:8b; do
-    if ollama list 2>/dev/null | awk '{print $1}' | grep -Eqx "${model}(:latest)?"; then continue; fi
+  if ! atlas_has_model 'qwen3:4b-instruct-2507-q4_K_M' && ! atlas_has_model 'qwen3:4b-instruct'; then
+    echo 'Lade schnelles Antwortmodell qwen3:4b-instruct (ca. 2,5 GB, einmalig) …'
+    ollama pull qwen3:4b-instruct-2507-q4_K_M || ollama pull qwen3:4b-instruct \
+      || { echo 'Hinweis: Schnelles Modell nicht verfügbar – Atlas nutzt qwen3:4b.'; atlas_has_model qwen3:4b || ollama pull qwen3:4b || true; }
+  fi
+  for model in nomic-embed-text qwen3:8b; do
+    if atlas_has_model "$model"; then continue; fi
     if [[ "$model" == qwen3:8b && "${free_gb:-0}" -lt 12 ]]; then
-      echo "Nur ${free_gb} GB frei – qwen3:8b (ca. 5 GB) wird nicht geladen. Atlas nutzt dann qwen3:4b auch für Aufgaben."
+      echo "Nur ${free_gb} GB frei – qwen3:8b (ca. 5 GB) wird nicht geladen. Atlas nutzt dann das 4B-Modell auch für Aufgaben."
       continue
     fi
     echo "Lade lokales Modell $model (einmalig) …"
     ollama pull "$model" || echo "Hinweis: $model konnte nicht geladen werden. Atlas funktioniert mit den vorhandenen Modellen weiter."
-  done  # Optional: Bildmodell für Bildschirm- und Bildanalyse (ca. 3 GB): ATLAS_WITH_VISION=1
+  done
+  # Optional: Bildmodell für Bildschirm- und Bildanalyse (ca. 3 GB): ATLAS_WITH_VISION=1
   if [[ "${ATLAS_WITH_VISION:-0}" == 1 ]] && ! ollama list 2>/dev/null | awk '{print $1}' | grep -Eqx 'gemma3:4b'; then
     echo 'Lade Bildmodell gemma3:4b …'
     ollama pull gemma3:4b || echo 'Hinweis: Bildmodell konnte nicht geladen werden.'

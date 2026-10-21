@@ -1,11 +1,11 @@
-# Offene Punkte und bekannte Grenzen – ATLAS Local 0.4.0
+# Offene Punkte und bekannte Grenzen – ATLAS Local 0.4.1
 
 ## Noch nicht auf echter Hardware bewiesen
 
 | Punkt | Status | So wird es geprüft |
 |---|---|---|
-| Xcode-Build von 0.4.0 | nur Syntaxprüfung | `AKTUALISIEREN.command` baut und stoppt bei Fehlern, bevor etwas ersetzt wird. Bei Fehlern `build/BUILD-LOG.txt` schicken. |
-| Qualität und Tempo mit echtem Qwen | Testsatz vorbereitet | `MAC_TESTEN.command` → `build/MAC-ECHTE-MODELLTESTS.json` |
+| Xcode-Build von 0.4.1 | nur Syntaxprüfung | `AKTUALISIEREN.command` baut und stoppt bei Fehlern, bevor etwas ersetzt wird. Bei Fehlern `build/BUILD-LOG.txt` schicken. |
+| Qualität und Tempo mit echtem Qwen | erster Diagnose-Ausschnitt: zu lange Antworten (Denk-Variante) → in 0.4.1 behoben, Wirkung noch nicht gemessen | `MAC_TESTEN.command` → `build/MAC-ECHTE-MODELLTESTS.json` |
 | Neue Statuszeile und Aufgabenfeld in der App | ungesehen | nach dem Update ansehen |
 | RAM-Verbrauch mit qwen3:4b und qwen3:8b gleichzeitig | geschätzt ca. 10 GB | Aktivitätsanzeige bzw. `ollama ps` während `MAC_TESTEN.command` |
 

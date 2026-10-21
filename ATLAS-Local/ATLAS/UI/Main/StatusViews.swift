@@ -96,7 +96,11 @@ struct StatusBar: View {
     }
 
     private var modelText: String {
-        let chat = settings.model.rawValue
+        var chat = settings.model.rawValue
+        // „qwen3:4b“ nutzt automatisch die schnelle Variante ohne Denkschritt, wenn sie installiert ist.
+        if chat == "qwen3:4b", status.installedModels.contains(where: { $0.hasPrefix("qwen3:4b-instruct") }) {
+            chat = "qwen3:4b schnell"
+        }
         return status.installedModels.contains("qwen3:8b") && chat != "qwen3:8b" ? "\(chat) · Aufgaben 8b" : chat
     }
 

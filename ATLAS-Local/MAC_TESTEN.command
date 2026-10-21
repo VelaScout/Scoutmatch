@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail   # bei einzelnen Fehlschlägen weitermachen – die Zusammenfassung zeigt alles
 cd "$(dirname "$0")"
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 export OLLAMA_HOST=127.0.0.1:11434
@@ -16,5 +16,5 @@ echo '== 3. ECHTE Modelltests (Qwen über Ollama, Ergebnisse werden in Dateien n
 (cd Backend && "$python_bin" -m atlas.realtests --output ../build/MAC-ECHTE-MODELLTESTS.json) || echo 'Echte Modelltests: nicht alle bestanden – Details oben und in build/MAC-ECHTE-MODELLTESTS.json'
 echo '== 4. Diagnose: Werkzeuge, Antwortzeiten, Spracherkennung (synthetische Stimme, kein Mikrofon)'
 (cd Backend && "$python_bin" -m atlas.doctor --benchmark --compare --audio --output ../build/MAC-DIAGNOSE.json) || true
-echo 'Fertig. Ergebnisse: build/MAC-TESTS.txt, build/MAC-ECHTE-MODELLTESTS.json, build/MAC-DIAGNOSE.json'
-echo 'Bitte noch selbst prüfen: Mikrofon, Klang der Stimme, Unterbrechen, Wake-Word „Atlas“ (siehe TESTBERICHT.md).'
+echo 'Details: build/MAC-TESTS.txt, build/MAC-ECHTE-MODELLTESTS.json, build/MAC-DIAGNOSE.json'
+(cd Backend && "$python_bin" -m atlas.summary ../build)

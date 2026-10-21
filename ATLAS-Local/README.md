@@ -1,8 +1,16 @@
-# ATLAS Local 0.4.0 – lokaler KI-Agent für den Mac
+# ATLAS Local 0.4.1 – lokaler KI-Agent für den Mac
 
 Native SwiftUI-App mit lokalem Python-Backend und Ollama. Gerechnet wird mit Qwen3 auf Ihrem MacBook M4, ohne Cloud-KI und ohne API-Schlüssel.
 
 Seit 0.3 ist ATLAS ein **Agent**. Er versteht Aufgaben, wählt selbst Werkzeuge, arbeitet sie Schritt für Schritt ab, prüft die Ergebnisse und berichtet ehrlich, was geklappt hat.
+
+Neu in 0.4.1, nach Ihrem ersten Mac-Test:
+
+- Antworten dauerten 9–15 Sekunden, weil `qwen3:4b` bei Ollama vor jeder Antwort ein verstecktes Selbstgespräch schreibt (Denk-Variante).
+- **ATLAS nutzt jetzt automatisch die schnelle Variante `qwen3:4b-instruct`.** Das Update lädt sie, etwa 2,5 GB.
+- Erkennt er trotzdem ein Denk-Modell, verbirgt er dessen Selbstgespräch.
+- Das Update macht am Ende selbst einen Kurztest mit dem echten Modell.
+- `MAC_TESTEN.command` endet mit einer Zusammenfassung, die auf einen Bildschirm passt.
 
 Neu in 0.4.0:
 

@@ -9,10 +9,12 @@ test_duplicate_from_model_is_reported_back (test_agent.AgentServerTests.test_dup
 test_duplicate_memory_is_not_stored_twice (test_agent.AgentServerTests.test_duplicate_memory_is_not_stored_twice) ... ok
 test_english_question_gets_english_instruction (test_agent.AgentServerTests.test_english_question_gets_english_instruction) ... ok
 test_false_success_claim_is_corrected (test_agent.AgentServerTests.test_false_success_claim_is_corrected) ... ok
+test_fast_instruct_model_is_preferred_for_qwen3_4b (test_agent.AgentServerTests.test_fast_instruct_model_is_preferred_for_qwen3_4b) ... ok
 test_invalid_requests (test_agent.AgentServerTests.test_invalid_requests) ... ok
 test_long_model_call_sends_heartbeats (test_agent.AgentServerTests.test_long_model_call_sends_heartbeats) ... ok
 test_native_calendar_round_trip (test_agent.AgentServerTests.test_native_calendar_round_trip) ... ok
 test_plan_mode_reports_open_steps_when_stopped_early (test_agent.AgentServerTests.test_plan_mode_reports_open_steps_when_stopped_early) ... ok
+test_reasoning_model_self_talk_is_never_shown (test_agent.AgentServerTests.test_reasoning_model_self_talk_is_never_shown) ... ok
 test_relevant_memories_reach_the_model (test_agent.AgentServerTests.test_relevant_memories_reach_the_model) ... ok
 test_repeated_failure_is_not_retried_forever (test_agent.AgentServerTests.test_repeated_failure_is_not_retried_forever) ... ok
 test_result_requires_token (test_agent.AgentServerTests.test_result_requires_token) ... ok
@@ -25,6 +27,7 @@ test_cloud_models_are_rejected (test_agent.RouterAndMemoryTests.test_cloud_model
 test_language_detection (test_agent.RouterAndMemoryTests.test_language_detection) ... ok
 test_lexical_fallback_and_summary_cache (test_agent.RouterAndMemoryTests.test_lexical_fallback_and_summary_cache) ... ok
 test_routes (test_agent.RouterAndMemoryTests.test_routes) ... ok
+test_think_filter_variants (test_agent.RouterAndMemoryTests.test_think_filter_variants) ... ok
 test_action_cancel (test_atlas.AtlasTests.test_action_cancel) ... ok
 test_action_confirm_replay (test_atlas.AtlasTests.test_action_confirm_replay) ... ok
 test_action_expiry (test_atlas.AtlasTests.test_action_expiry) ... ok
@@ -118,16 +121,17 @@ test_ollama_unreachable_gives_clear_message (test_robustness.FailureTests.test_o
 test_unknown_tool_and_wrong_arguments_are_survived (test_robustness.FailureTests.test_unknown_tool_and_wrong_arguments_are_survived) ... ok
 test_old_database_keeps_all_rows (test_robustness.MigrationTests.test_old_database_keeps_all_rows) ... ok
 test_memory_selection_is_fast_and_small (test_robustness.PerformanceTests.test_memory_selection_is_fast_and_small) ... 
-[Messung Linux] Erinnerungsauswahl aus 500 Einträgen: 9.0 ms, Speicherspitze 0.0 MB
+[Messung Linux] Erinnerungsauswahl aus 500 Einträgen: 10.4 ms, Speicherspitze 0.0 MB
 ok
 test_overhead_until_first_word (test_robustness.PerformanceTests.test_overhead_until_first_word) ... 
-[Messung Linux, Modell simuliert] Eigenaufwand bis zum ersten Wort: Median 1.1 ms
+[Messung Linux, Modell simuliert] Eigenaufwand bis zum ersten Wort: Median 1.3 ms
 ok
 test_all_scripts_have_valid_syntax_and_are_executable (test_scripts.ScriptTests.test_all_scripts_have_valid_syntax_and_are_executable) ... ok
 test_autostart_file_uses_atlas_environment (test_scripts.ScriptTests.test_autostart_file_uses_atlas_environment) ... ok
 test_rollback_of_data_only_on_request_and_with_safety_copy (test_scripts.ScriptTests.test_rollback_of_data_only_on_request_and_with_safety_copy) ... ok
 test_rollback_restores_app_backend_agent_and_keeps_data (test_scripts.ScriptTests.test_rollback_restores_app_backend_agent_and_keeps_data) ... ok
 test_rollback_without_backup_changes_nothing (test_scripts.ScriptTests.test_rollback_without_backup_changes_nothing) ... ok
+test_summary_fits_one_screen_and_names_problems (test_scripts.ScriptTests.test_summary_fits_one_screen_and_names_problems) ... ok
 test_update_never_replaces_before_build_and_tests (test_scripts.ScriptTests.test_update_never_replaces_before_build_and_tests) ... ok
 test_aliases_resolve_inside_home (test_tools.ToolTests.test_aliases_resolve_inside_home) ... ok
 test_binary_file_is_not_dumped (test_tools.ToolTests.test_binary_file_is_not_dumped) ... ok
@@ -157,7 +161,7 @@ test_web_search_parses_results (test_tools.ToolTests.test_web_search_parses_resu
 test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation (test_tools.ToolTests.test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation) ... ok
 
 ----------------------------------------------------------------------
-Ran 153 tests in 30.302s
+Ran 157 tests in 31.576s
 
 OK
 

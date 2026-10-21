@@ -105,6 +105,32 @@ class ScriptTests(unittest.TestCase):
                 if script.suffix == '.command':
                     self.assertTrue(os.access(script, os.X_OK))
 
+    def test_summary_fits_one_screen_and_names_problems(self):
+        import json
+        build = self.home / 'build'
+        build.mkdir()
+        results = [{'case': f'aufgabe_{i}', 'passed': i % 3 != 0, 'total_s': 4.2 + i} for i in range(12)]
+        (build / 'MAC-ECHTE-MODELLTESTS.json').write_text(json.dumps({
+            'executed': True, 'installed_models': ['qwen3:4b'], 'chat_model': 'qwen3:4b', 'chat_model_reasoning': True,
+            'agent_model': 'qwen3:4b', 'results': results}))
+        (build / 'MAC-DIAGNOSE.json').write_text(json.dumps({
+            'benchmark': [{'case': c, 'model': 'qwen3:4b', 'actual_model': 'qwen3:4b', 'automatic_check': ok,
+                           'metrics': {'total_s': t}} for c, ok, t in
+                          [('rechnung', True, 0.4), ('anweisung', False, 9.3), ('kontext', True, 10.7),
+                           ('erklaerung', None, 14.9), ('faehigkeiten', None, 14.9), ('englisch', None, 8.8)]],
+            'audio': {'nonempty': True}}))
+        done = subprocess.run([sys.executable, '-m', 'atlas.summary', str(build)], cwd=PROJECT / 'Backend',
+                              capture_output=True, text=True)
+        lines = done.stdout.strip().splitlines()
+        self.assertLessEqual(len(lines), 22)
+        self.assertTrue(all(len(line) <= 80 for line in lines), max(lines, key=len))
+        text = done.stdout
+        self.assertIn('8/12 bestanden', text)
+        self.assertIn('DENK-MODELL', text)
+        self.assertIn('qwen3:8b fehlt', text)
+        self.assertIn('XX anweisung', text)
+        self.assertIn('Spracherkennung: OK', text)
+
     def test_update_never_replaces_before_build_and_tests(self):
         text = (PROJECT / 'AKTUALISIEREN.command').read_text()
         order = [text.index('bash BAUEN.command'), text.index('unittest discover'), text.index('mv "$ATLAS_INSTALL_ROOT/Backend"')]

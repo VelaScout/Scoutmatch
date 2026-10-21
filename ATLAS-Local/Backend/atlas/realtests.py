@@ -155,6 +155,12 @@ def main() -> int:
         if args.output:
             Path(args.output).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
         return 2
+    try:
+        report['chat_model'] = client.fast_model()
+        report['chat_model_reasoning'] = client.reasoning_only(report['chat_model'])
+        report['agent_model'] = client.require(llm.AGENT_PREFERENCE)
+    except llm.ModelError as exc:
+        report['model_error'] = str(exc)
     print('Echte Modelltests mit:', ', '.join(installed), flush=True)
     with tempfile.TemporaryDirectory() as td:
         home = Path(td) / 'home'

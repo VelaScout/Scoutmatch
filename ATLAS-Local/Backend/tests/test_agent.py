@@ -352,6 +352,25 @@ class AgentServerTests(unittest.TestCase):
         self.assertIn('Ähnliche ältere Erinnerung', tool_message['content'])
 
 
+    def test_reasoning_model_self_talk_is_never_shown(self):
+        self.ollama.reasoning = True
+        self.ollama.stream_text = ['Okay, der Nutzer möchte ', 'eine exakte Antwort. Ich sollte nur ', 'das schreiben.', '</thi',
+                                   'nk>', '\n\nAtlas ', 'bereit.']
+        _, events = self.run_agent(self.body('Antworte exakt mit: Atlas bereit.'))
+        self.assertEqual(self.text(events).strip(), 'Atlas bereit.')
+        self.assertEqual(len(self.ollama.probe_requests()), 1)
+        self.run_agent(self.body('Antworte exakt mit: Atlas bereit.'))
+        self.assertEqual(len(self.ollama.probe_requests()), 1)        # Ergebnis wird zwischengespeichert
+
+    def test_fast_instruct_model_is_preferred_for_qwen3_4b(self):
+        self.ollama.models = ['qwen3:4b', 'qwen3:8b', 'qwen3:4b-instruct-2507-q4_K_M']
+        self.ollama.stream_text = ['Hallo.']
+        self.run_agent(self.body('Wie geht es dir?'))
+        self.assertEqual(self.ollama.chat_requests()[0]['model'], 'qwen3:4b-instruct-2507-q4_K_M')
+        _, events = self.run_agent({**self.body('Wie geht es dir?'), 'model': 'qwen3:8b'})
+        self.assertEqual(self.ollama.chat_requests()[-1]['model'], 'qwen3:8b')     # ausdrückliche Wahl bleibt
+
+
 class RouterAndMemoryTests(unittest.TestCase):
     def test_routes(self):
         cases = {
@@ -392,6 +411,16 @@ class RouterAndMemoryTests(unittest.TestCase):
         second = index.summary([{'role': 'user', 'content': 'Hallo'}], lambda text: calls.append(text) or 'Anders.')
         self.assertEqual((first, second, len(calls)), ('Kurz.', 'Kurz.', 1))
 
+    def test_think_filter_variants(self):
+        f = llm.ThinkFilter()
+        self.assertEqual(f.feed('Hallo <think>geheim</think> Welt', final=True), 'Hallo  Welt')
+        f = llm.ThinkFilter(start_hidden=True)
+        self.assertEqual(f.feed('Selbstgespräch …</think>Antwort'), 'Antwort')
+        f = llm.ThinkFilter(start_hidden=True)            # Fehleinschätzung: kein </think> → nichts geht verloren
+        self.assertEqual(f.feed('Ganz normale Antwort.') + f.feed('', final=True), 'Ganz normale Antwort.')
+        self.assertEqual(llm.strip_think('Überlegung …</think>\n\nAtlas bereit.').strip(), 'Atlas bereit.')
+        self.assertEqual(llm.strip_think('<think>x</think>Ja'), 'Ja')
+
     def test_language_detection(self):
         self.assertEqual(llm.language_of('What is the weather like in London today?'), 'en')
         self.assertEqual(llm.language_of('Wie wird das Wetter heute in Berlin?'), 'de')
@@ -402,6 +431,7 @@ class RouterAndMemoryTests(unittest.TestCase):
         for name in ('gpt-oss:120b-cloud', 'qwen3-coder:480b-cloud', 'http://evil', ''):
             self.assertFalse(llm.is_local_model(name))
         self.assertTrue(llm.is_local_model('qwen3:8b'))
+        self.assertTrue(llm.is_local_model('qwen3:4b-instruct-2507-q4_K_M'))
 
 
 if __name__ == '__main__':

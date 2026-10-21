@@ -17,10 +17,14 @@ from dataclasses import dataclass, field
 
 BASE = os.environ.get('ATLAS_OLLAMA_URL', 'http://127.0.0.1:11434')
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-MODEL_PATTERN = re.compile(r'^[a-z0-9][a-z0-9._-]{0,60}(:[a-z0-9._-]{1,40})?$')
+# Ollama-Tags enthalten auch Großbuchstaben (z. B. q4_K_M).
+MODEL_PATTERN = re.compile(r'^[a-z0-9][a-z0-9._/-]{0,60}(:[A-Za-z0-9._-]{1,40})?$')
 # Bevorzugte Reihenfolge – vom Router auf die tatsächlich installierten Modelle angewendet.
-CHAT_PREFERENCE = ['qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b', 'qwen3:8b']
-AGENT_PREFERENCE = ['qwen3:8b', 'qwen3:14b', 'qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b']
+# Schnelle Antwortmodelle OHNE Denkschritt zuerst. Hinweis: Ollama liefert unter „qwen3:4b“ inzwischen
+# womöglich die Denk-Variante (2507), die vor jeder Antwort ein langes Selbstgespräch schreibt.
+INSTRUCT_MODELS = ['qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b-instruct']
+CHAT_PREFERENCE = INSTRUCT_MODELS + ['qwen3:4b', 'qwen3:8b']
+AGENT_PREFERENCE = ['qwen3:8b', 'qwen3:14b'] + INSTRUCT_MODELS + ['qwen3:4b']
 VISION_PREFERENCE = ['gemma3:4b', 'qwen2.5vl:7b', 'gemma3:12b', 'llava:7b', 'minicpm-v']
 EMBED_PREFERENCE = ['qwen3-embedding:0.6b', 'nomic-embed-text', 'nomic-embed-text:latest', 'mxbai-embed-large']
 
@@ -46,6 +50,8 @@ class Ollama:
         self.opener = opener or HTTP
         self._tags: tuple[float, list[str]] = (0.0, [])
         self.reachable = True
+        # Modelle, die immer „denken“ (Antwort beginnt mit Selbstgespräch bis </think>).
+        self._reasoning: dict[str, bool] = {}
         self._lock = threading.Lock()
 
     def _post(self, path: str, payload: dict, timeout: float):
@@ -79,6 +85,30 @@ class Ollama:
             raise ModelError('Ollama ist nicht erreichbar. Bitte die Ollama-App starten (oder „brew services start ollama“) '
                              'und es erneut versuchen.')
         raise ModelError('Kein lokales Sprachmodell installiert. Bitte INSTALLIEREN.command ausführen.')
+
+    def fast_model(self, wanted: str | None = None) -> str:
+        """Modell für schnelle Gespräche. „qwen3:4b“ bedeutet: das schnellste 4B ohne Denkschritt."""
+        if wanted in (None, '', 'qwen3:4b'):
+            return self.require(CHAT_PREFERENCE)
+        return self.require(CHAT_PREFERENCE, wanted)
+
+    def reasoning_only(self, model: str) -> bool:
+        """Prüft einmal je Modell, ob es trotz think=false ein Selbstgespräch voranstellt."""
+        if model in self._reasoning:
+            return self._reasoning[model]
+        payload = {'model': model, 'stream': False, 'think': False, 'keep_alive': '30m',
+                   'messages': [{'role': 'user', 'content': 'Antworte nur mit dem Wort: OK'}],
+                   'options': {'num_predict': 120, 'temperature': 0}}
+        result = False
+        try:
+            with self._post('/api/chat', payload, 60) as response:
+                message = (json.load(response) or {}).get('message') or {}
+            content = message.get('content') or ''
+            result = bool(message.get('thinking')) or ('</think>' in content and '<think>' not in content.split('</think>')[0])
+        except (OSError, ValueError, AttributeError):
+            return False                    # nicht entscheidbar: nicht zwischenspeichern
+        self._reasoning[model] = result
+        return result
 
     def pick(self, preference: list[str], wanted: str | None = None) -> str | None:
         names = self.installed()
@@ -152,7 +182,7 @@ class Ollama:
             raise ModelError('Nur lokale Modelle sind erlaubt.')
         payload = {'model': model, 'messages': messages, 'stream': True, 'think': False, 'keep_alive': '30m',
                    'options': {'num_ctx': num_ctx, 'num_predict': num_predict, 'temperature': temperature}}
-        thinking = ThinkFilter()
+        thinking = ThinkFilter(start_hidden=self._reasoning.get(model, False))
         try:
             response = self._post('/api/chat', payload, timeout)
         except urllib.error.HTTPError as exc:
@@ -207,7 +237,11 @@ class Ollama:
 
 
 def strip_think(text: str) -> str:
-    return re.sub(r'(?s)<think>.*?</think>', '', text).replace('<think>', '').replace('</think>', '')
+    text = re.sub(r'(?s)<think>.*?</think>', '', text or '')
+    if '</think>' in text:
+        # Denk-Modelle schreiben das öffnende <think> nicht mit: alles bis zum letzten </think> ist Selbstgespräch.
+        text = text.rsplit('</think>', 1)[1]
+    return text.replace('<think>', '')
 
 
 def parse_text_tool_calls(content: str) -> list[dict]:
@@ -227,9 +261,12 @@ def parse_text_tool_calls(content: str) -> list[dict]:
 class ThinkFilter:
     """Unterdrückt <think>-Blöcke auch dann, wenn sie über mehrere Stream-Stücke verteilt sind."""
 
-    def __init__(self):
+    def __init__(self, start_hidden: bool = False):
         self.buffer = ''
-        self.hidden = False
+        self.hidden = start_hidden
+        # Bei start_hidden: falls nie ein </think> kommt, wird der Text am Ende doch ausgegeben.
+        self.held = ''
+        self.expect_close = start_hidden
 
     def feed(self, text: str, final: bool = False) -> str:
         self.buffer += text
@@ -240,6 +277,9 @@ class ThinkFilter:
             if pos >= 0:
                 if not self.hidden:
                     output += self.buffer[:pos]
+                elif self.expect_close:
+                    self.held = ''          # Selbstgespräch beendet – verwerfen
+                    self.expect_close = False
                 self.buffer = self.buffer[pos + len(marker):]
                 self.hidden = not self.hidden
                 continue
@@ -251,8 +291,15 @@ class ThinkFilter:
             segment = self.buffer[:-keep] if keep else self.buffer
             if not self.hidden:
                 output += segment
+            elif self.expect_close:
+                self.held += segment
             self.buffer = self.buffer[-keep:] if keep else ''
             break
+        if final and self.expect_close and self.held:
+            # Doch kein Denk-Modell: zurückgehaltenen Text vollständig ausgeben.
+            output += self.held
+            self.held = ''
+            self.expect_close = False
         return output
 
 

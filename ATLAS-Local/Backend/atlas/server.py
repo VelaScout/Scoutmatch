@@ -35,7 +35,7 @@ OLLAMA = 'http://127.0.0.1:11434/api/chat'
 PORT = int(os.environ.get('ATLAS_PORT', '8765'))
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 SYSTEM = (ROOT/'personality.txt').read_text(encoding='utf-8')
-VERSION = '0.4.0'
+VERSION = '0.4.1'
 TOKEN = secrets.token_urlsafe(32)
 LOCK = threading.RLock()
 CHAT_LOCK = threading.Lock()
@@ -165,8 +165,17 @@ def native_messages(obj):
     return [{'role':'system','content':prompt}]+kept
 
 def selected_model(value):
-    if not isinstance(value,str) or value not in MODELS: raise ValueError('Erlaubte Modelle: qwen3:4b und qwen3:8b.')
+    if not isinstance(value,str) or (value not in MODELS and value not in llm.INSTRUCT_MODELS):
+        raise ValueError('Erlaubte Modelle: qwen3:4b und qwen3:8b.')
     return value
+
+def fast_variant(model):
+    """„qwen3:4b“ → schnelle 4B-Variante ohne Denkschritt, falls installiert."""
+    if model=='qwen3:4b':
+        names=OLLAMA_CLIENT._tags[1]   # nur zwischengespeicherte Liste – keine zusätzliche Anfrage
+        for candidate in llm.INSTRUCT_MODELS:
+            if candidate in names:return candidate
+    return model
 
 def ollama_request(messages, model, stream=True):
     return urllib.request.Request(OLLAMA, data=json.dumps({
@@ -182,33 +191,17 @@ def public_error(exc):
         return 'Ollama antwortet zu lange nicht. Prüfe ollama ps und versuche den 4B-Modus.'
     return 'Lokale Verarbeitung fehlgeschlagen: '+str(exc)[:180]
 
-class ThinkFilter:
-    """Suppress legacy <think> blocks even when split across stream chunks."""
-    def __init__(self): self.buffer='';self.hidden=False
-    def feed(self,text,final=False):
-        self.buffer+=text;output=''
-        while self.buffer:
-            marker='</think>' if self.hidden else '<think>'
-            pos=self.buffer.find(marker)
-            if pos>=0:
-                if not self.hidden: output+=self.buffer[:pos]
-                self.buffer=self.buffer[pos+len(marker):];self.hidden=not self.hidden
-            else:
-                keep=0
-                if not final:
-                    for n in range(1,min(len(marker),len(self.buffer)+1)):
-                        if self.buffer.endswith(marker[:n]):keep=n
-                segment=self.buffer[:-keep] if keep else self.buffer
-                if not self.hidden:output+=segment
-                self.buffer=self.buffer[-keep:] if keep else ''
-                break
-        return output
+ThinkFilter=llm.ThinkFilter
 
 def chat_events(text, model=None, request_id=None, persist=True, native_context=None):
     model=selected_model(model or MODEL)
     if not CHAT_LOCK.acquire(blocking=False): raise BusyError('Atlas beantwortet noch eine Anfrage. Bitte kurz warten.')
     ident=request_id or uuid.uuid4().hex
-    stop=threading.Event();start=time.monotonic();first=None;answer='';finished=False;final={};filter_=ThinkFilter()
+    model=fast_variant(model)
+    # Denk-Modelle schreiben ihr Selbstgespräch ohne öffnendes <think> – dann bis </think> verbergen
+    # (Ergebnis der einmaligen Prüfung, sobald bekannt).
+    filter_=ThinkFilter(start_hidden=OLLAMA_CLIENT._reasoning.get(model,False))
+    stop=threading.Event();start=time.monotonic();first=None;answer='';finished=False;final={}
     with LOCK: ACTIVE[ident]=stop
     try:
         yield {'type':'start','request_id':ident,'model':model}
@@ -237,6 +230,7 @@ def chat_events(text, model=None, request_id=None, persist=True, native_context=
         if stop.is_set():
             yield {'type':'cancelled','request_id':ident};return
         if not finished:raise RuntimeError('Ollama hat die Antwort unvollständig beendet.')
+        if '</think>' in answer:answer=llm.strip_think(answer)   # Selbstgespräch eines Denk-Modells entfernen
         if not answer.strip():raise RuntimeError('Leere Modellantwort. Bitte erneut versuchen.')
         if persist:
             with database() as db:

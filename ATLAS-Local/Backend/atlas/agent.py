@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 from . import intents
+from . import llm as llm_mod
 from .llm import ModelError, Ollama, is_correction, language_of, route
 from .memory import MemoryIndex
 from .tools import BLOCKED, CONFIRM, Result, Tool, ToolError, select_categories
@@ -231,7 +232,7 @@ class Agent:
         return [{'role': 'system', 'content': system}] + kept
 
     def summarize(self, transcript: str) -> str:
-        model = self.llm.pick(['qwen3:4b', 'qwen3:8b'])
+        model = self.llm.pick(llm_mod.CHAT_PREFERENCE)
         if not model:
             return ''
         reply = self.llm.chat(model, [
@@ -298,7 +299,8 @@ class Agent:
 
         mode = route(text, has_tools=True)
         if mode == 'chat':
-            model = self.llm.require(['qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b', 'qwen3:8b'], request.model)
+            model = self.llm.fast_model(request.model)
+            self.llm.reasoning_only(model)          # einmalige Prüfung, danach zwischengespeichert
             yield {'type': 'status', 'label': 'Denkt nach', 'mode': 'chat', 'model': model}
             messages = self.context(request, text)
             first = None
@@ -316,7 +318,7 @@ class Agent:
         yield from self.agent_loop(request, text, mode, stop, started)
 
     def agent_loop(self, request: Request, text: str, mode: str, stop: threading.Event, started: float) -> Iterator[dict]:
-        model = self.llm.require(['qwen3:8b', 'qwen3:14b', 'qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b'],
+        model = self.llm.require(llm_mod.AGENT_PREFERENCE,
                                  request.model if request.model and request.model != 'qwen3:4b' else None)
         schemas, native = self.toolset(text, request.native_tools)
         messages = self.context(request, text, budget=6_000)
