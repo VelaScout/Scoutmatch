@@ -45,6 +45,7 @@ class Ollama:
         self.base = base.rstrip('/')
         self.opener = opener or HTTP
         self._tags: tuple[float, list[str]] = (0.0, [])
+        self.reachable = True
         self._lock = threading.Lock()
 
     def _post(self, path: str, payload: dict, timeout: float):
@@ -61,11 +62,23 @@ class Ollama:
             with self.opener.open(self.base + '/api/tags', timeout=3) as response:
                 data = json.load(response)
             names = [m.get('name', '') for m in data.get('models', []) if is_local_model(m.get('name', ''))]
+            self.reachable = True
         except (OSError, ValueError):
             names = []
+            self.reachable = False
         with self._lock:
             self._tags = (time.monotonic(), names)
         return names
+
+    def require(self, preference: list[str], wanted: str | None = None) -> str:
+        """Wie pick, aber mit klarer Fehlermeldung, wenn Ollama aus ist oder kein Modell vorhanden ist."""
+        model = self.pick(preference, wanted)
+        if model:
+            return model
+        if not self.reachable:
+            raise ModelError('Ollama ist nicht erreichbar. Bitte die Ollama-App starten (oder „brew services start ollama“) '
+                             'und es erneut versuchen.')
+        raise ModelError('Kein lokales Sprachmodell installiert. Bitte INSTALLIEREN.command ausführen.')
 
     def pick(self, preference: list[str], wanted: str | None = None) -> str | None:
         names = self.installed()
@@ -92,6 +105,8 @@ class Ollama:
         try:
             with self._post('/api/chat', payload, timeout) as response:
                 data = json.load(response)
+            if not isinstance(data, dict):
+                raise ValueError('kein Objekt')
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
                 raise ModelError(f'Modell {model} fehlt in Ollama.') from exc
@@ -99,6 +114,12 @@ class Ollama:
             if 'does not support tools' in body:
                 raise ModelError(f'Modell {model} unterstützt keine Werkzeuge.') from exc
             raise ModelError(f'Ollama-Fehler {exc.code}: {body}') from exc
+        except urllib.error.URLError as exc:
+            raise ModelError('Ollama ist nicht erreichbar. Bitte die Ollama-App starten.') from exc
+        except (TimeoutError, OSError) as exc:
+            raise ModelError('Ollama antwortet nicht rechtzeitig (Zeitlimit). Bitte kurz warten und erneut versuchen.') from exc
+        except ValueError as exc:
+            raise ModelError('Ollama hat eine unverständliche Antwort geliefert. Bitte erneut versuchen.') from exc
         if data.get('error'):
             raise ModelError(str(data['error'])[:300])
         message = data.get('message') or {}
@@ -132,13 +153,22 @@ class Ollama:
         payload = {'model': model, 'messages': messages, 'stream': True, 'think': False, 'keep_alive': '30m',
                    'options': {'num_ctx': num_ctx, 'num_predict': num_predict, 'temperature': temperature}}
         thinking = ThinkFilter()
-        with self._post('/api/chat', payload, timeout) as response:
+        try:
+            response = self._post('/api/chat', payload, timeout)
+        except urllib.error.HTTPError as exc:
+            raise ModelError(f'Modell {model} fehlt in Ollama.' if exc.code == 404 else f'Ollama-Fehler {exc.code}.') from exc
+        except OSError as exc:
+            raise ModelError('Ollama ist nicht erreichbar. Bitte die Ollama-App starten.') from exc
+        with response:
             for raw in response:
                 if stop is not None and stop.is_set():
                     return
                 if not raw.strip():
                     continue
-                part = json.loads(raw)
+                try:
+                    part = json.loads(raw)
+                except ValueError as exc:
+                    raise ModelError('Ollama hat eine unverständliche Antwort geliefert.') from exc
                 if part.get('error'):
                     raise ModelError(str(part['error'])[:300])
                 text = thinking.feed((part.get('message') or {}).get('content', ''))

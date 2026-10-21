@@ -298,9 +298,7 @@ class Agent:
 
         mode = route(text, has_tools=True)
         if mode == 'chat':
-            model = self.llm.pick(['qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b', 'qwen3:8b'], request.model)
-            if not model:
-                raise ModelError('Kein lokales Modell installiert. Bitte INSTALLIEREN.command ausführen.')
+            model = self.llm.require(['qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b', 'qwen3:8b'], request.model)
             yield {'type': 'status', 'label': 'Denkt nach', 'mode': 'chat', 'model': model}
             messages = self.context(request, text)
             first = None
@@ -318,10 +316,8 @@ class Agent:
         yield from self.agent_loop(request, text, mode, stop, started)
 
     def agent_loop(self, request: Request, text: str, mode: str, stop: threading.Event, started: float) -> Iterator[dict]:
-        model = self.llm.pick(['qwen3:8b', 'qwen3:14b', 'qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b'],
-                              request.model if request.model and request.model != 'qwen3:4b' else None)
-        if not model:
-            raise ModelError('Kein lokales Modell installiert. Bitte INSTALLIEREN.command ausführen.')
+        model = self.llm.require(['qwen3:8b', 'qwen3:14b', 'qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b'],
+                                 request.model if request.model and request.model != 'qwen3:4b' else None)
         schemas, native = self.toolset(text, request.native_tools)
         messages = self.context(request, text, budget=6_000)
         messages[0]['content'] += '\n\n' + AGENT_RULES

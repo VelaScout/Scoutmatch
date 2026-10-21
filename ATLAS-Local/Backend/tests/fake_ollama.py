@@ -27,6 +27,8 @@ class FakeOllama:
         self.embed_calls = 0
         self.delay = 0.0
         self.responder = None      # Funktion(body) -> Antwort, wenn script leer ist
+        self.broken = False        # liefert kaputtes JSON statt einer Antwort
+        self.stream_incomplete = False
         fake = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -52,7 +54,15 @@ class FakeOllama:
                     self.end_headers()
                     for piece in fake.stream_text:
                         self.wfile.write((json.dumps({'message': {'content': piece}, 'done': False}) + '\n').encode())
-                    self.wfile.write((json.dumps({'done': True, 'done_reason': 'stop'}) + '\n').encode())
+                    if not fake.stream_incomplete:
+                        self.wfile.write((json.dumps({'done': True, 'done_reason': 'stop'}) + '\n').encode())
+                    return
+                if fake.broken:
+                    data = b'<html>kein json'
+                    self.send_response(200)
+                    self.send_header('Content-Length', str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
                     return
                 if fake.delay:
                     threading.Event().wait(fake.delay)
@@ -72,7 +82,10 @@ class FakeOllama:
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(data)))
                 self.end_headers()
-                self.wfile.write(data)
+                try:
+                    self.wfile.write(data)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass   # Client hat absichtlich aufgegeben (Zeitlimit-Test)
 
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
