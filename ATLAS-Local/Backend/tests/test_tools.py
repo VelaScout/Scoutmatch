@@ -150,6 +150,24 @@ class ToolTests(unittest.TestCase):
         self.assertEqual(sheet['B4'].value, '=SUM(B2:B3)')
         self.assertTrue(sheet['A1'].font.bold)
 
+    @unittest.skipUnless(HAS_OPENPYXL, 'openpyxl fehlt')
+    def test_excel_accepts_what_small_models_send(self):
+        from openpyxl import load_workbook
+        variants = {
+            'a': {'columns': ['Posten', 'Betrag'], 'rows': [['Miete', 1200], ['Strom', '90']]},
+            'b': {'rows': [{'Posten': 'Miete', 'Betrag': 1200}, {'Posten': 'Strom', 'Betrag': 90}]},
+            'c': {'csv_text': 'Posten;Betrag\nMiete;1200\nStrom;90'},
+            'd': {'rows': '[["Posten","Betrag"],["Miete",1200],["Strom",90]]'},
+            'e': {'sheets': [{'name': 'Ausgaben', 'columns': ['Posten', 'Betrag'], 'rows': [['Miete', 1200], ['Strom', 90]]}]},
+        }
+        for name, args in variants.items():
+            with self.subTest(variant=name):
+                self.call('create_spreadsheet', path=f'~/Documents/{name}.xlsx', **args)
+                values = [[c.value for c in row] for row in load_workbook(self.home / 'Documents' / f'{name}.xlsx').active.iter_rows()]
+                self.assertEqual(values, [['Posten', 'Betrag'], ['Miete', 1200], ['Strom', 90]])
+        with self.assertRaises(t.ToolError):
+            self.call('create_spreadsheet', path='~/Documents/leer.xlsx')
+
     def test_excel_falls_back_to_csv_without_openpyxl(self):
         with patch.dict('sys.modules', {'openpyxl': None, 'openpyxl.styles': None}):
             result = self.call('create_spreadsheet', path='~/Documents/Liste.xlsx', rows=[['A', 'B'], [1, 2]])
@@ -168,6 +186,61 @@ class ToolTests(unittest.TestCase):
         self.assertEqual(self.tools['move_path'].risk, t.CONFIRM)
         with self.assertRaises(t.ToolError):
             self.call('delete_path', path='~')
+
+    def test_organize_folder_sorts_by_type_and_needs_confirmation(self):
+        folder = self.home / 'Documents' / 'Ablage'
+        folder.mkdir()
+        for name in ('a.pdf', 'b.PDF', 'foto.jpg', 'notiz.txt', 'tabelle.xlsx', 'unbekannt.xyz'):
+            (folder / name).write_text('x')
+        (folder / 'Unterordner').mkdir()
+        result = self.call('organize_folder', path='~/Documents/Ablage')
+        self.assertTrue(result.ok and result.verified)
+        self.assertEqual(sorted(p.name for p in (folder / 'PDF').iterdir()), ['a.pdf', 'b.PDF'])
+        self.assertTrue((folder / 'Bilder' / 'foto.jpg').is_file())
+        self.assertTrue((folder / 'Texte' / 'notiz.txt').is_file())
+        self.assertTrue((folder / 'Tabellen' / 'tabelle.xlsx').is_file())
+        self.assertTrue((folder / 'Sonstiges' / 'unbekannt.xyz').is_file())
+        self.assertTrue((folder / 'Unterordner').is_dir())
+        self.assertEqual([p for p in folder.iterdir() if p.is_file()], [])
+        self.assertEqual(self.tools['organize_folder'].risk, t.CONFIRM)
+        with self.assertRaises(t.ToolError):
+            self.call('organize_folder', path='~')
+
+    def test_replace_in_file_exact_and_with_other_indentation(self):
+        file = self.home / 'Documents' / 'code.py'
+        file.write_text('def f(x):\n    return x - 1\n\ndef g():\n    return 2\n')
+        self.call('replace_in_file', path='~/Documents/code.py', old='    return x - 1', new='    return x + 1')
+        self.assertIn('return x + 1', file.read_text())
+        self.call('replace_in_file', path='~/Documents/code.py', old='return 2', new='return 3')
+        self.assertEqual(file.read_text(), 'def f(x):\n    return x + 1\n\ndef g():\n    return 3\n')
+        file.write_text('a = 1\na = 1\n')
+        with self.assertRaises(t.ToolError):
+            self.call('replace_in_file', path='~/Documents/code.py', old='a = 1', new='a = 2')
+        self.assertEqual(file.read_text(), 'a = 1\na = 1\n')
+
+    def test_run_tests_detects_command_and_reports_red_then_green(self):
+        project = self.home / 'Code' / 'mini'
+        (project / 'tests').mkdir(parents=True)
+        (project / 'tests' / '__init__.py').write_text('')
+        (project / 'mathe.py').write_text('def doppelt(x):\n    return x * 3\n')
+        (project / 'tests' / 'test_mathe.py').write_text(
+            'import unittest\nfrom mathe import doppelt\nclass T(unittest.TestCase):\n    def test(self):\n        self.assertEqual(doppelt(2), 4)\n')
+        red = self.call('run_tests', path='~/Code/mini')
+        self.assertFalse(red.ok)
+        self.assertIn('fehlgeschlagen', red.output)
+        self.call('replace_in_file', path='~/Code/mini/mathe.py', old='x * 3', new='x * 2')
+        green = self.call('run_tests', path='~/Code/mini')
+        self.assertTrue(green.ok, green.output)
+        self.assertIn('unittest', green.data['command'])
+
+    def test_recent_files(self):
+        (self.home / 'Documents' / 'neu.txt').write_text('x')
+        old = self.home / 'Documents' / 'alt.txt'
+        old.write_text('x')
+        os.utime(old, (0, 0))
+        result = self.call('recent_files', folder='~', days=1)
+        self.assertIn('neu.txt', result.output)
+        self.assertNotIn('alt.txt', result.output)
 
     def test_search_files(self):
         (self.home / 'Documents' / 'Steuer 2025.pdf').write_text('x')

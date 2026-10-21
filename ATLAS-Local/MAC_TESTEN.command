@@ -13,7 +13,8 @@ bash Tests/test_provider_mac.sh
 echo '== 2. Backend-Tests (Werkzeuge mit echten Dateien, Agent-Protokoll, Sicherheit)'
 (cd Backend && "$python_bin" -W error::ResourceWarning -m unittest discover -s tests -v)
 echo '== 3. ECHTE Modelltests (Qwen über Ollama, Ergebnisse werden in Dateien nachgeprüft)'
-(cd Backend && "$python_bin" -m atlas.realtests --output ../build/MAC-ECHTE-MODELLTESTS.json) || echo 'Echte Modelltests: nicht alle bestanden – Details oben und in build/MAC-ECHTE-MODELLTESTS.json'
+# Sind mehrere Modelle installiert, werden sie verglichen und das beste wird als Standard eingetragen.
+(cd Backend && "$python_bin" -m atlas.realtests --compare --apply --output ../build/MAC-ECHTE-MODELLTESTS.json) || echo 'Echte Modelltests: nicht alle bestanden – Details oben und in build/MAC-ECHTE-MODELLTESTS.json'
 echo '== 4. Diagnose: Werkzeuge, Antwortzeiten, Spracherkennung (synthetische Stimme, kein Mikrofon)'
 (cd Backend && "$python_bin" -m atlas.doctor --benchmark --compare --audio --output ../build/MAC-DIAGNOSE.json) || true
 echo 'Details: build/MAC-TESTS.txt, build/MAC-ECHTE-MODELLTESTS.json, build/MAC-DIAGNOSE.json'

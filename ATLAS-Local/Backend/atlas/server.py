@@ -98,6 +98,8 @@ def agent_events(request,request_id):
     stop=threading.Event()
     with LOCK:ACTIVE[request_id]=stop
     try:
+        config=settings()
+        OLLAMA_CLIENT.preferred={'chat':config.get('chat_model'),'agent':config.get('agent_model')}
         yield {'type':'start','request_id':request_id,'protocol':2}
         yield from agent().run(request,stop)
     finally:

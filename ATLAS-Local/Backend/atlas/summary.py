@@ -23,13 +23,16 @@ def main() -> int:
         models = real.get('installed_models') or []
         lines.append('Modelle: ' + (', '.join(models) or 'KEINE'))
         hints = []
-        if 'qwen3:8b' not in models:
-            hints.append('qwen3:8b fehlt (Aufgaben schwächer)')
+        if not any(m.startswith('qwen3:4b-instruct') for m in models):
+            hints.append('schnelles Modell qwen3:4b-instruct fehlt → AKTUALISIEREN erneut')
         if real.get('chat_model'):
             reasoning = ' – DENK-MODELL (langsam)!' if real.get('chat_model_reasoning') else ''
             lines.append(f"Gespräch: {real['chat_model']}{reasoning} | Aufgaben: {real.get('agent_model', '?')}")
         if real.get('model_error'):
             hints.append(real['model_error'])
+        for model, c in (real.get('comparison') or {}).items():
+            mark = '  ← gewählt' if model == real.get('best_model') else ''
+            lines.append(f"  {model[:30]:<30} {c['passed']}/{c['total']}  Ø {c['avg_s']}s{mark}")
         results = real.get('results') or []
         passed = sum(1 for r in results if r.get('passed'))
         lines.append(f'Echte Aufgaben: {passed}/{len(results)} bestanden' if real.get('executed') else 'Echte Aufgaben: NICHT AUSGEFÜHRT (Ollama?)')

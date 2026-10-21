@@ -23,7 +23,8 @@ atlas_setup_venv() {
 # Empfohlene lokale Modelle:
 # - qwen3:4b-instruct-2507 (schnelle Antworten OHNE Denkschritt – „qwen3:4b“ ist bei Ollama inzwischen
 #   womöglich die Denk-Variante, die vor jeder Antwort sekundenlang ein Selbstgespräch schreibt)
-# - qwen3:8b (Agent mit Werkzeugen), nomic-embed-text (Gedächtnissuche)
+# - nomic-embed-text (Gedächtnissuche)
+# - optional qwen3:8b (ATLAS_WITH_8B=1): größer, langsamer; MAC_TESTEN vergleicht es und nimmt das bessere
 # Mit ATLAS_SKIP_MODELS=1 überspringen.
 atlas_has_model() { ollama list 2>/dev/null | awk '{print $1}' | grep -Eqx "${1}(:latest)?"; }
 atlas_pull_models() {
@@ -35,7 +36,9 @@ atlas_pull_models() {
     ollama pull qwen3:4b-instruct-2507-q4_K_M || ollama pull qwen3:4b-instruct \
       || { echo 'Hinweis: Schnelles Modell nicht verfügbar – Atlas nutzt qwen3:4b.'; atlas_has_model qwen3:4b || ollama pull qwen3:4b || true; }
   fi
-  for model in nomic-embed-text qwen3:8b; do
+  local models='nomic-embed-text'
+  [[ "${ATLAS_WITH_8B:-0}" == 1 ]] && models="$models qwen3:8b"
+  for model in $models; do
     if atlas_has_model "$model"; then continue; fi
     if [[ "$model" == qwen3:8b && "${free_gb:-0}" -lt 12 ]]; then
       echo "Nur ${free_gb} GB frei – qwen3:8b (ca. 5 GB) wird nicht geladen. Atlas nutzt dann das 4B-Modell auch für Aufgaben."

@@ -371,6 +371,43 @@ class AgentServerTests(unittest.TestCase):
         self.assertEqual(self.ollama.chat_requests()[-1]['model'], 'qwen3:8b')     # ausdrückliche Wahl bleibt
 
 
+    def test_planning_text_gets_one_nudge_then_tool_runs(self):
+        self.ollama.script = [
+            answer('Okay, the user wants me to create a folder called Studium. I need to call create_folder first, '
+                   'then I should confirm the result.'),
+            tool_call('create_folder', path='~/Documents/Studium'),
+            answer('Ich habe den Ordner Studium in Dokumente angelegt.'),
+        ]
+        _, events = self.run_agent(self.body('Erstelle einen Ordner für mein Studium in Dokumente'))
+        self.assertTrue((self.home / 'Documents' / 'Studium').is_dir())
+        nudge = self.ollama.chat_requests()[1]['messages'][-1]['content']
+        self.assertIn('KEIN Werkzeug ausgeführt', nudge)
+        self.assertNotIn('the user wants', self.text(events))
+        self.assertIn('Studium', self.text(events))
+
+    def test_only_one_nudge_and_honest_answer(self):
+        self.ollama.script = [answer('Let me think about which tool to use.')] * 3
+        _, events = self.run_agent(self.body('Erstelle einen Ordner für mein Studium in Dokumente'))
+        self.assertEqual(len(self.ollama.chat_requests()), 2)
+        self.assertEqual(list((self.home / 'Documents').iterdir()), [])
+
+    def test_german_direct_answer_is_not_nudged(self):
+        self.ollama.script = [answer('Okay, mache ich ab jetzt so.')]
+        _, events = self.run_agent(self.body('Nein, antworte ab jetzt kürzer.'))
+        self.assertEqual(len(self.ollama.chat_requests()), 1)
+        self.assertIn('mache ich', self.text(events))
+
+    def test_english_reasoning_after_tools_is_replaced_by_clean_answer(self):
+        self.ollama.script = [
+            tool_call('create_folder', path='~/Documents/Studium'),
+            answer('Okay, so the user wanted a folder. The tool returned ok, so I should tell them it worked.'),
+            answer('Der Ordner Studium ist angelegt.'),
+        ]
+        _, events = self.run_agent(self.body('Erstelle einen Ordner für mein Studium in Dokumente'))
+        self.assertIn('Der Ordner Studium ist angelegt.', self.text(events))
+        self.assertNotIn('the user', self.text(events))
+
+
 class RouterAndMemoryTests(unittest.TestCase):
     def test_routes(self):
         cases = {

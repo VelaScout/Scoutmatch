@@ -308,16 +308,47 @@ def write_file(env: Environment, path: str, content: str, overwrite: bool = Fals
     return Result(True, f'Gespeichert: {file} ({file.stat().st_size} Bytes)', verified=True, data={'path': str(file)})
 
 
-def create_spreadsheet(env: Environment, path: str, sheets: list | None = None, rows: list | None = None,
-                       overwrite: bool = False) -> Result:
-    """Legt eine Excel-Tabelle an. sheets=[{name, rows:[[...]]}] oder rows=[[...]]."""
+def normalize_rows(rows: Any, columns: Any = None, csv_text: Any = None) -> list[list]:
+    """Nimmt Tabellendaten so, wie kleine Modelle sie liefern: Listen, Objekte, CSV-Text oder JSON-Text."""
+    if isinstance(rows, str) and rows.strip().startswith('['):
+        try:
+            rows = json.loads(rows)
+        except ValueError:
+            pass
+    if csv_text is None and isinstance(rows, str):
+        csv_text, rows = rows, None
+    table: list[list] = []
+    if isinstance(csv_text, str) and csv_text.strip():
+        sample = csv_text.strip().splitlines()[0]
+        separator = ';' if sample.count(';') >= sample.count(',') else ','
+        table = [row for row in csv.reader(csv_text.strip().splitlines(), delimiter=separator) if row]
+    elif isinstance(rows, list):
+        if rows and all(isinstance(r, dict) for r in rows):
+            header = list(columns) if isinstance(columns, list) and columns else list(dict.fromkeys(k for r in rows for k in r))
+            table = [header] + [[r.get(k) for k in header] for r in rows]
+            columns = None
+        else:
+            table = [r if isinstance(r, list) else [r] for r in rows]
+    if isinstance(columns, list) and columns and (not table or [str(c) for c in table[0]] != [str(c) for c in columns]):
+        table = [list(columns)] + table
+    return [[cell.strip() if isinstance(cell, str) else cell for cell in row] for row in table]
+
+
+def create_spreadsheet(env: Environment, path: str, sheets: list | None = None, rows: Any = None,
+                       columns: list | None = None, csv_text: str | None = None, overwrite: bool = False) -> Result:
+    """Legt eine Excel-Tabelle an: columns + rows, CSV-Text oder mehrere Blätter (sheets)."""
     file = env.resolve(path, for_write=True)
     if file.suffix.lower() not in ('.xlsx', '.csv'):
         file = file.with_suffix('.xlsx')
     if file.exists() and not overwrite:
         raise ToolError(f'Datei existiert bereits: {file}')
+    if isinstance(sheets, list) and sheets:
+        sheets = [{'name': sh.get('name') or f'Tabelle{i}', 'rows': normalize_rows(sh.get('rows'), sh.get('columns'))}
+                  for i, sh in enumerate(sheets, 1) if isinstance(sh, dict)]
     if not sheets:
-        sheets = [{'name': 'Tabelle1', 'rows': rows or []}]
+        sheets = [{'name': 'Tabelle1', 'rows': normalize_rows(rows, columns, csv_text)}]
+    if not any(sheet['rows'] for sheet in sheets):
+        raise ToolError('Keine Tabellendaten. Bitte columns und rows (oder csv_text) angeben.')
     if not isinstance(sheets, list) or not all(isinstance(s, dict) for s in sheets):
         raise ToolError('sheets muss eine Liste von {name, rows} sein.')
     file.parent.mkdir(parents=True, exist_ok=True)
@@ -366,6 +397,107 @@ def cell_value(value: Any) -> Any:
     if re.fullmatch(r'-?\d+([.,]\d+)?', text.strip()):
         return float(text.replace(',', '.')) if re.search('[.,]', text) else int(text)
     return text
+
+
+CATEGORIES = {
+    'PDF': {'.pdf'}, 'Bilder': {'.jpg', '.jpeg', '.png', '.gif', '.heic', '.webp', '.tiff', '.bmp', '.svg'},
+    'Texte': {'.txt', '.md', '.rtf'}, 'Dokumente': {'.doc', '.docx', '.pages', '.odt'},
+    'Tabellen': {'.xls', '.xlsx', '.csv', '.numbers'}, 'Präsentationen': {'.ppt', '.pptx', '.key'},
+    'Audio': {'.mp3', '.m4a', '.wav', '.aac', '.flac'}, 'Videos': {'.mp4', '.mov', '.m4v', '.avi', '.mkv'},
+    'Archive': {'.zip', '.rar', '.7z', '.tar', '.gz', '.dmg'}, 'Code': {'.py', '.swift', '.js', '.ts', '.html', '.css', '.json'},
+}
+
+
+def organize_folder(env: Environment, path: str, by: str = 'typ') -> Result:
+    """Sortiert die Dateien eines Ordners in Unterordner nach Dateityp (PDF, Bilder, Texte …)."""
+    folder = env.resolve(path, must_exist=True, for_write=True)
+    if not folder.is_dir():
+        raise ToolError('Kein Ordner.')
+    if folder in env.roots or folder == env.home:
+        raise ToolError('Den gesamten Benutzerordner sortiere ich nicht – bitte einen konkreten Unterordner nennen.')
+    moved: dict[str, list[str]] = {}
+    for file in sorted(p for p in folder.iterdir() if p.is_file() and not p.name.startswith('.')):
+        category = next((name for name, suffixes in CATEGORIES.items() if file.suffix.lower() in suffixes), 'Sonstiges')
+        target = folder / category / file.name
+        if target.exists():
+            target = target.with_name(f'{file.stem}-{int(time.time())}{file.suffix}')
+        target.parent.mkdir(exist_ok=True)
+        shutil.move(str(file), str(target))
+        moved.setdefault(category, []).append(file.name)
+    loose = [p.name for p in folder.iterdir() if p.is_file() and not p.name.startswith('.')]
+    if not moved:
+        return Result(True, 'Keine losen Dateien zum Sortieren gefunden.', verified=True, data={'moved': {}})
+    summary = '; '.join(f'{name}: {", ".join(files)}' for name, files in moved.items())
+    return Result(not loose, f'Sortiert in {folder}: {summary}', verified=not loose,
+                  data={'moved': moved, 'remaining': loose})
+
+
+def replace_in_file(env: Environment, path: str, old: str, new: str) -> Result:
+    """Ersetzt eine eindeutige Textstelle in einer Datei (für Fehlerkorrekturen im Code)."""
+    file = env.resolve(path, must_exist=True, for_write=True)
+    if not isinstance(old, str) or not old or not isinstance(new, str):
+        raise ToolError('old (bisheriger Text) und new (neuer Text) angeben.')
+    text = file.read_text(encoding='utf-8')
+    count = text.count(old)
+    if count == 0:
+        # Häufig: Einrückung/Leerzeichen weichen ab – dann zeilenweise ohne führende Leerzeichen suchen.
+        stripped = old.strip()
+        lines = [line for line in text.splitlines() if line.strip() == stripped]
+        if len(lines) == 1:
+            old, count = lines[0], 1
+            indent = lines[0][:len(lines[0]) - len(lines[0].lstrip())]
+            new = indent + new.strip() if '\n' not in new.strip() else new
+    if count != 1:
+        raise ToolError(f'Die Textstelle kommt {count}-mal vor – sie muss genau einmal vorkommen. '
+                        'Erst mit read_file den genauen Wortlaut lesen.')
+    updated = text.replace(old, new, 1)
+    file.write_text(updated, encoding='utf-8')
+    ok = file.read_text(encoding='utf-8') == updated
+    return Result(ok, f'Geändert in {file}:\n- {old.strip()[:200]}\n+ {new.strip()[:200]}', verified=ok,
+                  data={'path': str(file)})
+
+
+def run_tests(env: Environment, path: str, timeout: int = 180) -> Result:
+    """Erkennt den Testbefehl eines Projekts und führt die Tests aus."""
+    overview = inspect_project(env, path)
+    commands = overview.data.get('test_commands') or []
+    command = next((c for c in commands if c.startswith(('python3 -m', 'swift test', 'npm test', 'cargo test', 'go test'))), None)
+    if command is None:
+        root = env.resolve(path, must_exist=True)
+        if any(root.rglob('test_*.py')) or any(root.rglob('*_test.py')):
+            command = 'python3 -m unittest discover -s tests -t .' if (root / 'tests').is_dir() else 'python3 -m unittest discover'
+    if command is None:
+        raise ToolError('Kein Testbefehl erkannt. Bitte den Befehl nennen (run_command).')
+    if command == 'python3 -m unittest discover -s tests':
+        command += ' -t .'
+    result = run_command(env, command, folder=path, timeout=timeout)
+    result.data['command'] = command
+    passed = result.ok
+    summary = 'Alle Tests bestanden.' if passed else 'Tests fehlgeschlagen.'
+    return Result(passed, f'{summary} Befehl: {command}\n' + result.output, verified=True, data=result.data)
+
+
+def recent_files(env: Environment, folder: str = '~', days: int = 1, limit: int = 30) -> Result:
+    """Zuletzt geänderte Dateien (z. B. „die Datei von gestern“)."""
+    base = env.resolve(folder, must_exist=True)
+    horizon = time.time() - max(1, min(int(days or 1), 60)) * 86400
+    found = []
+    for root, dirs, files in os.walk(base):
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ('Library', 'node_modules', '__pycache__')]
+        for name in files:
+            if name.startswith('.'):
+                continue
+            item = Path(root) / name
+            try:
+                stamp = item.stat().st_mtime
+            except OSError:
+                continue
+            if stamp >= horizon:
+                found.append((stamp, item))
+    found.sort(reverse=True)
+    lines = [f'{datetime.fromtimestamp(t):%d.%m. %H:%M}  {p}' for t, p in found[:max(1, min(int(limit or 30), 100))]]
+    return Result(True, '\n'.join(lines) or 'Keine Dateien in diesem Zeitraum geändert.', verified=True,
+                  data={'count': len(found)})
 
 
 def move_path(env: Environment, source: str, destination: str) -> Result:
@@ -824,11 +956,31 @@ def build_tools(env: Environment) -> dict[str, Tool]:
                  ['path', 'content']),
              bind(write_file), category='files', label='Speichert die Datei',
              risk_for=lambda a: CONFIRM if a.get('overwrite') else SAFE, describe=_describe_path('Datei ersetzen')),
-        Tool('create_spreadsheet', 'Erstellt eine Excel-Tabelle (.xlsx). Erste Zeile = Überschriften. Formeln wie "=SUM(B2:B5)" erlaubt.',
-             obj({'path': path, 'sheets': {'type': 'array', 'description': 'Liste von {"name": "...", "rows": [["A","B"],[1,2]]}',
-                                           'items': {'type': 'object'}},
-                  'rows': {'type': 'array', 'description': 'Zeilen, falls nur ein Blatt.', 'items': {'type': 'array'}}}, ['path']),
+        Tool('create_spreadsheet', 'Erstellt eine Excel-Tabelle (.xlsx) mit Daten. Einfachster Weg: columns (Überschriften) '
+                                   'und rows (Zeilen), z. B. columns=["Posten","Betrag"], rows=[["Miete",1200],["Strom",90]]. '
+                                   'Formeln wie "=SUM(B2:B3)" sind erlaubt.',
+             obj({'path': path, 'columns': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Spaltenüberschriften.'},
+                  'rows': {'type': 'array', 'items': {'type': 'array'}, 'description': 'Datenzeilen.'},
+                  'csv_text': string('Alternativ: Tabelle als CSV-Text mit ; getrennt, erste Zeile = Überschriften.'),
+                  'sheets': {'type': 'array', 'items': {'type': 'object'},
+                             'description': 'Nur für mehrere Blätter: [{"name": "...", "columns": [...], "rows": [...]}]'}},
+                 ['path']),
              bind(create_spreadsheet), category='documents', label='Erstellt die Tabelle'),
+        Tool('organize_folder', 'Sortiert alle Dateien eines Ordners automatisch in Unterordner nach Dateityp '
+                                '(PDF, Bilder, Texte, Tabellen …). Ein Aufruf erledigt alles.',
+             obj({'path': path}, ['path']), bind(organize_folder), risk=CONFIRM, category='files',
+             label='Sortiert den Ordner', describe=_describe_path('Dateien nach Typ in Unterordner sortieren')),
+        Tool('replace_in_file', 'Ändert eine Datei gezielt: ersetzt eine Textstelle (old) durch neuen Text (new). '
+                                'Ideal für Fehlerkorrekturen in Code. Vorher mit read_file den genauen Wortlaut lesen.',
+             obj({'path': path, 'old': string('Bisheriger Text, genau wie in der Datei.'), 'new': string('Neuer Text.')},
+                 ['path', 'old', 'new']), bind(replace_in_file), risk=CONFIRM, category='terminal', label='Ändert die Datei',
+             describe=lambda a: f'Datei ändern: {a.get("path")}\n- {str(a.get("old", ""))[:120]}\n+ {str(a.get("new", ""))[:120]}'),
+        Tool('run_tests', 'Erkennt den Testbefehl eines Projekts und führt die Tests aus (Python, Swift, Node, Rust, Go).',
+             obj({'path': path}, ['path']), bind(run_tests), risk=CONFIRM, category='terminal', label='Führt die Tests aus',
+             describe=lambda a: f'Tests im Projekt ausführen: {a.get("path")}'),
+        Tool('recent_files', 'Listet zuletzt geänderte Dateien, z. B. „die Datei von gestern“ (days=1) oder der letzten Woche (days=7).',
+             obj({'folder': path, 'days': {'type': 'integer'}}), bind(recent_files), category='files',
+             label='Sucht zuletzt geänderte Dateien'),
         Tool('move_path', 'Verschiebt oder benennt eine Datei/einen Ordner um.',
              obj({'source': path, 'destination': path}, ['source', 'destination']), bind(move_path),
              risk=CONFIRM, category='files', label='Verschiebt',
@@ -883,7 +1035,7 @@ def build_tools(env: Environment) -> dict[str, Tool]:
 # Schlüsselwörter, mit denen der Router passende Werkzeuggruppen auswählt (kleinere Modelle
 # arbeiten zuverlässiger, wenn sie nur die relevanten Werkzeuge sehen – und schneller).
 CATEGORY_HINTS = {
-    'files': r'datei|ordner|folder|file|speicher|dokument|pdf|lies|lese|text|schreib|notiz|liste|lösch|verschieb|umbenenn|download|schreibtisch|desktop|projekt|code',
+    'files': r'datei|ordner|folder|file|speicher|dokument|pdf|lies|lese|text|schreib|notiz|liste|lösch|verschieb|umbenenn|download|schreibtisch|desktop|projekt|code|sortier|aufräum|gestern|zuletzt',
     'documents': r'excel|tabelle|spreadsheet|xlsx|csv|kalkulation|budget|finanz|übersicht',
     'apps': r'öffne|starte|open|programm|app\b|finder|zeig',
     'web': r'such|recherch|internet|web|google|safari|browser|neueste|aktuell|news|nachrichten|website|seite|link|http',

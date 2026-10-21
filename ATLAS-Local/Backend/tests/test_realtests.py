@@ -68,6 +68,57 @@ class RealTestLogicTests(unittest.TestCase):
         self.assertEqual(report['failed'], [])     # roter Lauf wurde behoben → kein offener Fehler
         self.assertEqual(report['open'], [])
 
+    def test_sorting_with_one_high_level_tool(self):
+        self.ollama.script = [answer('{"steps": ["Ordner sortieren"]}'), tool_call('organize_folder', path='Dokumente/Ablage'),
+                              answer('Sortiert: zwei PDFs, ein Bild, ein Text.')]
+        self.assertTrue(self.run_case('ordner_sortieren'))
+
+    def test_bug_fix_with_run_tests_and_replace(self):
+        self.ollama.script = [
+            answer('{"steps": ["Tests", "Korrektur", "Tests"]}'),
+            tool_call('run_tests', path='~/Code/rechner'),
+            tool_call('read_file', path='~/Code/rechner/rechner.py'),
+            tool_call('replace_in_file', path='~/Code/rechner/rechner.py', old='brutto * (1 + steuer)', new='brutto / (1 + steuer)'),
+            tool_call('run_tests', path='~/Code/rechner'),
+            answer('Fehler behoben: Es wurde multipliziert statt geteilt. Alle Tests bestehen.'),
+        ]
+        self.assertTrue(self.run_case('fehler_beheben'))
+
+    def test_new_everyday_cases_check_real_results(self):
+        self.ollama.script = [tool_call('create_folder', path='~/Documents/Studium'), answer('Ordner Studium angelegt.')]
+        self.assertTrue(self.run_case('ordner_studium'))
+        self.ollama.script = [tool_call('write_file', path='~/Desktop/einkauf.md', content='# Einkauf\n- Milch\n- Brot\n- Eier\n'),
+                              answer('Gespeichert.')]
+        self.assertTrue(self.run_case('markdown_liste'))
+        self.ollama.script = [tool_call('recent_files', folder='~/Downloads', days=1),
+                              lambda body: answer('Gestern: ' + ('Angebot-Mueller.pdf' if 'Angebot-Mueller' in body['messages'][-1]['content'] else 'nichts'))]
+        self.assertTrue(self.run_case('datei_von_gestern'))
+        self.ollama.script = [tool_call('read_file', path='Dokumente/ausgaben.csv'),
+                              tool_call('calculate', expression='1100+95+40+110'),
+                              lambda body: answer('Die Summe ist ' + __import__('json').loads(body['messages'][-1]['content'])['output'])]
+        self.assertTrue(self.run_case('csv_summe'))
+
+    def test_compare_picks_best_model_and_applies_it(self):
+        import json
+        import os
+        import subprocess
+        import sys
+        home = Path(self.tmp.name) / 'nutzer'
+        home.mkdir()
+        self.ollama.models = ['qwen3:4b', 'qwen3:4b-instruct-2507-q4_K_M']
+        # Instruct-Modell beantwortet die Kurzfrage richtig, das Denk-Modell nicht.
+        self.ollama.stream_text = ['Paris ist die Hauptstadt.']
+        self.ollama.reasoning = False
+        out = Path(self.tmp.name) / 'r.json'
+        done = subprocess.run([sys.executable, '-m', 'atlas.realtests', '--quick', '--compare', '--apply', '--output', str(out)],
+                              cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, timeout=200,
+                              env={**os.environ, 'ATLAS_OLLAMA_URL': self.ollama.url, 'HOME': str(home)})
+        report = json.loads(out.read_text())
+        self.assertEqual(set(report['comparison']), {'qwen3:4b', 'qwen3:4b-instruct-2507-q4_K_M'}, done.stdout + done.stderr)
+        settings = json.loads((home / '.atlas-ai' / 'settings.json').read_text())
+        self.assertEqual(settings['agent_model'], report['best_model'])
+        self.assertIn('bestanden', done.stdout)
+
     def test_bug_fix_without_confirmation_changes_nothing(self):
         original = (self.home / 'Code/rechner/rechner.py').read_text()
         self.ollama.script = [

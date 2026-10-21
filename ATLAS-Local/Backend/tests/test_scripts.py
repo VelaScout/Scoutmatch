@@ -127,7 +127,7 @@ class ScriptTests(unittest.TestCase):
         text = done.stdout
         self.assertIn('8/12 bestanden', text)
         self.assertIn('DENK-MODELL', text)
-        self.assertIn('qwen3:8b fehlt', text)
+        self.assertIn('qwen3:4b-instruct fehlt', text)
         self.assertIn('XX anweisung', text)
         self.assertIn('Spracherkennung: OK', text)
 

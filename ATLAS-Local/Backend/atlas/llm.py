@@ -24,7 +24,9 @@ MODEL_PATTERN = re.compile(r'^[a-z0-9][a-z0-9._/-]{0,60}(:[A-Za-z0-9._-]{1,40})?
 # womöglich die Denk-Variante (2507), die vor jeder Antwort ein langes Selbstgespräch schreibt.
 INSTRUCT_MODELS = ['qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b-instruct']
 CHAT_PREFERENCE = INSTRUCT_MODELS + ['qwen3:4b', 'qwen3:8b']
-AGENT_PREFERENCE = ['qwen3:8b', 'qwen3:14b'] + INSTRUCT_MODELS + ['qwen3:4b']
+# Ein schnelles Modell für Gespräch UND Werkzeuge spart auf 16 GB Speicher und Ladezeit. qwen3:4b-instruct-2507
+# ruft Werkzeuge zuverlässig auf; der Mac-Test (atlas.realtests --compare) prüft das und kann umstellen.
+AGENT_PREFERENCE = INSTRUCT_MODELS + ['qwen3:8b', 'qwen3:14b', 'qwen3:4b']
 VISION_PREFERENCE = ['gemma3:4b', 'qwen2.5vl:7b', 'gemma3:12b', 'llava:7b', 'minicpm-v']
 EMBED_PREFERENCE = ['qwen3-embedding:0.6b', 'nomic-embed-text', 'nomic-embed-text:latest', 'mxbai-embed-large']
 
@@ -42,6 +44,8 @@ class Reply:
     content: str = ''
     tool_calls: list = field(default_factory=list)
     metrics: dict = field(default_factory=dict)
+    # Denktext, den Ollama getrennt liefert (message.thinking) bzw. vor </think> stand – nie anzeigen.
+    thinking: str = ''
 
 
 class Ollama:
@@ -52,6 +56,8 @@ class Ollama:
         self.reachable = True
         # Modelle, die immer „denken“ (Antwort beginnt mit Selbstgespräch bis </think>).
         self._reasoning: dict[str, bool] = {}
+        # Vom Mac-Vergleichstest ermittelte Empfehlung (~/.atlas-ai/settings.json): {'chat': …, 'agent': …}
+        self.preferred: dict[str, str | None] = {}
         self._lock = threading.Lock()
 
     def _post(self, path: str, payload: dict, timeout: float):
@@ -89,8 +95,21 @@ class Ollama:
     def fast_model(self, wanted: str | None = None) -> str:
         """Modell für schnelle Gespräche. „qwen3:4b“ bedeutet: das schnellste 4B ohne Denkschritt."""
         if wanted in (None, '', 'qwen3:4b'):
+            preferred = self.preferred.get('chat')
+            if preferred and preferred in self.installed():
+                return preferred
             return self.require(CHAT_PREFERENCE)
         return self.require(CHAT_PREFERENCE, wanted)
+
+    def agent_model(self, wanted: str | None = None) -> str:
+        """Modell für Aufgaben mit Werkzeugen: ausdrückliche Wahl > Messergebnis > Vorgabeliste."""
+        names = self.installed()
+        if wanted and wanted not in ('qwen3:4b',) and wanted in names:
+            return wanted
+        preferred = self.preferred.get('agent')
+        if preferred and preferred in names:
+            return preferred
+        return self.require(AGENT_PREFERENCE)
 
     def reasoning_only(self, model: str) -> bool:
         """Prüft einmal je Modell, ob es trotz think=false ein Selbstgespräch voranstellt."""
@@ -153,7 +172,11 @@ class Ollama:
         if data.get('error'):
             raise ModelError(str(data['error'])[:300])
         message = data.get('message') or {}
-        content = strip_think(message.get('content') or '')
+        raw_content = message.get('content') or ''
+        thinking = str(message.get('thinking') or '')
+        if '</think>' in raw_content:
+            thinking += raw_content.split('</think>')[0]
+        content = strip_think(raw_content)
         calls = []
         for call in message.get('tool_calls') or []:
             function = call.get('function') or {}
@@ -173,7 +196,7 @@ class Ollama:
                    'prompt_tokens': data.get('prompt_eval_count'), 'tokens': data.get('eval_count'),
                    'tokens_per_s': round(data.get('eval_count', 0) / duration, 1) if duration else None,
                    'load_s': round((data.get('load_duration') or 0) / 1e9, 2)}
-        return Reply(content.strip(), calls, metrics)
+        return Reply(content.strip(), calls, metrics, thinking)
 
     def stream(self, model: str, messages: list[dict], *, num_ctx: int = 8192, num_predict: int = 700,
                temperature: float = 0.4, timeout: float = 90, stop=None):
