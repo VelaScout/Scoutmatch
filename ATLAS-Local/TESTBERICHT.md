@@ -1,33 +1,114 @@
-# Testbericht ATLAS Local 0.2.3
+# Testbericht ATLAS Local 0.3.0
 
-## Hier tatsächlich ausgeführt
+Stand: 21.10.2026. Entwicklungsumgebung: Linux-Container ohne Mac, ohne Swift-Compiler, ohne Ollama-Modelle.
 
-82 Python-Tests erfolgreich, einschließlich 16 zusätzlicher Tests für Befehle/Rechnen. Viele Tests enthalten mehrere Eingabevarianten. Das Python-Rohprotokoll steht in TESTRESULTS-0.2.3.txt.
+Die Netzwerkregel der Umgebung sperrt `ollama.com`, `registry.ollama.ai` und `huggingface.co`.
 
-Geprüft wurden: Dezimalrechnung und Operatorreihenfolge, Negativwerte, Rundungskennzeichnung, begrenzte Ausdrucksgröße/-tiefe, Ablehnung von Codeausführung und Potenzen, Kontextpräfix, einfache Fragen versus Erklärungswunsch, alle erlaubten Öffnen-Ziele, Reihenfolge/Deduplizierung/maximal drei Ziele, Negation und eingeschleuste Befehle, explizite Erinnerungen, Token/Origin, keine Modellanfrage für einfache Rechnungen, keine Aktion beim bloßen Planen und zwei tatsächlich bestätigte Aufrufe des simulierten Betriebssystems. Die bestehenden 66 Tests für Chat, Fehler, Daten, Abbruch, Audio-Codecs und Diagnose wurden ebenfalls wiederholt.
+## 1. Hier tatsächlich ausgeführt
 
-Neun Chromium-Prüfgruppen: Start/Health, Streaming/Timing, Gedächtnis/HTML als Text, Abbruch, Verlaufs-/Sprachzustand, bestätigte Aktionen, simuliertes Mikrofon, Autosenden/Vorlesen, keine JavaScript-Laufzeitfehler. Das ist die Weboberfläche, kein SwiftUI-Test. Modell, STT und Mac-Aktionen sind simuliert; MP4/AAC und WebM/Opus wurden mit echtem ffmpeg dekodiert.
+**123 Python-Tests bestanden** (vorher 82; 41 neu). Rohprotokoll: `TESTRESULTS-0.3.0.txt`.
 
-Python-Kompilierung und Bash-Syntax werden geprüft. Keine gemessene M4-Latenz und kein echter Hörtest hier.
+### Werkzeuge (`test_tools.py`, 21 Tests)
 
-## Automatisch im Mac-Update vorbereitet, hier nicht ausgeführt
+Echt ausgeführt, in einem temporären Home-Ordner:
 
-- Swift-Provider: Health, echte URLSession-Streamingverarbeitung gegen isolierten lokalen Testserver, unvollständige Antwort, Serverfehler, Längenlimit, Weiterleitungsblockade, Modellliste, direkter Rechnerpfad.
-- Neu: Bestätigungspayload mit approved=true; zwei Werkzeuge nacheinander; Stopp nach Ablehnung; Werkzeugliste; keine Werkzeuge in einem Aufruf ohne Ausführer.
-- Sprachtext: kurze Zeilen werden zusammengehalten; Doppelpunkt zerlegt keinen Satz; vollständige Satzgrenze; Resttext; Markdownbereinigung; Englischsegment.
-- Vollständiger Xcode-Build und Prüfung der lokalen Signatur.
-- Nach Austausch des Backends: Anfrage an den echten Dienst ergibt 391 für 17*23.
+- Ordner und Dateien anlegen, Inhalt zurücklesen.
+- Überschreibschutz: Ersetzen geht nur mit Bestätigung.
+- PDF-Text auslesen (echtes PDF, pypdf).
+- Excel mit Formeln, Zahlen und fetter Kopfzeile anlegen und wieder einlesen (openpyxl). Ersatz als CSV, wenn openpyxl fehlt.
+- Verschieben, Papierkorb statt endgültigem Löschen.
+- Dateisuche.
+- Terminalbefehle wirklich ausführen, mit Exit-Code, Arbeitsordner und Zeitlimit.
+- Pfadregeln: außerhalb des Home-Ordners, `~/Library`, versteckte Ordner, Symlink-Ausbruch.
+- Risikostufen für 15 Befehle.
+- URL-Filter (`file:`, localhost, lokales Netz).
+- Suchergebnisse auswerten, Webseitentext ohne Skripte.
+- Rechnen mit Prozent und Dezimalkomma.
+- Werkzeugschemas sind gültige Ollama-Funktionen.
 
-## Was auf dem Mac offen bleibt
+Simuliert: macOS-Programme (`open`, `pgrep`) und Webseiteninhalte.
 
-Die native Ausgabe, Spracheingabe und die neuen SwiftData-Schreibwege lassen sich hier unter Linux nicht ausführen. Hörqualität, Unterbrechen während der Ausgabe, deutsches/englisches Sprachpaket, Mikrofonfreigaben, Stop/Neustart, Erinnerungen über App-Neustarts, echtes Öffnen der Apps/Ordner sowie Hologramm müssen auf macOS geprüft werden. Ein bestandener Build beweist diese Laufzeiteigenschaften nicht.
+### Agent über den echten HTTP-Server (`test_agent.py`, 20 Tests)
 
-Der mitgelieferte MAC_TESTEN.command misst echte Qwen-Antworten und eine say→Whisper-Dateirunde. Er ersetzt keine inhaltliche Bewertung, keinen nativen Hörtest und keinen Mikrofontest. Einfache Soll-Prüfungen sind bei Rechnen/Anweisung/Kontext enthalten; freie Antworten bleiben manuell zu bewerten.
+Simuliertes Modell, alles andere echt:
 
-## Fehler während der Entwicklung
+- Rechnung ohne Modellaufruf.
+- Smalltalk im Stream ohne Werkzeuge mit dem schnellen Modell.
+- Ordner und Datei per Agent wirklich angelegt; der Agent wählt das größere Modell und sieht die Dateiwerkzeuge.
+- Löschen:
+  - Mit Bestätigungsrundreise.
+  - Ablehnung wird respektiert und erscheint im Bericht nicht als Fehler.
+  - Nach Zustimmung landet die Datei im Papierkorb.
+- `sudo rm -rf /` wird gesperrt, ohne nachzufragen.
+- Kalender-Rundreise zur App.
+- Falsche Erfolgsbehauptung des Modells wird korrigiert.
+- Keine Endlosschleife bei wiederholtem Fehler.
+- Planmodus mit Bericht über offene Schritte.
+- Abbruch, während der Agent auf die App wartet (unter 4 s).
+- Parallele Anfrage ergibt HTTP 409.
+- Ungültige Anfragen und Cloud-Modelle werden abgewiesen.
+- Ergebnisse nur mit Token.
+- Werkzeugaufrufe als Text werden verstanden.
+- Passende Erinnerungen werden semantisch ausgewählt.
 
-Der Test der zweistufigen Aktion hat zunächst einen fehlenden approved=true-Wert aufgedeckt. Der Swift-Aufruf wurde korrigiert und ein Mac-Vertragstest ergänzt. Alle 82 Python-Tests sind danach bestanden. Die tatsächliche Swift-Ausführung dieses neuen Tests bleibt bis zum Mac-Update offen.
+### Router und Gedächtnis
 
-## Grenzen der Autonomie
+- 7 Routing-Fälle aus dem Projektauftrag.
+- Lexikalische Erinnerungssuche.
+- Zusammenfassungs-Cache.
+- Sperre für Cloud-Modelle.
 
-Die Aufgabenfolge ist ein begrenzter Parser für ausdrückliche Befehle, kein frei planender Agent. Öffnen muss bestätigt werden, und bei Fehler/Abbruch wird die Folge beendet. Keine beliebige Dateiveränderung, kein Shellzugriff des Sprachmodells, keine Mail-/Kalenderänderungen. Das Modell wird nicht durch diese Tests auf ChatGPT-Niveau validiert.
+### Bestehende Tests von 0.2.3
+
+Alle 82 erneut bestanden: Chat, Fehler, Daten, Abbruch, Audio-Codecs mit echtem ffmpeg, Diagnose, Befehle, Rechnen.
+
+### Weitere Prüfungen
+
+- **9 Chromium-Prüfgruppen** der Weboberfläche bestanden (Playwright; Modell, Spracherkennung und Betriebssystem simuliert).
+- **Swift-Testumgebung geprüft:** `Tests/agent_fixture.py` (echtes Backend, simuliertes Modell) wurde mit einem Python-Client durchgespielt, der den Swift-Client nachbildet. Geprüft wurden Health, Stream, Rechnung, echter Ordner, Kalender-Rundreise, Löschen Nein/Ja und Fehlermeldung.
+- **Swift-Syntax** der geänderten Dateien mit tree-sitter geprüft. Das ist kein Compiler-Lauf.
+
+## 2. Automatisch auf dem Mac, hier NICHT ausführbar
+
+| Prüfung | Wo | Art |
+|---|---|---|
+| Xcode-Build und Signatur | `BAUEN.command` (Teil von Update/Installation) | echt |
+| Swift ⇄ Backend, 9 Prüfungen | `Tests/test_provider_mac.sh` | echtes Backend, Modell simuliert |
+| Sprachtext-Tests (Swift) | dito | echt |
+| 123 Backend-Tests in der Atlas-Python-Umgebung | Update und `MAC_TESTEN.command` | wie oben |
+| **10 Aufgaben mit dem echten Qwen** | `MAC_TESTEN.command` → `build/MAC-ECHTE-MODELLTESTS.json` | **echte Modellaufrufe** |
+| Antwortzeiten (erste Ausgabe, gesamt) je Aufgabe | dito | echt gemessen |
+| Dienstprüfung nach dem Update (Agent-Protokoll, Rechner) | `AKTUALISIEREN.command` | echt |
+| Spracherkennung mit synthetischer Stimme | `atlas.doctor --audio` | echt, ohne Mikrofon |
+
+Die 10 echten Aufgaben werden am **Ergebnis** geprüft, nicht nur am Aufruf:
+
+1. Rechnung
+2. Prozent
+3. Kurze Antwort (Paris)
+4. Englisch (Tokyo)
+5. Ordner plus Datei mit Inhalt
+6. Excel mit Miete 1200
+7. PDF-Umsatz 42000
+8. Speicherplatz mit Systemwerkzeug
+9. Löschen abgelehnt, die Datei bleibt
+10. Keine erfundene E-Mail
+
+Fehlt Ollama, steht im Bericht „nicht ausgeführt“, nicht „bestanden“.
+
+## 3. Nur von Hand auf dem Mac prüfbar
+
+- Mikrofon und Freigaben, Wake-Word „Atlas“, Unterbrechen während der Ausgabe.
+- Klang der Stimme. Bitte eine Premium-Stimme laden.
+- Echte Bestätigungsdialoge in der App, Kalender und Erinnerungen mit Ihren Daten, Safari-Öffnen.
+- Datei-Freigabe-Dialoge von macOS für „python3“.
+- Gefühlte Gesprächsqualität bei freien Fragen. Die automatischen Fälle sind eng und kein Qualitätsnachweis auf ChatGPT-Niveau.
+
+## 4. Während der Entwicklung gefundene und behobene Fehler
+
+1. `~` wurde auf das echte statt auf das konfigurierte Home-Verzeichnis aufgelöst. Gefunden durch den Pfadtest; behoben, mit Regressionstest.
+2. Der Router plante einfache Zwei-Schritte-Aufgaben unnötig (eine zusätzliche Modellrunde). Ursache: „Schreibtisch“ wurde als Verb „schreib…“ gezählt. Behoben, mit Test.
+3. Aufgabenwörter wie „erstelle“ und „speichere“ wurden wegen einer Wortgrenze nicht erkannt. Umgestellt auf Wortanfänge, mit Tests.
+4. Eine abgelehnte Aktion erschien im Bericht als „fehlgeschlagen“. Jetzt steht sie als „nicht ausgeführt, weil abgelehnt“ da.
+5. Die Health-Abfrage nutzte eine feste Ollama-Adresse statt der konfigurierten. Behoben (wichtig für die Swift-Testumgebung).
+6. „Wie viel sind 19 Prozent von 2500“ ging ans Modell statt an den exakten Rechner. Behoben.

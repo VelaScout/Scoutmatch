@@ -10,13 +10,13 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var settings = settings
         Form {
-            Section("Atlas Local · 0.2.3") {
+            Section("Atlas Local · 0.3.0") {
                 Text(status).font(.callout).textSelection(.enabled)
                 Button("Verbindung prüfen") { Task { await check() } }.disabled(busy)
                 Picker("Modell", selection: $settings.model) {
                     ForEach(AtlasModel.allCases) { Text($0.displayName).tag($0) }
                 }
-                Text("4B ist der Standard für 16 GB RAM. 8B zuerst mit Backend/enable_quality.command laden.").font(.caption)
+                Text("Gespräche: das gewählte Modell (4B antwortet am schnellsten). Aufgaben mit Werkzeugen erledigt Atlas automatisch mit 8B, wenn es installiert ist – das Update lädt es.").font(.caption)
             }
             Section("Sprache auf diesem Mac") {
                 Picker("Sprache", selection: $settings.language) {
@@ -26,7 +26,7 @@ struct SettingsView: View {
                     Text("Systemstimme").tag("")
                     ForEach(AVSpeechSynthesisVoice.speechVoices().filter {
                         !$0.voiceTraits.contains(.isNoveltyVoice) && $0.language.hasPrefix(String(settings.language.rawValue.prefix(2)))
-                    }, id: \.identifier) { voice in Text(voice.name).tag(voice.identifier) }
+                    }, id: \.identifier) { voice in Text("\(voice.name) · \(SpeechSynthesizer.qualityLabel(voice))").tag(voice.identifier) }
                 }
                 Slider(value: $settings.speechRate, in: 0.35...0.6) { Text("Sprechtempo") }
                 Toggle("Mikrofon", isOn: Binding(get: { settings.microphoneEnabled }, set: { engine.setMicrophoneEnabled($0) }))
@@ -34,7 +34,7 @@ struct SettingsView: View {
                 Toggle("Auf das Wort Atlas warten", isOn: $settings.wakeWordEnabled)
                 Toggle("Im Hintergrund zuhören", isOn: $settings.backgroundListening)
                 Text("Ausgewählte Systemstimme: " + (SpeechSynthesizer.voice(for: settings.voiceIdentifier, language: settings.language)?.name ?? "Nicht verfügbar")).font(.caption)
-                Text("Apple-Spracherkennung ausschließlich auf dem Gerät. Fehlt das lokale Sprachpaket, zeigt Atlas einen Fehler; Texteingabe funktioniert weiter. Zusätzliche Stimmen können in macOS geladen werden.").font(.caption)
+                Text("Apple-Spracherkennung ausschließlich auf dem Gerät. Fehlt das lokale Sprachpaket, zeigt Atlas einen Fehler; Texteingabe funktioniert weiter. Natürlicher klingt eine Premium-Stimme: Systemeinstellungen → Bedienungshilfen → Gesprochene Inhalte → Systemstimme → Stimmen verwalten → Deutsch → „Premium“ laden.").font(.caption)
             }
             Section("Persönlichkeit und Darstellung") {
                 TextField("Ihr Name", text: $settings.userName)
