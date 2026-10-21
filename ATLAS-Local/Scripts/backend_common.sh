@@ -34,7 +34,11 @@ atlas_pull_models() {
     fi
     echo "Lade lokales Modell $model (einmalig) …"
     ollama pull "$model" || echo "Hinweis: $model konnte nicht geladen werden. Atlas funktioniert mit den vorhandenen Modellen weiter."
-  done
+  done  # Optional: Bildmodell für Bildschirm- und Bildanalyse (ca. 3 GB): ATLAS_WITH_VISION=1
+  if [[ "${ATLAS_WITH_VISION:-0}" == 1 ]] && ! ollama list 2>/dev/null | awk '{print $1}' | grep -Eqx 'gemma3:4b'; then
+    echo 'Lade Bildmodell gemma3:4b …'
+    ollama pull gemma3:4b || echo 'Hinweis: Bildmodell konnte nicht geladen werden.'
+  fi
 }
 
 # Autostart des Backends bei der Anmeldung, mit der eigenen Python-Umgebung.

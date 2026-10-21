@@ -237,6 +237,69 @@ class ToolTests(unittest.TestCase):
         info = self.call('system_info')
         self.assertIn('Speicher frei', info.output)
 
+    def mac_env(self, vision=None, stdout=''):
+        runner_calls = []
+
+        def runner(args, **kwargs):
+            runner_calls.append(args)
+            if args[0] == 'screencapture':
+                Path(args[-1]).write_bytes(b'PNGDATA')
+            if args[0] == 'git':
+                return subprocess.CompletedProcess(args, 0, '## main\n M app.py\n', '')
+            return subprocess.CompletedProcess(args, 0, stdout, '')
+        env = t.Environment(home=self.home, roots=[self.home], runner=runner, is_mac=True,
+                            fetch=lambda url, timeout: self.pages[url], vision=vision)
+        return t.build_tools(env), runner_calls
+
+    def test_screen_analysis_uses_local_vision_and_deletes_photo(self):
+        seen = []
+
+        def vision(images, question):
+            seen.append((images, question))
+            return 'Fehlermeldung: Datei nicht gefunden.'
+        tools, calls = self.mac_env(vision)
+        result = tools['analyze_screen'].func(question='Was steht in der Fehlermeldung?')
+        self.assertTrue(result.verified)
+        self.assertIn('Datei nicht gefunden', result.output)
+        self.assertEqual(seen[0][0], [b'PNGDATA'])
+        shot = Path(calls[0][-1])
+        self.assertFalse(shot.exists())
+        self.assertNotIn(str(self.home), str(shot))
+
+    def test_vision_missing_gives_clear_hint(self):
+        tools, _ = self.mac_env(vision=None)
+        with self.assertRaises(t.ToolError) as caught:
+            tools['analyze_screen'].func()
+        self.assertIn('ollama pull', str(caught.exception))
+        (self.home / 'Desktop' / 'foto.jpg').write_bytes(b'JPG')
+        tools, _ = self.mac_env(vision=lambda images, q: 'Ein Hund im Park.')
+        self.assertEqual(tools['analyze_image'].func(path='~/Desktop/foto.jpg').output, 'Ein Hund im Park.')
+        with self.assertRaises(t.ToolError):
+            tools['analyze_image'].func(path='~/Desktop/nicht-da.jpg')
+
+    def test_safari_current_page(self):
+        self.pages['https://example.org/artikel'] = '<html><body><h1>KI heute</h1><p>Neue Modelle.</p></body></html>'
+        tools, calls = self.mac_env(stdout='https://example.org/artikel\nKI heute – Beispiel\n')
+        result = tools['safari_current_page'].func()
+        self.assertEqual(result.data['url'], 'https://example.org/artikel')
+        self.assertIn('Neue Modelle.', result.output)
+        self.assertEqual(calls[0][0], 'osascript')
+
+    def test_inspect_project_detects_type_tests_and_git(self):
+        project = self.home / 'Code' / 'shop'
+        (project / 'tests').mkdir(parents=True)
+        (project / '.git').mkdir()
+        (project / 'requirements.txt').write_text('flask')
+        (project / 'README.md').write_text('# Shop\nEin kleiner Webshop.')
+        (project / 'app.py').write_text('print(1)')
+        tools, _ = self.mac_env()
+        result = tools['inspect_project'].func(path='~/Code/shop')
+        self.assertEqual(result.data['kinds'], ['Python'])
+        self.assertEqual(result.data['test_commands'], ['python3 -m unittest discover -s tests'])
+        self.assertIn('M app.py', result.output)
+        self.assertIn('Ein kleiner Webshop', result.output)
+        self.assertIn('app.py', result.output)
+
     def test_screenshot_only_on_mac(self):
         with self.assertRaises(t.ToolError):
             self.call('take_screenshot')

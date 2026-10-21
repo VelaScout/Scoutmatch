@@ -98,13 +98,16 @@ class Environment:
 
     def __init__(self, home: Path | None = None, roots: list[Path] | None = None,
                  runner: Callable[..., subprocess.CompletedProcess] | None = None,
-                 fetch: Callable[[str, float], str] | None = None, is_mac: bool | None = None):
+                 fetch: Callable[[str, float], str] | None = None, is_mac: bool | None = None,
+                 vision: Callable[[list[bytes], str], str | None] | None = None):
         self.home = (home or Path.home()).resolve()
         self.roots = [r.resolve() for r in (roots or [self.home])]
         self.runner = runner or subprocess.run
         self.fetch = fetch or http_get
         self.is_mac = platform.system() == 'Darwin' if is_mac is None else is_mac
         self.trash = self.home / '.Trash'
+        # Lokales Bildmodell (Ollama), falls installiert: Bilder → Beschreibung/Antwort.
+        self.vision = vision
 
     def run(self, args: list[str], timeout: float = 20, cwd: Path | None = None,
             input_text: str | None = None) -> subprocess.CompletedProcess:
@@ -613,6 +616,120 @@ def take_screenshot(env: Environment, path: str = '') -> Result:
     return Result(True, f'Bildschirmfoto gespeichert: {target}', verified=True, data={'path': str(target)})
 
 
+VISION_HINT = ('Für Bildanalyse fehlt ein lokales Bildmodell. Nachrüsten im Terminal: "ollama pull gemma3:4b" '
+               '(ca. 3 GB) – danach versteht ATLAS Bildschirm und Bilder.')
+
+
+def ask_vision(env: Environment, images: list[bytes], question: str) -> str:
+    if env.vision is None:
+        raise ToolError(VISION_HINT)
+    answer = env.vision(images, question or 'Beschreibe kurz und sachlich, was zu sehen ist. Nenne lesbare Texte.')
+    if not answer:
+        raise ToolError(VISION_HINT)
+    return answer.strip()
+
+
+def analyze_screen(env: Environment, question: str = '') -> Result:
+    """Bildschirmfoto (nur temporär, wird sofort gelöscht) und Analyse mit dem lokalen Bildmodell."""
+    if not env.is_mac:
+        raise ToolError('Bildschirmanalyse gibt es nur auf dem Mac.')
+    if env.vision is None:
+        raise ToolError(VISION_HINT)
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        shot = Path(folder) / 'screen.png'
+        done = env.run(['screencapture', '-x', '-t', 'png', str(shot)], timeout=20)
+        if done.returncode != 0 or not shot.is_file() or shot.stat().st_size == 0:
+            raise ToolError('Bildschirmfoto fehlgeschlagen. macOS verlangt dafür die Freigabe „Bildschirmaufnahme“ für Python '
+                            '(Systemeinstellungen → Datenschutz & Sicherheit).')
+        answer = ask_vision(env, [shot.read_bytes()], question)
+    return Result(True, answer, verified=True, data={'quelle': 'Bildschirm (Foto bereits gelöscht)'})
+
+
+def analyze_image(env: Environment, path: str, question: str = '') -> Result:
+    file = env.resolve(path, must_exist=True)
+    if file.suffix.lower() not in ('.png', '.jpg', '.jpeg', '.heic', '.gif', '.webp', '.bmp', '.tiff'):
+        raise ToolError('Keine Bilddatei.')
+    if file.stat().st_size > 20_000_000:
+        raise ToolError('Bild ist zu groß (über 20 MB).')
+    return Result(True, ask_vision(env, [file.read_bytes()], question), verified=True, data={'path': str(file)})
+
+
+def safari_current_page(env: Environment, max_chars: int = 8_000) -> Result:
+    """Liest Adresse, Titel und Text der vorne geöffneten Safari-Seite (macOS fragt einmal nach Erlaubnis)."""
+    if not env.is_mac:
+        raise ToolError('Safari gibt es nur auf dem Mac.')
+    script = 'tell application "Safari" to return (URL of front document) & linefeed & (name of front document)'
+    done = env.run(['osascript', '-e', script], timeout=10)
+    if done.returncode != 0 or not done.stdout.strip():
+        raise ToolError('Keine Safari-Seite geöffnet oder Steuerung von Safari nicht erlaubt '
+                        '(Systemeinstellungen → Datenschutz & Sicherheit → Automation).')
+    url, _, title = done.stdout.strip().partition('\n')
+    text = ''
+    try:
+        text = html_to_text(env.fetch(safe_url(url), 20))
+    except (ToolError, OSError, ValueError):
+        text = '(Seiteninhalt konnte nicht geladen werden – evtl. Anmeldung nötig oder lokale Seite.)'
+    limit = max(1_000, min(int(max_chars or 8_000), 30_000))
+    return Result(True, f'{title.strip()}\n{url.strip()}\n\n{text[:limit]}', verified=True,
+                  data={'url': url.strip(), 'title': title.strip()})
+
+
+PROJECT_MARKERS = [
+    ('Package.swift', 'Swift-Paket', 'swift test'),
+    ('*.xcodeproj', 'Xcode-Projekt', 'xcodebuild -list'),
+    ('pyproject.toml', 'Python', 'python3 -m pytest'),
+    ('setup.py', 'Python', 'python3 -m pytest'),
+    ('requirements.txt', 'Python', 'python3 -m pytest'),
+    ('package.json', 'JavaScript/Node', 'npm test'),
+    ('Cargo.toml', 'Rust', 'cargo test'),
+    ('go.mod', 'Go', 'go test ./...'),
+]
+
+
+def inspect_project(env: Environment, path: str) -> Result:
+    """Überblick über ein Softwareprojekt: Art, Struktur, README, Tests, Git-Status."""
+    root = env.resolve(path, must_exist=True)
+    if not root.is_dir():
+        raise ToolError('Kein Projektordner.')
+    kinds, commands = [], []
+    for pattern, kind, command in PROJECT_MARKERS:
+        if list(root.glob(pattern)):
+            kinds.append(kind)
+            commands.append(command)
+    if (root / 'package.json').is_file():
+        try:
+            scripts = json.loads((root / 'package.json').read_text(encoding='utf-8')).get('scripts', {})
+            if 'test' not in scripts:
+                commands = [c for c in commands if c != 'npm test']
+        except ValueError:
+            pass
+    if 'Python' in kinds and not any(root.rglob('conftest.py')) and (root / 'tests').is_dir():
+        commands = [c.replace('python3 -m pytest', 'python3 -m unittest discover -s tests') for c in commands]
+    tree = []
+    for item in sorted(root.rglob('*')):
+        relative = item.relative_to(root)
+        if any(part.startswith('.') or part in ('node_modules', '__pycache__', 'build', 'DerivedData', 'venv', '.venv')
+               for part in relative.parts):
+            continue
+        if len(relative.parts) <= 2:
+            tree.append(('  ' * (len(relative.parts) - 1)) + relative.name + ('/' if item.is_dir() else ''))
+        if len(tree) >= 80:
+            tree.append('…')
+            break
+    readme = next((p for p in root.iterdir() if p.name.lower().startswith('readme')), None)
+    summary = [f'Projekt: {root}', 'Art: ' + (', '.join(dict.fromkeys(kinds)) or 'unbekannt'),
+               'Vorgeschlagene Tests: ' + (', '.join(dict.fromkeys(commands)) or 'keine erkannt')]
+    if (root / '.git').exists():
+        done = env.run(['git', 'status', '--short', '--branch'], timeout=10, cwd=root)
+        summary.append('Git:\n' + (done.stdout.strip()[:1500] or '(sauber)'))
+    summary.append('Struktur:\n' + '\n'.join(tree))
+    if readme:
+        summary.append('README (Anfang):\n' + readme.read_text(encoding='utf-8', errors='replace')[:1500])
+    return Result(True, '\n\n'.join(summary), verified=True,
+                  data={'kinds': list(dict.fromkeys(kinds)), 'test_commands': list(dict.fromkeys(commands))})
+
+
 def calculate_tool(env: Environment, expression: str) -> Result:
     answer = calculate(normalize_expression(str(expression)))
     if answer is None:
@@ -685,6 +802,18 @@ def build_tools(env: Environment) -> dict[str, Tool]:
              describe=lambda a: f'Terminal ({a.get("folder", "~")}): {a.get("command")}'),
         Tool('take_screenshot', 'Macht ein Bildschirmfoto und speichert es.', obj({'path': path}), bind(take_screenshot),
              category='screen', label='Macht ein Bildschirmfoto'),
+        Tool('analyze_screen', 'Schaut auf den Bildschirm (lokales Bildmodell) und beantwortet eine Frage dazu, '
+                               'z. B. „Was steht in der Fehlermeldung?“. Das Foto wird sofort wieder gelöscht.',
+             obj({'question': string('Was soll auf dem Bildschirm geprüft werden?')}), bind(analyze_screen),
+             category='screen', label='Schaut auf den Bildschirm'),
+        Tool('analyze_image', 'Analysiert eine Bilddatei (Foto, Screenshot, Scan) mit dem lokalen Bildmodell.',
+             obj({'path': path, 'question': string('Frage zum Bild.')}, ['path']), bind(analyze_image),
+             category='screen', label='Analysiert das Bild'),
+        Tool('safari_current_page', 'Liest die gerade in Safari geöffnete Seite (Adresse, Titel, Text).',
+             obj({}), bind(safari_current_page), category='web', label='Liest die Safari-Seite'),
+        Tool('inspect_project', 'Verschafft einen Überblick über ein Softwareprojekt: Art, Struktur, README, '
+                                'passende Testbefehle, Git-Status. Erster Schritt bei Fehlersuche.',
+             obj({'path': path}, ['path']), bind(inspect_project), category='terminal', label='Untersucht das Projekt'),
         Tool('calculate', 'Rechnet exakt: + − × ÷, Klammern, Prozent ("15% von 80").',
              obj({'expression': string('Rechenausdruck.')}, ['expression']), bind(calculate_tool),
              category='core', label='Rechnet'),
@@ -701,7 +830,7 @@ CATEGORY_HINTS = {
     'web': r'such|recherch|internet|web|google|safari|browser|neueste|aktuell|news|nachrichten|website|seite|link|http',
     'system': r'system|akku|batterie|speicherplatz|festplatte|arbeitsspeicher|ram|cpu|mac\b|version',
     'terminal': r'terminal|befehl|kommando|fehler|bug|test|build|kompil|git|projekt|code|skript|behebe|repariere',
-    'screen': r'bildschirm|screenshot|bildschirmfoto|screen',
+    'screen': r'bildschirm|screenshot|bildschirmfoto|screen|bild\b|foto|siehst du|schau|fehlermeldung',
     'core': r'rechne|berechne|prozent|summe|\d\s*[+*/×÷-]\s*\d',
 }
 

@@ -1,9 +1,11 @@
 test_agent_creates_folder_and_document_for_real (test_agent.AgentServerTests.test_agent_creates_folder_and_document_for_real) ... ok
 test_busy_returns_409 (test_agent.AgentServerTests.test_busy_returns_409) ... ok
 test_cancel_while_waiting_for_app (test_agent.AgentServerTests.test_cancel_while_waiting_for_app) ... ok
+test_correction_offers_remember_and_is_learned (test_agent.AgentServerTests.test_correction_offers_remember_and_is_learned) ... ok
 test_dangerous_command_is_blocked_without_asking (test_agent.AgentServerTests.test_dangerous_command_is_blocked_without_asking) ... ok
 test_delete_after_yes_moves_to_trash (test_agent.AgentServerTests.test_delete_after_yes_moves_to_trash) ... ok
 test_delete_requires_confirmation_and_respects_no (test_agent.AgentServerTests.test_delete_requires_confirmation_and_respects_no) ... ok
+test_english_question_gets_english_instruction (test_agent.AgentServerTests.test_english_question_gets_english_instruction) ... ok
 test_false_success_claim_is_corrected (test_agent.AgentServerTests.test_false_success_claim_is_corrected) ... ok
 test_invalid_requests (test_agent.AgentServerTests.test_invalid_requests) ... ok
 test_long_model_call_sends_heartbeats (test_agent.AgentServerTests.test_long_model_call_sends_heartbeats) ... ok
@@ -17,6 +19,7 @@ test_simple_calculation_needs_no_model (test_agent.AgentServerTests.test_simple_
 test_small_talk_streams_without_tools (test_agent.AgentServerTests.test_small_talk_streams_without_tools) ... ok
 test_text_tool_calls_from_small_models_are_understood (test_agent.AgentServerTests.test_text_tool_calls_from_small_models_are_understood) ... ok
 test_cloud_models_are_rejected (test_agent.RouterAndMemoryTests.test_cloud_models_are_rejected) ... ok
+test_language_detection (test_agent.RouterAndMemoryTests.test_language_detection) ... ok
 test_lexical_fallback_and_summary_cache (test_agent.RouterAndMemoryTests.test_lexical_fallback_and_summary_cache) ... ok
 test_routes (test_agent.RouterAndMemoryTests.test_routes) ... ok
 test_action_cancel (test_atlas.AtlasTests.test_action_cancel) ... ok
@@ -110,21 +113,25 @@ test_create_folder_and_write_file_really_happen (test_tools.ToolTests.test_creat
 test_excel_falls_back_to_csv_without_openpyxl (test_tools.ToolTests.test_excel_falls_back_to_csv_without_openpyxl) ... ok
 test_excel_with_formula_is_readable_again (test_tools.ToolTests.test_excel_with_formula_is_readable_again) ... ok
 test_fetch_webpage_strips_scripts (test_tools.ToolTests.test_fetch_webpage_strips_scripts) ... ok
+test_inspect_project_detects_type_tests_and_git (test_tools.ToolTests.test_inspect_project_detects_type_tests_and_git) ... ok
 test_move_and_delete_go_to_trash_not_gone (test_tools.ToolTests.test_move_and_delete_go_to_trash_not_gone) ... ok
 test_open_app_and_url_use_open_command (test_tools.ToolTests.test_open_app_and_url_use_open_command) ... ok
 test_paths_outside_or_protected_are_rejected (test_tools.ToolTests.test_paths_outside_or_protected_are_rejected) ... ok
 test_read_text_pdf_and_listing (test_tools.ToolTests.test_read_text_pdf_and_listing) ... ok
 test_run_command_really_runs_in_folder (test_tools.ToolTests.test_run_command_really_runs_in_folder) ... ok
 test_run_command_timeout (test_tools.ToolTests.test_run_command_timeout) ... ok
+test_safari_current_page (test_tools.ToolTests.test_safari_current_page) ... ok
 test_schemas_are_valid_ollama_functions (test_tools.ToolTests.test_schemas_are_valid_ollama_functions) ... ok
+test_screen_analysis_uses_local_vision_and_deletes_photo (test_tools.ToolTests.test_screen_analysis_uses_local_vision_and_deletes_photo) ... ok
 test_screenshot_only_on_mac (test_tools.ToolTests.test_screenshot_only_on_mac) ... ok
 test_search_files (test_tools.ToolTests.test_search_files) ... ok
 test_symlink_escape_is_rejected (test_tools.ToolTests.test_symlink_escape_is_rejected) ... ok
+test_vision_missing_gives_clear_hint (test_tools.ToolTests.test_vision_missing_gives_clear_hint) ... ok
 test_web_search_parses_results (test_tools.ToolTests.test_web_search_parses_results) ... ok
 test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation (test_tools.ToolTests.test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation) ... ok
 
 ----------------------------------------------------------------------
-Ran 124 tests in 20.357s
+Ran 131 tests in 21.260s
 
 OK
 

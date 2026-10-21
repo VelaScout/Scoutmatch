@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 from . import intents
-from .llm import ModelError, Ollama, route
+from .llm import ModelError, Ollama, is_correction, language_of, route
 from .memory import MemoryIndex
 from .tools import BLOCKED, CONFIRM, Result, Tool, ToolError, select_categories
 
@@ -223,6 +223,11 @@ class Agent:
                 pass
         while kept and kept[0]['role'] != 'user':
             kept.pop(0)
+        if language_of(query) == 'en':
+            system += '\n\nThe user is speaking English. Answer in natural English.'
+        if is_correction(query):
+            system += ('\n\nDer Nutzer korrigiert dich oder nennt eine dauerhafte Vorliebe. Übernimm die Korrektur sofort. '
+                       'Gilt sie dauerhaft, speichere sie mit remember als kurze Vorliebe – ohne lange Ankündigung.')
         return [{'role': 'system', 'content': system}] + kept
 
     def summarize(self, transcript: str) -> str:
@@ -238,10 +243,10 @@ class Agent:
     def toolset(self, text: str, native: list[dict]) -> tuple[list[dict], dict[str, dict]]:
         categories = select_categories(text)
         backend = [t for t in self.tools.values() if t.category in categories or t.category == 'core']
-        if len(categories) == 0:
+        if len(categories) == 0 and not is_correction(text):
             backend = list(self.tools.values())
         lowered = text.lower()
-        wanted_native = {'remember'}
+        wanted_native = {'remember', 'forget'} if is_correction(text) else {'remember'}
         for pattern, names in NATIVE_HINTS.items():
             if re.search(pattern, lowered):
                 wanted_native.update(names)

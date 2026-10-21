@@ -35,7 +35,7 @@ OLLAMA = 'http://127.0.0.1:11434/api/chat'
 PORT = int(os.environ.get('ATLAS_PORT', '8765'))
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 SYSTEM = (ROOT/'personality.txt').read_text(encoding='utf-8')
-VERSION = '0.3.0'
+VERSION = '0.3.1'
 TOKEN = secrets.token_urlsafe(32)
 LOCK = threading.RLock()
 CHAT_LOCK = threading.Lock()
@@ -70,7 +70,7 @@ def agent():
         if _AGENT is None:
             memory=MemoryIndex(database,embed=lambda model,texts:OLLAMA_CLIENT.embed(model,texts))
             log=lambda message:print(f'{stamp()} {message}',flush=True)
-            _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(Environment(roots=allowed_roots())),BRIDGE,memory,log=log)
+            _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(Environment(roots=allowed_roots(),vision=OLLAMA_CLIENT.see)),BRIDGE,memory,log=log)
         return _AGENT
 
 def agent_request(obj):

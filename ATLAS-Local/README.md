@@ -1,8 +1,8 @@
-# ATLAS Local 0.3.0 – lokaler KI-Agent für den Mac
+# ATLAS Local 0.3.1 – lokaler KI-Agent für den Mac
 
 Native SwiftUI-App mit lokalem Python-Backend und Ollama. Gerechnet wird mit Qwen3 auf Ihrem MacBook M4, ohne Cloud-KI und ohne API-Schlüssel.
 
-Neu in 0.3.0: ATLAS ist ein **Agent**. Er versteht Aufgaben, wählt selbst Werkzeuge, arbeitet sie Schritt für Schritt ab, prüft die Ergebnisse und berichtet ehrlich, was geklappt hat.
+Neu in 0.3: ATLAS ist ein **Agent**. Er versteht Aufgaben, wählt selbst Werkzeuge, arbeitet sie Schritt für Schritt ab, prüft die Ergebnisse und berichtet ehrlich, was geklappt hat.
 
 ## Aktualisieren (vorhandene Installation)
 
@@ -30,6 +30,10 @@ Erstinstallation: `INSTALLIEREN.command`. Dafür müssen Homebrew und das vollst
 | „Erstelle eine Excel-Tabelle für meine Unternehmensfinanzen.“ | Echte .xlsx mit fetter Kopfzeile und Formeln. |
 | „Wie viel Speicher ist noch frei?“ | Systeminfos (Speicher, Akku, macOS, RAM). |
 | „Aufgabe: Untersuche mein Projekt ~/Code/X auf Fehler, behebe sie und teste es.“ | Plan → Dateien lesen → Tests im Terminal (mit Bestätigung) → Korrektur → Bericht: erledigt, fehlgeschlagen, offen. |
+| „Was steht in der Fehlermeldung auf meinem Bildschirm?“ | Bildschirmfoto (sofort wieder gelöscht) + lokales Bildmodell – **nur wenn eines installiert ist** (`ollama pull gemma3:4b`, ca. 3 GB). |
+| „Fasse die Seite zusammen, die ich in Safari offen habe.“ | Liest Adresse und Text der vorderen Safari-Seite (macOS fragt einmal nach „Automation“). |
+| „Nein, antworte ab jetzt immer kürzer.“ | Korrektur wird sofort übernommen und als Vorliebe gespeichert. |
+| „What's on my calendar tomorrow?“ | Englische Frage → englische Antwort. |
 | „Merk dir: Ich möchte kurze Antworten.“ | Native Erinnerung; passende Erinnerungen fließen künftig automatisch in Antworten ein. |
 
 Weitere Werkzeuge der App:
@@ -69,7 +73,8 @@ Weitere Werkzeuge der App:
   - Einfache und mittlere Aufgaben funktionieren.
   - Lange, unklare Aufträge können scheitern. Dann sagt ATLAS das und nennt offene Schritte.
 - Fotos und angehängte PDFs sieht das Modell nicht direkt. PDFs in Downloads oder Dokumente legen und per Namen ansprechen.
-- Bildschirm: ATLAS kann Bildschirmfotos machen, aber nicht „sehen“. Dafür fehlt ein lokales Bildmodell.
+- Bildschirm „sehen“ geht nur mit einem lokalen Bildmodell (Update mit `ATLAS_WITH_VISION=1` oder `ollama pull gemma3:4b`). Ohne Bildmodell sagt ATLAS das und speichert höchstens ein Bildschirmfoto.
+- Spracherkennung: Die App hört in der eingestellten Sprache (Deutsch oder Englisch), nicht beides gleichzeitig. Antworten folgen der Sprache Ihrer Frage.
 - Stimme: Es spricht die beste installierte Apple-Stimme. Bitte eine **Premium**-Stimme laden, siehe `docs/MODELLE-UND-STIMME.md`. Eine neuronale lokale Stimme ist geplant, aber noch nicht eingebaut.
 - Die Swift-App konnte in dieser Entwicklungsumgebung nicht kompiliert werden (kein Mac). Der Build läuft im Update auf Ihrem Mac. Bei einem Fehler stoppt das Update, bevor etwas ersetzt wird; das Protokoll steht in `build/BUILD-LOG.txt`.
 

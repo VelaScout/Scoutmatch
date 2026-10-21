@@ -1,4 +1,4 @@
-# Testbericht ATLAS Local 0.3.0
+# Testbericht ATLAS Local 0.3.1
 
 Stand: 21.10.2026. Entwicklungsumgebung: Linux-Container ohne Mac, ohne Swift-Compiler, ohne Ollama-Modelle.
 
@@ -6,9 +6,9 @@ Die Netzwerkregel der Umgebung sperrt `ollama.com`, `registry.ollama.ai` und `hu
 
 ## 1. Hier tatsächlich ausgeführt
 
-**124 Python-Tests bestanden** (vorher 82; 42 neu). Rohprotokoll: `TESTRESULTS-0.3.0.txt`.
+**131 Python-Tests bestanden** (vorher 82; 49 neu). Rohprotokoll: `TESTRESULTS-0.3.1.txt`.
 
-### Werkzeuge (`test_tools.py`, 21 Tests)
+### Werkzeuge (`test_tools.py`, 25 Tests)
 
 Echt ausgeführt, in einem temporären Home-Ordner:
 
@@ -25,10 +25,17 @@ Echt ausgeführt, in einem temporären Home-Ordner:
 - Suchergebnisse auswerten, Webseitentext ohne Skripte.
 - Rechnen mit Prozent und Dezimalkomma.
 - Werkzeugschemas sind gültige Ollama-Funktionen.
+- Neu in 0.3.1:
+  - Bildschirmanalyse mit lokalem Bildmodell. Das Foto liegt nur temporär außerhalb Ihrer Ordner und wird gelöscht.
+  - Klarer Hinweis, wenn kein Bildmodell installiert ist.
+  - Bildanalyse von Dateien.
+  - Safari-Seite lesen.
+  - Projektanalyse: Art, Testbefehl, Git-Status, README.
+- Simuliert dabei: Bildmodell, `screencapture`, `osascript`, `git`.
 
 Simuliert: macOS-Programme (`open`, `pgrep`) und Webseiteninhalte.
 
-### Agent über den echten HTTP-Server (`test_agent.py`, 21 Tests)
+### Agent über den echten HTTP-Server und Router (`test_agent.py`, 24 Tests)
 
 Simuliertes Modell, alles andere echt:
 
@@ -51,10 +58,13 @@ Simuliertes Modell, alles andere echt:
 - Ergebnisse nur mit Token.
 - Werkzeugaufrufe als Text werden verstanden.
 - Passende Erinnerungen werden semantisch ausgewählt.
+- Englische Frage führt zur Anweisung, englisch zu antworten.
+- Bei einer Korrektur bietet der Agent `remember` an, mit wenigen Werkzeugen, und die Vorliebe wird gespeichert.
 
 ### Router und Gedächtnis
 
-- 7 Routing-Fälle aus dem Projektauftrag.
+- 9 Routing-Fälle aus dem Projektauftrag, darunter Korrektur und Bildschirmfrage.
+- Spracherkennung Deutsch/Englisch.
 - Lexikalische Erinnerungssuche.
 - Zusammenfassungs-Cache.
 - Sperre für Cloud-Modelle.
@@ -76,7 +86,7 @@ Alle 82 erneut bestanden: Chat, Fehler, Daten, Abbruch, Audio-Codecs mit echtem 
 | Xcode-Build und Signatur | `BAUEN.command` (Teil von Update/Installation) | echt |
 | Swift ⇄ Backend, 9 Prüfungen | `Tests/test_provider_mac.sh` | echtes Backend, Modell simuliert |
 | Sprachtext-Tests (Swift) | dito | echt |
-| 124 Backend-Tests in der Atlas-Python-Umgebung | Update und `MAC_TESTEN.command` | wie oben |
+| 131 Backend-Tests in der Atlas-Python-Umgebung | Update und `MAC_TESTEN.command` | wie oben |
 | **10 Aufgaben mit dem echten Qwen** | `MAC_TESTEN.command` → `build/MAC-ECHTE-MODELLTESTS.json` | **echte Modellaufrufe** |
 | Antwortzeiten (erste Ausgabe, gesamt) je Aufgabe | dito | echt gemessen |
 | Dienstprüfung nach dem Update (Agent-Protokoll, Rechner) | `AKTUALISIEREN.command` | echt |

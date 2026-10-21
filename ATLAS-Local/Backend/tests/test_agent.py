@@ -299,6 +299,26 @@ class AgentServerTests(unittest.TestCase):
         self.assertGreaterEqual(self.ollama.embed_calls, 1)
 
 
+    def test_english_question_gets_english_instruction(self):
+        self.ollama.stream_text = ['Paris is the capital.']
+        self.run_agent(self.body('What is the capital of France and why is it famous?'))
+        system = self.ollama.chat_requests()[0]['messages'][0]['content']
+        self.assertIn('Answer in natural English', system)
+
+    def test_correction_offers_remember_and_is_learned(self):
+        self.native_answers['remember'] = {'content': 'Gemerkt.'}
+        self.ollama.script = [tool_call('remember', content='[Vorliebe] Antworten immer kurz halten'),
+                              answer('Alles klar, ab jetzt kurz.')]
+        _, events = self.run_agent(self.body('Nein, bitte antworte ab jetzt immer kurz.'))
+        first = self.ollama.chat_requests()[0]
+        names = {tool['function']['name'] for tool in first['tools']}
+        self.assertIn('remember', names)
+        self.assertLess(len(names), 6)
+        self.assertIn('korrigiert dich', first['messages'][0]['content'])
+        self.assertEqual(self.native_seen[0]['name'], 'remember')
+        self.assertIn('kurz', self.text(events))
+
+
 class RouterAndMemoryTests(unittest.TestCase):
     def test_routes(self):
         cases = {
@@ -308,6 +328,8 @@ class RouterAndMemoryTests(unittest.TestCase):
             'Analysiere diese PDF und fasse sie zusammen.': 'agent',
             'Atlas, untersuche mein Projekt auf Fehler, behebe sie, teste die Anwendung und erstelle eine neue Version.': 'plan',
             'Aufgabe: räume meinen Schreibtisch auf': 'plan',
+            'Nein, ich meinte den Termin am Dienstag.': 'agent',
+            'Was siehst du auf meinem Bildschirm?': 'agent',
         }
         for text, expected in cases.items():
             with self.subTest(text=text):
@@ -336,6 +358,12 @@ class RouterAndMemoryTests(unittest.TestCase):
         first = index.summary([{'role': 'user', 'content': 'Hallo'}], lambda text: calls.append(text) or 'Kurz.')
         second = index.summary([{'role': 'user', 'content': 'Hallo'}], lambda text: calls.append(text) or 'Anders.')
         self.assertEqual((first, second, len(calls)), ('Kurz.', 'Kurz.', 1))
+
+    def test_language_detection(self):
+        self.assertEqual(llm.language_of('What is the weather like in London today?'), 'en')
+        self.assertEqual(llm.language_of('Wie wird das Wetter heute in Berlin?'), 'de')
+        self.assertEqual(llm.language_of('Öffne bitte das Meeting-Dokument'), 'de')
+        self.assertEqual(llm.language_of('Ok'), 'de')
 
     def test_cloud_models_are_rejected(self):
         for name in ('gpt-oss:120b-cloud', 'qwen3-coder:480b-cloud', 'http://evil', ''):

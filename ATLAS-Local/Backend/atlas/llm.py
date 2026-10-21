@@ -21,6 +21,7 @@ MODEL_PATTERN = re.compile(r'^[a-z0-9][a-z0-9._-]{0,60}(:[a-z0-9._-]{1,40})?$')
 # Bevorzugte Reihenfolge – vom Router auf die tatsächlich installierten Modelle angewendet.
 CHAT_PREFERENCE = ['qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b', 'qwen3:8b']
 AGENT_PREFERENCE = ['qwen3:8b', 'qwen3:14b', 'qwen3:4b-instruct-2507-q4_K_M', 'qwen3:4b']
+VISION_PREFERENCE = ['gemma3:4b', 'qwen2.5vl:7b', 'gemma3:12b', 'llava:7b', 'minicpm-v']
 EMBED_PREFERENCE = ['qwen3-embedding:0.6b', 'nomic-embed-text', 'nomic-embed-text:latest', 'mxbai-embed-large']
 
 
@@ -152,6 +153,17 @@ class Ollama:
                     return
         raise ModelError('Ollama hat die Antwort unvollständig beendet.')
 
+    def see(self, images: list[bytes], prompt: str, timeout: float = 180) -> str | None:
+        """Bildanalyse mit einem lokalen Bildmodell; None, wenn keines installiert ist."""
+        import base64
+        names = self.installed()
+        model = next((m for m in VISION_PREFERENCE if m in names), None)
+        if not model:
+            return None
+        message = {'role': 'user', 'content': prompt + '\nAntworte auf Deutsch, kurz und sachlich.',
+                   'images': [base64.b64encode(i).decode() for i in images]}
+        return self.chat(model, [message], num_predict=600, timeout=timeout).content
+
     def embed(self, model: str, texts: list[str], timeout: float = 30) -> list[list[float]] | None:
         if not texts:
             return []
@@ -235,6 +247,26 @@ ACTION_VERBS = re.compile(r'\b(öffne|erstell\w*|speicher\w*|lösch\w*|such\w*|t
                           r'fasse?|prüfe?|aktualisier\w*|open|create|fix|test|build|search)\b', re.I)
 
 
+CORRECTION = re.compile(r'^(nein|falsch|stimmt nicht|nicht so|ich meinte|eigentlich|korrektur)\b|'
+                        r'\b(ab jetzt|ab sofort|in zukunft|künftig|immer wenn|bitte immer|bitte nie|nenn mich|sprich mich)\b', re.I)
+ENGLISH_WORDS = set('the and is are what how why can could would you your please with this that for of to in on my me '
+                    'do does show open create find search tell about which when where who'.split())
+GERMAN_WORDS = set('der die das und ist sind was wie warum kannst du dein bitte mit dies für von zu im auf mein mir '
+                   'zeig öffne erstelle finde suche sag über welche wann wo wer ich nicht ein eine'.split())
+
+
+def language_of(text: str) -> str:
+    """'en' oder 'de' – einfache, schnelle Erkennung über häufige Wörter (Standard: Deutsch)."""
+    words = re.findall(r"[a-zäöüß']+", (text or '').lower())
+    english = sum(w in ENGLISH_WORDS for w in words)
+    german = sum(w in GERMAN_WORDS for w in words)
+    return 'en' if english >= 2 and english > german * 1.5 else 'de'
+
+
+def is_correction(text: str) -> bool:
+    return bool(CORRECTION.search(re.sub(r'^\[Kontext:[^\]]*\]\s*', '', text or '').strip()))
+
+
 def route(text: str, has_tools: bool = True) -> str:
     """'chat' (direkt antworten), 'agent' (Werkzeuge) oder 'plan' (mehrstufige Aufgabe)."""
     if not has_tools:
@@ -242,6 +274,8 @@ def route(text: str, has_tools: bool = True) -> str:
     stripped = re.sub(r'^\[Kontext:[^\]]*\]\s*', '', text or '').strip()
     if stripped.lower().startswith(('aufgabe:', 'task:', 'agent:')):
         return 'plan'
+    if is_correction(stripped):
+        return 'agent'
     if not AGENT_HINTS.search(stripped):
         return 'chat'
     # Planen kostet eine zusätzliche Modellrunde – nur bei echten mehrstufigen Aufträgen.
