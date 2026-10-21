@@ -7,7 +7,7 @@
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>ATLAS benötigt das Mikrofon, damit Sie mit ihm sprechen können. Das Mikrofon ist nur aktiv, solange ATLAS sichtbar zuhört oder auf „Atlas“ wartet.</string>
+	<string>A.T.L.A.S. benötigt das Mikrofon, damit Sie mit ihm sprechen können. Auf „Atlas“ wartet er ausschließlich auf dem Gerät. Erst nach „Atlas“ wird im Live-Gespräch Ton verschlüsselt an OpenAI übertragen. Das Mikrofon lässt sich jederzeit ganz ausschalten.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>ATLAS wandelt Ihre gesprochenen Anweisungen in Text um, um sie zu verstehen. Wenn möglich, geschieht dies direkt auf dem Gerät.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

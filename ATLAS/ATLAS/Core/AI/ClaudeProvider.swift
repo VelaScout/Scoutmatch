@@ -111,6 +111,13 @@ struct ClaudeProvider: AIProvider {
         var partialJSON: [Int: String] = [:]
         var invalidIDs: Set<String> = []
         var stopReason: String?
+        // Verbrauch für die Kostenanzeige
+        var usageModel = options.model
+        var inputTokens = 0, outputTokens = 0, cacheRead = 0, cacheWrite = 0
+        defer {
+            CostTracker.shared.recordClaude(model: usageModel, input: inputTokens, output: outputTokens,
+                                            cacheRead: cacheRead, cacheWrite: cacheWrite)
+        }
 
         for try await line in bytes.lines {
             try Task.checkCancellation()
@@ -121,6 +128,17 @@ struct ClaudeProvider: AIProvider {
                   let type = event["type"] as? String else { continue }
 
             switch type {
+            case "message_start":
+                if let message = event["message"] as? [String: Any] {
+                    if let model = message["model"] as? String { usageModel = model }
+                    if let usage = message["usage"] as? [String: Any] {
+                        inputTokens = usage["input_tokens"] as? Int ?? 0
+                        cacheRead = usage["cache_read_input_tokens"] as? Int ?? 0
+                        cacheWrite = usage["cache_creation_input_tokens"] as? Int ?? 0
+                        outputTokens = usage["output_tokens"] as? Int ?? 0
+                    }
+                }
+
             case "content_block_start":
                 guard let index = event["index"] as? Int,
                       var block = event["content_block"] as? [String: Any] else { continue }
@@ -173,6 +191,9 @@ struct ClaudeProvider: AIProvider {
             case "message_delta":
                 if let delta = event["delta"] as? [String: Any], let reason = delta["stop_reason"] as? String {
                     stopReason = reason
+                }
+                if let usage = event["usage"] as? [String: Any], let output = usage["output_tokens"] as? Int {
+                    outputTokens = output
                 }
 
             case "error":

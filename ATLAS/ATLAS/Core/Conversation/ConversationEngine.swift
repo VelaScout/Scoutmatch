@@ -115,6 +115,26 @@ final class ConversationEngine {
     private(set) var listeningHint: String?
     @ObservationIgnored private var fillerTask: Task<Void, Never>?
 
+    // MARK: Live-Gespräch (OpenAI Realtime)
+
+    /// Ein Live-Gespräch ist geöffnet (Audio geht an OpenAI, bis es endet).
+    private(set) var isLive = false
+    @ObservationIgnored private var liveSession: RealtimeSession?
+    @ObservationIgnored private var liveIdleTask: Task<Void, Never>?
+    @ObservationIgnored private var liveDrainTask: Task<Void, Never>?
+    @ObservationIgnored private var liveClaudeTask: Task<Void, Never>?
+    /// Verbindung steht (Sitzung vom Server bestätigt).
+    @ObservationIgnored private var liveReady = false
+    @ObservationIgnored private var liveLastError: String?
+    /// Nach der laufenden Antwort beenden (Verabschiedung oder Budget erreicht).
+    @ObservationIgnored private var liveEnding = false
+    @ObservationIgnored private var liveBudgetReached = false
+    /// Laufender `ask_atlas`-Aufruf – und ob ihm wegen einer Rückfrage schon geantwortet wurde.
+    @ObservationIgnored private var liveCallID: String?
+    @ObservationIgnored private var liveCallAnswered = false
+    /// Nach so vielen Sekunden Ruhe endet das Live-Gespräch (danach wieder „Atlas“ sagen).
+    private let liveIdleTimeout: Double = 45
+
     private let endPhrases: Set<String> = [
         "danke das ist alles", "das ist alles", "das wars", "das war's", "ende", "stopp", "tschüss",
         "auf wiedersehen", "gute nacht", "danke atlas", "that's all", "thank you that's all", "goodbye", "stop",
@@ -148,9 +168,19 @@ final class ConversationEngine {
 
     /// Haupt-Aktion beim Tippen auf ATLAS.
     func primaryAction() {
+        if isLive {
+            // Tippen im Live-Gespräch: Spricht A.T.L.A.S., verstummt er – sonst endet das Gespräch.
+            if state == .speaking {
+                liveSession?.interrupt()
+                state = .listening
+            } else {
+                endLive()
+            }
+            return
+        }
         switch state {
         case .idle, .standby, .error:
-            Task { await startListening() }
+            Task { await activate() }
         case .listening:
             finishListening()
         case .thinking, .speaking:
@@ -164,6 +194,7 @@ final class ConversationEngine {
 
     /// Antwort abbrechen (z. B. durch Tippen während ATLAS spricht).
     func interrupt() {
+        if isLive { liveSession?.interrupt() }
         fillerTask?.cancel()
         if confirmationContinuation != nil { resolveConfirmation(false) }
         responseTask?.cancel()
@@ -182,6 +213,7 @@ final class ConversationEngine {
     }
 
     private func haltEverything() {
+        stopLive()
         silenceTask?.cancel()
         recognizer.stop()
         interrupt()
@@ -196,6 +228,7 @@ final class ConversationEngine {
     func send(text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || !attachments.isEmpty else { return }
+        stopLive()
         silenceTask?.cancel()
         recognizer.stop()
         interrupt()
@@ -279,7 +312,7 @@ final class ConversationEngine {
         switch request {
         case .listen:
             if state == .idle || state == .standby || state.isError {
-                Task { await startListening() }
+                Task { await activate() }
             }
         case .briefing(let kind):
             haltEverything()
@@ -304,6 +337,11 @@ final class ConversationEngine {
         sceneActive = active
         if active {
             if state == .idle { goIdle() }
+        } else if PlatformBridge.isMac && settings.backgroundListening && settings.microphoneEnabled {
+            // Mac mit „Im Hintergrund hören“: Fenster zu, A.T.L.A.S. wartet weiter auf „Atlas“ –
+            // sichtbar am Symbol in der Menüleiste (und Apples orangem Mikrofon-Punkt).
+            sceneActive = true
+            learnFromConversation()
         } else {
             // Kein Mikrofon im Hintergrund – niemals heimlich zuhören.
             haltEverything()
@@ -323,11 +361,22 @@ final class ConversationEngine {
 
     /// Ruhezustand: mit Wake-Word in Bereitschaft, sonst Mikrofon aus.
     private func goIdle() {
+        guard !isLive else { return }
         learnFromConversation()
         isInConversation = false
         wakeTriggered = false
+        guard settings.microphoneEnabled else {
+            // Mikrofon per Hauptschalter aus: nichts hört zu.
+            recognizer.stop()
+            inputLevel = 0
+            AudioHub.shared.setPrerollEnabled(false)
+            if !synthesizer.isSpeaking { AudioHub.shared.shutdown() }
+            if !state.isError { state = .idle }
+            return
+        }
         // „Immer zuhören“: Solange die App offen ist, einfach losreden – ohne „Atlas“.
-        if settings.alwaysListen && sceneActive && KeychainStore.has(.anthropicAPIKey) && !state.isError {
+        // Im Live-Modus startet ein Gespräch dagegen erst mit „Atlas“: Vorher verlässt kein Ton das Gerät.
+        if settings.alwaysListen && !settings.liveModeAvailable && sceneActive && KeychainStore.has(.anthropicAPIKey) && !state.isError {
             Task {
                 try? await Task.sleep(for: .milliseconds(150))
                 guard self.state == .idle || self.state == .standby, self.sceneActive else { return }
@@ -336,7 +385,7 @@ final class ConversationEngine {
             if state != .listening { state = .idle }
             return
         }
-        if settings.wakeWordEnabled && sceneActive && KeychainStore.has(.anthropicAPIKey) {
+        if listensForWakeWord && sceneActive && KeychainStore.has(.anthropicAPIKey) {
             Task { await startStandby() }
         } else {
             recognizer.stop()
@@ -349,8 +398,13 @@ final class ConversationEngine {
 
     // MARK: - Wake-Word „Atlas“
 
+    /// Wartet auf „Atlas“ – mit Wake-Word-Einstellung oder im Live-Modus.
+    private var listensForWakeWord: Bool {
+        settings.microphoneEnabled && (settings.wakeWordEnabled || settings.liveModeAvailable)
+    }
+
     private func startStandby() async {
-        guard settings.wakeWordEnabled, sceneActive, KeychainStore.has(.anthropicAPIKey) else { return }
+        guard listensForWakeWord, sceneActive, KeychainStore.has(.anthropicAPIKey), !isLive else { return }
         guard state == .idle || state == .standby || state.isError else { return }
         guard await ensurePermissions() else { return }
         // Während der Berechtigungsabfrage kann sich der Zustand geändert haben.
@@ -358,6 +412,8 @@ final class ConversationEngine {
         do {
             liveTranscript = ""
             try recognizer.start(language: settings.language, requireOnDevice: true)
+            // Live-Modus: die letzten Sekunden im Arbeitsspeicher bereithalten (nichts wird gesendet).
+            AudioHub.shared.setPrerollEnabled(settings.liveModeAvailable)
             state = .standby
             standbyFailures = 0
         } catch {
@@ -368,7 +424,7 @@ final class ConversationEngine {
             let delay = min(30, 2 * Double(standbyFailures))
             Task {
                 try? await Task.sleep(for: .seconds(delay))
-                guard self.settings.wakeWordEnabled, self.sceneActive, self.state == .idle || self.state.isError else { return }
+                guard self.listensForWakeWord, self.sceneActive, self.state == .idle || self.state.isError else { return }
                 self.state = .idle
                 await self.startStandby()
             }
@@ -396,6 +452,10 @@ final class ConversationEngine {
     }
 
     func startListening(prefix: String = "", quiet: Bool = false) async {
+        guard settings.microphoneEnabled else {
+            state = .error("Das Mikrofon ist ausgeschaltet. Schalten Sie es in der Menüleiste oder den Einstellungen wieder ein – oder schreiben Sie mir.")
+            return
+        }
         guard await ensurePermissions() else { return }
         do {
             listeningPrefix = prefix
@@ -417,7 +477,19 @@ final class ConversationEngine {
         switch state {
         case .standby:
             guard let command = commandAfterWakeWord(text) else { return }
-            // „Atlas“ erkannt
+            // „Atlas“ erkannt – im Live-Modus übernimmt ab hier das Live-Gespräch.
+            if settings.liveModeAvailable {
+                // Erkennung sofort anhalten; der Vorlauf läuft im Audio-Hub weiter.
+                recognizer.stop()
+                state = .listening
+                Haptics.soft()
+                Task {
+                    if await self.startLive(usePreroll: true) { return }
+                    self.state = .idle
+                    self.goIdle()
+                }
+                return
+            }
             wakeTriggered = true
             isInConversation = true
             state = .listening
@@ -610,7 +682,12 @@ final class ConversationEngine {
         statusDetail = nil
         pendingConfirmation = request
         state = .confirming
-        say(request.spokenPrompt)
+        if isLive {
+            // Die Live-Stimme fragt nach und meldet die Antwort über confirm_pending_action.
+            askLiveForConfirmation(request)
+        } else {
+            say(request.spokenPrompt)
+        }
 
         confirmTimeoutTask?.cancel()
         confirmTimeoutTask = Task { [weak self] in
@@ -806,7 +883,7 @@ final class ConversationEngine {
 
     /// Mit Wake-Word kehrt ATLAS nach einem Fehler von selbst in die Bereitschaft zurück.
     private func recoverFromErrorLater() {
-        guard settings.wakeWordEnabled || settings.alwaysListen else { return }
+        guard settings.wakeWordEnabled || settings.alwaysListen || settings.liveModeEnabled else { return }
         Task {
             try? await Task.sleep(for: .seconds(6))
             if self.state.isError {
@@ -842,6 +919,8 @@ final class ConversationEngine {
     }
 
     private func handleSpeechFinished() {
+        // Im Live-Gespräch steuert die Realtime-Sitzung den Ablauf (gleiche Audio-Leitung).
+        guard !isLive else { return }
         if state == .confirming {
             // Frage ausgesprochen → auf „Ja“ oder „Nein“ hören.
             guard confirmationContinuation != nil else { return }
@@ -860,7 +939,8 @@ final class ConversationEngine {
             Task {
                 try? await Task.sleep(for: .milliseconds(250))
                 guard self.state == .speaking || self.state == .thinking else { return }
-                await self.startListening()
+                // Im Live-Modus direkt ins Live-Gespräch, sonst klassisch zuhören.
+                await self.activate()
             }
         } else {
             state = .idle
@@ -1023,5 +1103,318 @@ final class ConversationEngine {
         message.conversation = conversation
         modelContext.insert(message)
         try? modelContext.save()
+    }
+}
+
+// MARK: - Live-Gespräch (OpenAI Realtime)
+
+extension ConversationEngine {
+    /// Tippen, Siri oder Kurzbefehl: im Live-Modus ein Live-Gespräch, sonst klassisch zuhören.
+    func activate() async {
+        if settings.liveModeAvailable, await startLive(usePreroll: false) { return }
+        await startListening()
+    }
+
+    /// Hauptschalter für das Mikrofon (Menüleiste, Einstellungen).
+    func setMicrophoneEnabled(_ enabled: Bool) {
+        settings.microphoneEnabled = enabled
+        if enabled {
+            if state == .idle || state.isError { state = .idle; goIdle() }
+        } else {
+            haltEverything()
+            AudioHub.shared.setPrerollEnabled(false)
+            AudioHub.shared.shutdown()
+            listeningHint = nil
+        }
+    }
+
+    /// Live-Modus oder Hintergrund-Einstellung wurde umgeschaltet.
+    func liveSettingChanged() {
+        if isLive && !settings.liveModeEnabled { endLive() }
+        wakeWordSettingChanged()
+    }
+
+    /// Öffnet ein Live-Gespräch. Gibt `false` zurück, wenn es nicht möglich ist
+    /// (dann übernimmt der klassische Modus).
+    private func startLive(usePreroll: Bool) async -> Bool {
+        guard settings.liveModeAvailable, settings.microphoneEnabled, !isLive,
+              KeychainStore.has(.anthropicAPIKey),
+              let key = KeychainStore.read(.openAIAPIKey), !key.isEmpty else { return false }
+        guard await ensurePermissions() else { return false }
+        guard !isLive else { return true }
+
+        silenceTask?.cancel()
+        recognizer.stop()
+        fillerTask?.cancel()
+        responseTask?.cancel()
+        synthesizer.stop()
+        do {
+            // Echo-Unterdrückung: A.T.L.A.S. hört sich nicht selbst und kann unterbrochen werden.
+            let echoCancellation = !UserDefaults.standard.bool(forKey: AudioHub.voiceProcessingUnavailableKey)
+            try AudioHub.shared.enableInput(voiceProcessing: echoCancellation)
+        } catch {
+            return false
+        }
+
+        let memories = settings.memoryEnabled ? fetchMemories() : []
+        var instructions = Persona.realtimeInstructions(Persona.context(settings: settings, memories: memories))
+        let recent = history.suffix(8).map { turn -> String in
+            let text = turn.plainText.split(separator: "\n").filter { !$0.hasPrefix("[Kontext") }.joined(separator: " ")
+            return "\(turn.role == .user ? "Nutzer" : "A.T.L.A.S."): \(text.prefix(400))"
+        }
+        if !recent.isEmpty {
+            instructions += "\n\nZuletzt im Gespräch:\n" + recent.joined(separator: "\n")
+        }
+        instructions += "\n\n" + Persona.contextLine(language: settings.language)
+
+        let session = RealtimeSession()
+        session.onEvent = { [weak self] event in self?.handleLive(event) }
+        let configuration = RealtimeSession.Configuration(apiKey: key, model: settings.realtimeModel,
+                                                          voice: settings.realtimeVoice,
+                                                          instructions: instructions, tools: Persona.realtimeTools)
+        do {
+            try session.open(configuration, usePreroll: usePreroll)
+        } catch {
+            return false
+        }
+        liveSession = session
+        isLive = true
+        liveReady = false
+        liveLastError = nil
+        liveEnding = false
+        liveBudgetReached = false
+        isInConversation = true
+        liveTranscript = ""
+        listeningHint = nil
+        statusDetail = nil
+        state = .listening
+        if !usePreroll { Haptics.soft() }
+        scheduleLiveIdle()
+        return true
+    }
+
+    /// Live-Gespräch beenden und zurück in die Bereitschaft („Atlas“).
+    func endLive() {
+        let budget = liveBudgetReached
+        stopLive()
+        isInConversation = false
+        state = .idle
+        if budget {
+            announce("Das Monatsbudget für das Live-Gespräch ist erreicht. Ich mache im Sparmodus weiter.")
+        } else {
+            goIdle()
+        }
+    }
+
+    /// Schließt die Verbindung, ohne den Ruhezustand anzustoßen.
+    private func stopLive() {
+        guard let session = liveSession else { return }
+        liveSession = nil
+        isLive = false
+        liveEnding = false
+        liveIdleTask?.cancel()
+        liveDrainTask?.cancel()
+        liveClaudeTask?.cancel()
+        liveCallID = nil
+        liveCallAnswered = false
+        if confirmationContinuation != nil { resolveConfirmation(false) }
+        session.close(notify: false)
+        statusDetail = nil
+        inputLevel = 0
+    }
+
+    private func handleLive(_ event: RealtimeSession.Event) {
+        guard liveSession != nil else { return }
+        switch event {
+        case .ready:
+            liveReady = true
+
+        case .userStartedSpeaking:
+            liveIdleTask?.cancel()
+            liveDrainTask?.cancel()
+            listeningHint = nil
+            if state != .confirming { state = .listening }
+
+        case .userStoppedSpeaking:
+            if state == .listening { state = .thinking }
+            // Absicherung, falls keine Antwort kommt (z. B. nur ein Geräusch).
+            scheduleLiveIdle()
+
+        case .userTranscript(let text):
+            liveTranscript = text
+            history.append(ChatTurn(role: .user, text: Persona.contextLine(language: settings.language) + "\n" + text))
+            persist(role: .user, text: text)
+
+        case .assistantStartedSpeaking:
+            liveIdleTask?.cancel()
+            if state != .confirming { state = .speaking }
+
+        case .assistantTranscript(let text):
+            let clean = SpeechTextCleaner.clean(text)
+            guard !clean.isEmpty else { return }
+            responseText = clean
+            history.append(ChatTurn(role: .assistant, text: clean))
+            persist(role: .assistant, text: clean)
+
+        case .toolCall(let callID, let name, let arguments):
+            handleLiveTool(callID: callID, name: name, arguments: arguments)
+
+        case .responseFinished(let hadToolCalls):
+            if CostTracker.shared.isOverBudget(settings.monthlyBudget) {
+                liveBudgetReached = true
+                liveEnding = true
+            }
+            // Nach einem Werkzeugaufruf folgt gleich die eigentliche Antwort.
+            if !hadToolCalls || liveEnding { waitForLivePlayback() }
+
+        case .error(let message):
+            liveLastError = message
+            listeningHint = message
+            // Fehler schon beim Verbinden: schließen – danach übernimmt der klassische Modus.
+            if !liveReady { liveSession?.close() }
+
+        case .closed:
+            let error = liveLastError
+            let wasReady = liveReady
+            stopLive()
+            isInConversation = false
+            if let error, !wasReady {
+                // Verbindung kam nicht zustande: diesmal klassisch weitermachen.
+                listeningHint = "Live-Gespräch nicht verfügbar (\(error)) – ich höre im klassischen Modus zu."
+                state = .idle
+                Task { await self.startListening() }
+            } else if let error {
+                state = .error(error)
+                recoverFromErrorLater()
+            } else {
+                state = .idle
+                goIdle()
+            }
+        }
+    }
+
+    private func handleLiveTool(callID: String, name: String, arguments: String) {
+        let args = (try? JSONSerialization.jsonObject(with: Data(arguments.utf8))) as? [String: Any] ?? [:]
+        switch name {
+        case "ask_atlas":
+            let task = (args["task"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            liveIdleTask?.cancel()
+            liveCallID = callID
+            liveCallAnswered = false
+            if state != .speaking { state = .thinking }
+            liveClaudeTask = Task { [weak self] in
+                guard let self else { return }
+                let result = await self.askClaude(task.isEmpty ? "Hallo" : task)
+                guard !Task.isCancelled, self.isLive, let session = self.liveSession else { return }
+                if self.liveCallID == callID && self.liveCallAnswered {
+                    // Wegen einer Rückfrage wurde schon geantwortet – Ergebnis nachreichen.
+                    session.sendNote("Ergebnis von A.T.L.A.S. zur Aufgabe „\(task)“: \(result)")
+                } else {
+                    session.sendToolOutput(callID: callID, output: result)
+                }
+                if self.liveCallID == callID { self.liveCallID = nil }
+            }
+
+        case "confirm_pending_action":
+            let approved = args["approved"] as? Bool ?? false
+            liveSession?.sendToolOutput(callID: callID, output: approved
+                ? "Bestätigt. Die Aktion wird ausgeführt – das Ergebnis kommt gleich."
+                : "Abgebrochen. Nichts wurde ausgeführt.")
+            if confirmationContinuation != nil {
+                resolveConfirmation(approved)
+                state = approved ? .thinking : .speaking
+            }
+
+        case "end_conversation":
+            liveEnding = true
+            liveSession?.sendToolOutput(callID: callID, output: "Gespräch wird beendet.", respond: false)
+
+        default:
+            liveSession?.sendToolOutput(callID: callID, output: "Unbekanntes Werkzeug.")
+        }
+    }
+
+    /// Bestätigung im Live-Gespräch: Die Live-Stimme fragt nach.
+    private func askLiveForConfirmation(_ request: ConfirmationRequest) {
+        guard let session = liveSession else { return }
+        let text = "Bestätigung nötig: \(request.title) – \(request.detail). Frag den Nutzer kurz und klar (z. B. „\(request.spokenPrompt)“) und rufe danach confirm_pending_action mit seiner Antwort auf."
+        if let callID = liveCallID, !liveCallAnswered {
+            liveCallAnswered = true
+            session.sendToolOutput(callID: callID, output: text)
+        } else {
+            session.sendNote(text)
+        }
+    }
+
+    /// Claude als Gehirn: erledigt die Aufgabe mit Werkzeugen und Gedächtnis, ohne selbst zu sprechen.
+    private func askClaude(_ task: String) async -> String {
+        let memories = settings.memoryEnabled ? fetchMemories() : []
+        let context = Persona.context(settings: settings, memories: memories,
+                                      recentActivity: settings.memoryEnabled ? recentActivity() : [])
+        let options = AIRequestOptions(
+            model: settings.model.rawValue,
+            effort: settings.effort.rawValue,
+            systemPrompt: Persona.systemPrompt(context) + "\n\n" + Persona.liveDelegationNote,
+            webSearch: settings.webSearchEnabled,
+            toolDefinitionsJSON: ToolCatalog.definitionsJSON(memoryEnabled: settings.memoryEnabled,
+                                                             deviceTools: settings.toolsEnabled)
+        )
+        var turns = trimmedHistory()
+        turns.append(ChatTurn(role: .user, text: Persona.contextLine(language: settings.language)
+            + "\n[Aufgabe aus dem Live-Gespräch] " + task))
+        var full = ""
+        do {
+            for try await event in provider.runTurn(history: turns, options: options, tools: toolbox) {
+                guard isLive, !Task.isCancelled else { break }
+                switch event {
+                case .text(let delta):
+                    full += delta
+                case .toolStarted(let name):
+                    if !full.isEmpty { full += " " }
+                    statusDetail = ToolCatalog.statusText(for: name)
+                case .toolFinished:
+                    statusDetail = nil
+                case .searching:
+                    if !full.isEmpty { full += " " }
+                    statusDetail = "Recherchiert im Internet"
+                }
+            }
+        } catch {
+            statusDetail = nil
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            return "Fehler: \(message)"
+        }
+        statusDetail = nil
+        let text = SpeechTextCleaner.clean(full)
+        return text.isEmpty ? "Erledigt." : text
+    }
+
+    /// Wartet, bis die Antwort fertig abgespielt ist, und hört dann weiter zu.
+    private func waitForLivePlayback() {
+        liveDrainTask?.cancel()
+        liveDrainTask = Task { [weak self] in
+            while !Task.isCancelled, AudioHub.shared.isPlaying {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            guard let self, !Task.isCancelled, self.isLive else { return }
+            if self.liveEnding {
+                self.endLive()
+                return
+            }
+            if self.state == .speaking || self.state == .thinking { self.state = .listening }
+            self.scheduleLiveIdle()
+        }
+    }
+
+    /// Ohne Gespräch endet die Live-Verbindung nach kurzer Zeit – spart Kosten.
+    private func scheduleLiveIdle() {
+        liveIdleTask?.cancel()
+        let timeout = liveIdleTimeout
+        liveIdleTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(timeout))
+            guard let self, !Task.isCancelled, self.isLive, self.state != .speaking,
+                  self.liveCallID == nil, self.confirmationContinuation == nil else { return }
+            self.endLive()
+        }
     }
 }

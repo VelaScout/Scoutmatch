@@ -120,6 +120,21 @@ final class AppSettings {
     /// Client-ID der eigenen Spotify-App (kein Geheimnis).
     var spotifyClientID: String { didSet { defaults.set(spotifyClientID, forKey: Keys.spotifyClientID) } }
 
+    // MARK: Live-Gespräch (OpenAI Realtime) und Mikrofon
+
+    /// Natürliches Live-Gespräch über OpenAI Realtime (kostenpflichtig). Aus = klassischer Modus.
+    var liveModeEnabled: Bool { didSet { defaults.set(liveModeEnabled, forKey: Keys.liveMode) } }
+    /// Realtime-Modell: „gpt-realtime-2.1“ (beste Qualität) oder „gpt-realtime-2.1-mini“ (günstiger).
+    var realtimeModel: String { didSet { defaults.set(realtimeModel, forKey: Keys.realtimeModel) } }
+    /// Stimme im Live-Gespräch (offizielle OpenAI-Stimmen, z. B. „cedar“ oder „marin“).
+    var realtimeVoice: String { didSet { defaults.set(realtimeVoice, forKey: Keys.realtimeVoice) } }
+    /// Monatsbudget in US-Dollar für kostenpflichtige Sprachfunktionen (0 = ohne Grenze).
+    var monthlyBudget: Double { didSet { defaults.set(monthlyBudget, forKey: Keys.monthlyBudget) } }
+    /// Hauptschalter: Aus = das Mikrofon wird überhaupt nicht benutzt.
+    var microphoneEnabled: Bool { didSet { defaults.set(microphoneEnabled, forKey: Keys.microphone) } }
+    /// Mac: auch bei geschlossenem Fenster auf „Atlas“ hören (Symbol in der Menüleiste).
+    var backgroundListening: Bool { didSet { defaults.set(backgroundListening, forKey: Keys.backgroundListening) } }
+
     init() {
         // Lokale Variable, da `self` vor der Initialisierung aller Eigenschaften nicht genutzt werden darf.
         let defaults = UserDefaults.standard
@@ -159,6 +174,12 @@ final class AppSettings {
             Keys.mailProvider: MailProvider.icloud.rawValue,
             Keys.mailAddress: "",
             Keys.spotifyClientID: "",
+            Keys.liveMode: true,
+            Keys.realtimeModel: "gpt-realtime-2.1",
+            Keys.realtimeVoice: "cedar",
+            Keys.monthlyBudget: 20.0,
+            Keys.microphone: true,
+            Keys.backgroundListening: false,
         ])
         // Einmalig: vorprogrammierte Denk-Laute aus – sie wirkten unnatürlich.
         if !defaults.bool(forKey: "fillersMigrationV1") {
@@ -211,6 +232,17 @@ final class AppSettings {
         mailProvider = MailProvider(rawValue: defaults.string(forKey: Keys.mailProvider) ?? "") ?? .icloud
         mailAddress = defaults.string(forKey: Keys.mailAddress) ?? ""
         spotifyClientID = defaults.string(forKey: Keys.spotifyClientID) ?? ""
+        liveModeEnabled = defaults.bool(forKey: Keys.liveMode)
+        realtimeModel = defaults.string(forKey: Keys.realtimeModel) ?? "gpt-realtime-2.1"
+        realtimeVoice = defaults.string(forKey: Keys.realtimeVoice) ?? "cedar"
+        monthlyBudget = defaults.double(forKey: Keys.monthlyBudget)
+        microphoneEnabled = defaults.bool(forKey: Keys.microphone)
+        backgroundListening = defaults.bool(forKey: Keys.backgroundListening)
+    }
+
+    /// Kann das Live-Gespräch gerade benutzt werden? (eingeschaltet, Schlüssel da, Budget übrig)
+    var liveModeAvailable: Bool {
+        liveModeEnabled && KeychainStore.has(.openAIAPIKey) && !CostTracker.shared.isOverBudget(monthlyBudget)
     }
 
     /// Zugangsdaten der Premium-Stimme, falls eingeschaltet und ein Schlüssel hinterlegt ist.
@@ -285,5 +317,11 @@ final class AppSettings {
         static let mailProvider = "mailProvider"
         static let mailAddress = "mailAddress"
         static let spotifyClientID = "spotifyClientID"
+        static let liveMode = "liveModeEnabled"
+        static let realtimeModel = "realtimeModel"
+        static let realtimeVoice = "realtimeVoice"
+        static let monthlyBudget = "monthlyBudgetUSD"
+        static let microphone = "microphoneEnabled"
+        static let backgroundListening = "backgroundListening"
     }
 }

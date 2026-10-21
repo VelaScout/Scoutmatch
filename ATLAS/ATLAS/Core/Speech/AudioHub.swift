@@ -185,6 +185,44 @@ final class AudioHub: @unchecked Sendable {
         lock.withLock { inputHandler = handler }
     }
 
+    // MARK: - Vorlauf für das Live-Gespräch
+
+    /// Hält die letzten Sekunden Mikrofon-Ton bereit – nur im Arbeitsspeicher, nichts wird
+    /// gespeichert oder gesendet. Wird beim Öffnen eines Live-Gesprächs einmal übergeben, damit
+    /// der Satz „Atlas, wie spät ist es?“ vollständig ankommt.
+    private var prerollEnabled = false
+    private var preroll = Data()
+    private let prerollConverter = PCMStreamConverter(target: AVAudioFormat(
+        commonFormat: .pcmFormatInt16, sampleRate: 24_000, channels: 1, interleaved: true)!)
+    /// 4 Sekunden bei 24 kHz, 16 Bit.
+    private static let prerollBytes = 24_000 * 2 * 4
+
+    func setPrerollEnabled(_ enabled: Bool) {
+        lock.withLock {
+            prerollEnabled = enabled
+            if !enabled { preroll.removeAll() }
+        }
+    }
+
+    /// Gibt den Vorlauf (16 Bit, 24 kHz, Mono) heraus und leert ihn.
+    func takePreroll() -> Data {
+        lock.withLock {
+            defer { preroll.removeAll() }
+            return preroll
+        }
+    }
+
+    private func recordPreroll(_ buffer: AVAudioPCMBuffer) {
+        lock.withLock {
+            guard prerollEnabled, let converted = prerollConverter.convert(buffer),
+                  let samples = converted.int16ChannelData?[0] else { return }
+            preroll.append(Data(bytes: samples, count: Int(converted.frameLength) * 2))
+            if preroll.count > Self.prerollBytes + 48_000 {
+                preroll.removeFirst(preroll.count - Self.prerollBytes)
+            }
+        }
+    }
+
     private func countAudibleInput() {
         lock.withLock { audibleInputBuffers += 1 }
     }
@@ -247,6 +285,7 @@ final class AudioHub: @unchecked Sendable {
             AudioMeter.shared.setInput(AudioMeter.level(of: buffer))
             // Schon leises Raumrauschen zählt – nur echte digitale Stille nicht.
             if AudioMeter.rms(of: buffer) > 0.000_001 { self?.countAudibleInput() }
+            self?.recordPreroll(buffer)
             self?.deliverInput(buffer)
         }
     }

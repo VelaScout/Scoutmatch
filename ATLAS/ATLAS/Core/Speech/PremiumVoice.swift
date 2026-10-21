@@ -77,7 +77,14 @@ final class PremiumVoice: NSObject {
                     let chunkSize = 4_800
                     var pending = Data()
                     pending.reserveCapacity(chunkSize * 2)
+                    var totalBytes = 0
+                    defer {
+                        if config.provider == .openAI {
+                            CostTracker.shared.recordOpenAIVoice(seconds: Double(totalBytes) / 48_000)
+                        }
+                    }
                     for try await byte in bytes {
+                        totalBytes += 1
                         pending.append(byte)
                         if pending.count >= chunkSize {
                             if let buffer = makeBuffer(pending, format: format) { continuation.yield(buffer) }

@@ -124,6 +124,9 @@ Updates später mit `git pull`.
 
 Aufgaben mit Kalender/Erinnerungen brauchen 2–3 Anfragen (~2–4 Cent), Internetrecherche ca. 1 Cent pro Suche plus gelesene Inhalte, Fotos ~1–2 Cent, PDFs je nach Länge (10 Seiten ~5–10 Cent). Mit 30 Fragen am Tag liegen Sie mit Opus grob bei **10–25 € im Monat**; mit Sonnet etwa die Hälfte. Aktuelle Preise: https://www.anthropic.com/pricing
 
+### Live-Gespräch (natürlich reden wie mit ChatGPT)
+Optional, aber empfohlen: Mit einem OpenAI-API-Schlüssel spricht A.T.L.A.S. live – schnell, natürlich, unterbrechbar. Claude bleibt das Gehirn für Wissen und Aufgaben. Einrichtung, Kosten (ca. 3–15 Cent pro Gesprächsminute, Monatsbudget einstellbar), Datenschutz und Testplan: **[docs/LIVE-GESPRAECH.md](docs/LIVE-GESPRAECH.md)**.
+
 ### Sicherheit des Schlüssels
 - Steht **nicht im Code** und nicht auf GitHub.
 - Liegt verschlüsselt im Schlüsselbund des Geräts (iPhone: nur dieses Gerät, nicht in Backups).

@@ -132,6 +132,9 @@ struct MainView: View {
             }
         }
         .onChange(of: settings.wakeWordEnabled) { _, _ in engine.wakeWordSettingChanged() }
+        .onChange(of: settings.liveModeEnabled) { _, _ in engine.liveSettingChanged() }
+        // Mac: Fenster geschlossen – ohne „Im Hintergrund hören“ geht das Mikrofon aus.
+        .onDisappear { if PlatformBridge.isMac { engine.setSceneActive(false) } }
     }
 
     // MARK: - ATLAS

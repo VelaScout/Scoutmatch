@@ -20,7 +20,7 @@ struct ATLASApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             MainView()
                 .environment(settings)
                 .environment(engine)
@@ -42,6 +42,18 @@ struct ATLASApp: App {
                 Button("Neues Gespräch") { engine.startNewConversation() }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
             }
+        }
+        #endif
+
+        #if os(macOS)
+        MenuBarExtra {
+            MenuBarContent()
+                .environment(settings)
+                .environment(engine)
+        } label: {
+            MenuBarIcon()
+                .environment(settings)
+                .environment(engine)
         }
         #endif
     }

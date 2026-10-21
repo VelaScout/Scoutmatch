@@ -32,6 +32,8 @@ struct SettingsView: View {
                     NavigationLink { ActivityView() } label: { Label("Aktivitäten", systemImage: "list.bullet.rectangle") }
                 }
 
+                LiveSettingsSections()
+
                 Section("Anrede") {
                     Toggle("Mit „Sir“ ansprechen", isOn: $settings.addressAsSir)
                     TextField("Förmliche Anrede, z. B. Herr Velasco", text: $settings.formalAddress)
