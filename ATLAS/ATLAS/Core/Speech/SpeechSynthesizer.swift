@@ -57,7 +57,11 @@ final class SpeechSynthesizer: NSObject {
         spokenLog += " " + cleaned
         if let config, !premiumFailed {
             // Die Premium-Stimme spricht alle Sprachen selbst akzentfrei – Laden beginnt sofort.
-            let stream = PremiumVoice.stream(text: cleaned, config: config, previousText: previousPremiumText,
+            // „Atlas“ englisch: OpenAI bekommt es per Stil-Anweisung, ElevenLabs als Lautschrift-Schreibweise.
+            let premiumText = config.provider == .elevenLabs
+                ? cleaned.replacingOccurrences(of: #"\bAtlas\b"#, with: "Ätlas", options: .regularExpression)
+                : cleaned
+            let stream = PremiumVoice.stream(text: premiumText, config: config, previousText: previousPremiumText,
                                              format: hub.playbackFormat)
             previousPremiumText = cleaned
             items.append(Item(text: cleaned, voiceIdentifier: voiceIdentifier, language: language, locale: nil,
@@ -154,7 +158,7 @@ final class SpeechSynthesizer: NSObject {
 
     /// Lässt die Apple-Stimme den Text als Audio erzeugen und reiht ihn lückenlos ein.
     private func renderWithApple(_ item: Item) async {
-        let utterance = AVSpeechUtterance(string: item.text)
+        let utterance = AVSpeechUtterance(attributedString: Self.withEnglishName(item.text))
         if let locale = item.locale, !locale.hasPrefix(item.language.rawValue.prefix(2)) {
             utterance.voice = Self.bestVoice(locale: locale)
         } else {
@@ -193,6 +197,17 @@ final class SpeechSynthesizer: NSObject {
         }
         watchdog.cancel()
         if appleWaiter === waiter { appleWaiter = nil }
+    }
+
+    /// „Atlas“ englisch aussprechen ([ˈætləs]) – per Lautschrift, die Apple-Stimmen verstehen.
+    private static func withEnglishName(_ text: String) -> NSAttributedString {
+        let attributed = NSMutableAttributedString(string: text)
+        let ipaKey = NSAttributedString.Key(rawValue: AVSpeechSynthesisIPANotationAttribute)
+        let pattern = try? NSRegularExpression(pattern: #"\bAtlas\b"#, options: [.caseInsensitive])
+        for match in pattern?.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length)) ?? [] {
+            attributed.addAttribute(ipaKey, value: "ˈæt.ləs", range: match.range)
+        }
+        return attributed
     }
 
     /// Der Rückruf kommt auf einem Hintergrund-Thread – deshalb `nonisolated` erzeugt.

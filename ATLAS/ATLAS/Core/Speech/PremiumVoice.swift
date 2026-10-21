@@ -129,7 +129,9 @@ final class PremiumVoice: NSObject {
         ]
         if format == "pcm" { body["stream_format"] = "audio" }
         let style = config.instructions.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !style.isEmpty { body["instructions"] = style }
+        // Der eigene Name klingt englisch – auch mitten im deutschen Satz.
+        body["instructions"] = (style.isEmpty ? "" : style + " ")
+            + "Sprich den Namen „Atlas“ immer englisch aus, wie [ˈætləs] („Ätlas“), nie deutsch.
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         return request
     }
