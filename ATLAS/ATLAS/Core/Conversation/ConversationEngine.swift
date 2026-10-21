@@ -688,7 +688,9 @@ final class ConversationEngine {
             var full = ""
             // Premium-Stimme: größere Abschnitte – klingt fließender und spart Ladepausen.
             var chunker = premiumVoice
-                ? SentenceChunker(firstMinimum: 50, minimum: 220)
+                // KI-Stimme: erster Satz sofort, danach der ganze Rest am Stück – so setzt sie
+                // Pausen und Betonung über die ganze Antwort natürlich statt Satz für Satz.
+                ? SentenceChunker(firstMinimum: 60, minimum: 1_500)
                 : SentenceChunker(firstMinimum: 40, minimum: 260)
             do {
                 for try await event in self.provider.runTurn(history: turns, options: options, tools: tools) {
@@ -782,8 +784,8 @@ final class ConversationEngine {
         switch kind {
         case .thinking:
             options = english
-                ? ["Hm, one moment …", "Let me think …", "Good question. Hang on.", "Okay, give me a second …"]
-                : ["Hm, Moment …", "Lass mich kurz überlegen.", "Pff … gute Frage. Moment.", "Okay, Sekunde …", "Mal sehen …", "Hmm, kurz nachdenken."]
+                ? ["Hm, one moment …", "Let me think …", "Okay, give me a second …"]
+                : ["Hm, Moment …", "Lass mich kurz überlegen.", "Okay, Sekunde …", "Mal sehen …"]
         case .searching:
             options = english
                 ? ["Let me check that quickly.", "One sec, looking it up."]

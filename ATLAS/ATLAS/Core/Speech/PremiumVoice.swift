@@ -30,7 +30,9 @@ final class PremiumVoice: NSObject {
     static let openAIVoices = ["cedar", "marin", "ash", "ballad", "coral", "echo", "sage", "verse",
                                "alloy", "fable", "onyx", "nova", "shimmer"]
 
-    static let defaultOpenAIStyle = "Sprich entspannt, warm und locker – wie ein guter Freund, der gern hilft. Natürliche, lebendige Betonung, ruhiges Tempo, kleine Pausen wo sie passen. Fremdsprachige Wörter akzentfrei in ihrer Originalsprache."
+    static let defaultOpenAIStyle = "Sprich wie ein echter Mensch in einem entspannten Gespräch – warm, locker und lebendig, wie ein guter Freund. Natürliche Satzmelodie: variiere Tempo und Tonhöhe, betone die wichtigen Wörter, mache kurze natürliche Pausen an Kommas und zwischen Gedanken. Nie monoton, nie vorgelesen. Fremdsprachige Wörter akzentfrei in ihrer Originalsprache."
+    /// Frühere Standard-Anweisung – wird automatisch durch die neue ersetzt.
+    static let previousOpenAIStyle = "Sprich entspannt, warm und locker – wie ein guter Freund, der gern hilft. Natürliche, lebendige Betonung, ruhiges Tempo, kleine Pausen wo sie passen. Fremdsprachige Wörter akzentfrei in ihrer Originalsprache."
 
     /// Bekannte Stimmen aus der ElevenLabs-Bibliothek (frei wählbar, eigene ID möglich).
     static let presets: [(name: String, id: String)] = [

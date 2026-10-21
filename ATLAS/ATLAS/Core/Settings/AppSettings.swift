@@ -124,7 +124,7 @@ final class AppSettings {
             Keys.formalAddress: "Herr Velasco",
             Keys.userName: "",
             Keys.greetOnLaunch: true,
-            Keys.thinkingFillers: true,
+            Keys.thinkingFillers: false,
             Keys.bargeIn: false,
             Keys.language: AtlasLanguage.german.rawValue,
             Keys.voiceIdentifier: "",
@@ -154,6 +154,11 @@ final class AppSettings {
             Keys.mailAddress: "",
             Keys.spotifyClientID: "",
         ])
+        // Einmalig: vorprogrammierte Denk-Laute aus – sie wirkten unnatürlich.
+        if !defaults.bool(forKey: "fillersMigrationV1") {
+            defaults.set(false, forKey: Keys.thinkingFillers)
+            defaults.set(true, forKey: "fillersMigrationV1")
+        }
         // Einmalig: Echo-Unterdrückung (für Unterbrechen per Stimme) aus – sie lieferte auf
         // manchen Macs keinen Mikrofonton. Kann in den Einstellungen wieder eingeschaltet werden.
         if !defaults.bool(forKey: "bargeInMigrationV1") {
@@ -178,7 +183,8 @@ final class AppSettings {
         premiumVoiceID = defaults.string(forKey: Keys.premiumVoiceID) ?? PremiumVoice.presets[0].id
         premiumProvider = PremiumProvider(rawValue: defaults.string(forKey: Keys.premiumProvider) ?? "") ?? .elevenLabs
         openAIVoice = defaults.string(forKey: Keys.openAIVoice) ?? "cedar"
-        openAIVoiceStyle = defaults.string(forKey: Keys.openAIVoiceStyle) ?? PremiumVoice.defaultOpenAIStyle
+        let style = defaults.string(forKey: Keys.openAIVoiceStyle) ?? PremiumVoice.defaultOpenAIStyle
+        openAIVoiceStyle = style == PremiumVoice.previousOpenAIStyle ? PremiumVoice.defaultOpenAIStyle : style
         model = AtlasModel(rawValue: defaults.string(forKey: Keys.model) ?? "") ?? .sonnet
         effort = AtlasEffort(rawValue: defaults.string(forKey: Keys.effort) ?? "") ?? .low
         webSearchEnabled = defaults.bool(forKey: Keys.webSearch)
