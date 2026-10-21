@@ -74,3 +74,17 @@ macOS schützt trotzdem weiter. Schreibtisch, Dokumente und Bildschirmaufnahme b
 - Für Aufgaben sieht das Modell nur die passenden Werkzeuggruppen. Weniger Text vor jeder Antwort bedeutet kürzere Rechenzeit.
 - Der Denkmodus von Qwen3 ist aus. Es gibt keine hörbaren Rechenschritte.
 - Einfache Rechnungen beantwortet ATLAS ganz ohne Modell.
+
+## Lernen und Weiterentwicklung (ab 0.6.0)
+
+Erfahrungsspeicher, Korrekturregeln, Fähigkeiten-Sandbox, Wissensbasis, Verbesserungsmotor, Code-Werkstatt, Freigaben und Lernplaner sind in `docs/LEARNING-UND-EVOLUTION.md` beschrieben.
+
+Die App spricht diese Bausteine über `POST /api/native/learning/<aktion>` an, immer mit dem Sitzungstoken. Aktionen:
+- Übersicht: `overview`
+- Freigaben und Aufträge: `decide`, `job`, `cancel`, `settings`
+- Gelerntes bearbeiten: `rule`, `fact`, `facts`, `delete`, `confirm`
+- Rücknahmen: `skill`, `hint/rollback`, `code/rollback`
+- Export der Trainingsdaten: `export`
+
+Der Agent bekommt zusätzlich die Werkzeuge `learn_skill` und `learn_topic` sowie alle freigegebenen Fähigkeiten als `skill_<name>`.
+

@@ -37,7 +37,7 @@ OLLAMA = 'http://127.0.0.1:11434/api/chat'
 PORT = int(os.environ.get('ATLAS_PORT', '8765'))
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 SYSTEM = (ROOT/'personality.txt').read_text(encoding='utf-8')
-VERSION = '0.5.0'
+VERSION = '0.6.0'
 TOKEN = secrets.token_urlsafe(32)
 LOCK = threading.RLock()
 CHAT_LOCK = threading.Lock()
@@ -87,7 +87,9 @@ def evolution():
             _EVOLUTION=Evolution(database,learning(),OLLAMA_CLIENT,DATA,ROOT,
                                  search=lambda query:search_web(env,query,max_results=8).data.get('results',[]),
                                  fetch=lambda url:fetch_webpage(env,url,40000).output,
-                                 busy=CHAT_LOCK.locked,log=log)
+                                 busy=CHAT_LOCK.locked,log=log,
+                                 # Lernaufträge: eigenes Modell möglich (z. B. qwen3:8b schreibt besseren Code)
+                                 model=lambda:OLLAMA_CLIENT.agent_model(settings().get('skill_model') or settings().get('agent_model')))
         return _EVOLUTION
 BRIDGE=agent_mod.Bridge()
 _AGENT=None

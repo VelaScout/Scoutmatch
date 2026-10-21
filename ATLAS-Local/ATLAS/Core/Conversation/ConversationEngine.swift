@@ -279,6 +279,7 @@ final class ConversationEngine {
         let map: [(keys: [String], screen: AppScreen)] = [
             (["stimmen studio", "stimmenstudio", "eigene stimme", "voice studio"], .voiceStudio),
             (["verbindung", "connections"], .connections),
+            (["learning", "evolution", "freigaben", "was du gelernt"], .learning),
             (["einstellung", "settings"], .settings),
             (["verlauf", "history", "gespräche"], .history),
             (["gedächtnis", "memory"], .memory),

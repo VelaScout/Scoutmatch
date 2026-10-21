@@ -10,7 +10,7 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var settings = settings
         Form {
-            Section("Atlas Local · 0.5.0") {
+            Section("Atlas Local · 0.6.0") {
                 Text(status).font(.callout).textSelection(.enabled)
                 Button("Verbindung prüfen") { Task { await check() } }.disabled(busy)
                 Picker("Modell", selection: $settings.model) {
@@ -49,8 +49,12 @@ struct SettingsView: View {
                 Button("Erinnerungen aus Atlas 0.2 Web übernehmen") { Task { await importMemory() } }.disabled(busy)
                 Text("Führt Erinnerungen zusammen, ohne Web-Daten zu löschen. Gesprächsverläufe bleiben getrennt. Neue Erinnerungen im Bereich Gedächtnis anlegen.").font(.caption)
             }
+            Section("Lernen und Weiterentwicklung") {
+                NavigationLink("ATLAS – Learning & Evolution") { LearningView() }
+                Text("Was Atlas gelernt hat, selbst entwickelte Fähigkeiten, Wissen mit Quellen, Verbesserungen und alles, was auf Ihre Freigabe wartet.").font(.caption)
+            }
             Section("Funktionsumfang") {
-                Text("Lokaler Text- und Sprachchat, direktes Rechnen, „Merk dir …“ und bestätigtes Öffnen von Apps/Ordnern. Beispiele: „Öffne Rechner und Notizen“, „Öffne Downloads“. Websuche, Bild-/PDF-Analyse, Cloud-Stimmen und KI-gesteuerte Kalender-/Mail-Aktionen sind in dieser Ausgabe nicht verfügbar.").font(.caption)
+                Text("Lokaler Text- und Sprachchat, Aufgaben mit Werkzeugen (Dateien, Ordner, Excel, PDF, Apps, Websuche, Systeminfo, erlaubte Terminalbefehle, Bildschirm), Gedächtnis und Lernen. Löschen, Überschreiben und ändernde Befehle nur nach Ihrer Bestätigung. Keine Cloud-Dienste.").font(.caption)
             }
         }.formStyle(.grouped).navigationTitle("Einstellungen").task { await check() }
     }

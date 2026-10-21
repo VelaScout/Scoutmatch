@@ -61,6 +61,11 @@ struct LocalAtlasProvider: AIProvider {
     func actionConfirm(token: String) async throws {
         _ = try await localPost("/api/action/confirm", object: ["token": token, "approved": true])
     }
+    /// Bereich „Learning & Evolution“: Übersicht, Freigaben, Korrekturen (nur mit Sitzungstoken).
+    func learning(_ action: String, _ object: [String: Any] = [:]) async throws -> Data {
+        guard action.allSatisfy({ $0.isLetter || $0 == "/" }) else { throw AIError.invalidResponse }
+        return try await localPost("/api/native/learning/" + action, object: object)
+    }
     private func localPost(_ path: String, object: [String: Any]) async throws -> Data {
         let connection = session()
         defer { connection.invalidateAndCancel() }

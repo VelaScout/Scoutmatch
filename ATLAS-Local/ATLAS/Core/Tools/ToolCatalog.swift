@@ -231,9 +231,9 @@ enum ToolCatalog {
     private static let appTools: [[String: Any]] = [
         [
             "name": "open_view",
-            "description": "Öffnet eine Ansicht der A.T.L.A.S.-App. Die App hat bewusst keine Knöpfe – benutze dies immer, wenn der Nutzer etwas sehen, öffnen oder einstellen möchte: Einstellungen, Gesprächsverlauf, Termine/Aufgaben, Gedächtnis (auch zum Übertragen auf iPhone/Mac per AirDrop), Berechtigungen, Aktivitätsprotokoll, Stimmen-Studio (eigene Stimme), Verbindungen (E-Mail-Konto und Spotify einrichten), Foto auswählen, Foto aufnehmen (Kamera) oder eine Datei/PDF auswählen.",
+            "description": "Öffnet eine Ansicht der A.T.L.A.S.-App. Die App hat bewusst keine Knöpfe – benutze dies immer, wenn der Nutzer etwas sehen, öffnen oder einstellen möchte: Einstellungen, Gesprächsverlauf, Termine/Aufgaben, Gedächtnis (auch zum Übertragen auf iPhone/Mac per AirDrop), Berechtigungen, Aktivitätsprotokoll, Stimmen-Studio (eigene Stimme), Verbindungen (E-Mail-Konto und Spotify einrichten), Learning & Evolution (Gelerntes, Fähigkeiten, Freigaben), Foto auswählen, Foto aufnehmen (Kamera) oder eine Datei/PDF auswählen.",
             "input_schema": object([
-                "view": ["type": "string", "enum": ["settings", "connections", "history", "tasks", "memory", "permissions", "activity", "voiceStudio", "photoPicker", "camera", "fileImporter"],
+                "view": ["type": "string", "enum": ["settings", "connections", "learning", "history", "tasks", "memory", "permissions", "activity", "voiceStudio", "photoPicker", "camera", "fileImporter"],
                          "description": "Die zu öffnende Ansicht."],
             ], required: ["view"]),
         ],

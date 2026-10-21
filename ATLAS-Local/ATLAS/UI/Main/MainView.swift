@@ -26,6 +26,7 @@ struct MainView: View {
     @State private var captionVisible = false
     @State private var captionHideTask: Task<Void, Never>?
     @State private var systemStatus = SystemStatus()
+    @State private var learningNotice: String?
     @FocusState private var textFieldFocused: Bool
 
     var body: some View {
@@ -36,12 +37,22 @@ struct MainView: View {
                 HStack {
                     Text("ATLAS Local").font(.headline)
                     Spacer()
+                    Button { sheet = .learning } label: { Image(systemName: "brain") }
+                        .accessibilityLabel("Learning & Evolution")
                     Button { sheet = .history } label: { Image(systemName: "clock") }
                         .accessibilityLabel("Verlauf")
                     Button { sheet = .settings } label: { Image(systemName: "gearshape") }
                         .accessibilityLabel("Einstellungen")
                 }.padding().foregroundStyle(.white)
                 StatusBar(status: systemStatus)
+                if let learningNotice {
+                    Button { sheet = .learning; self.learningNotice = nil } label: {
+                        Label(learningNotice, systemImage: "sparkles").font(.caption).lineLimit(2)
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(Capsule().fill(Color.cyan.opacity(0.15)))
+                    }
+                    .buttonStyle(.plain).foregroundStyle(.cyan).padding(.top, 6).padding(.horizontal)
+                }
                 Text(engine.state.label).font(.caption).foregroundStyle(.secondary).padding(.top, 6)
                 atlasVisual
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -116,6 +127,7 @@ struct MainView: View {
             let withIntro = settings.appearance == .hologram && !reduceMotion
             try? await Task.sleep(for: .seconds(withIntro ? 8.9 : 1.2))
             engine.greetOnLaunch()
+            await announceLearning()
         }
         .onOpenURL { url in
             // Per AirDrop empfangenes Gedächtnis eines anderen Geräts übernehmen.
@@ -306,6 +318,17 @@ struct MainView: View {
 
     // MARK: - Ansichten auf Zuruf
 
+    /// Beim Start: Hat ATLAS etwas entwickelt oder gefunden, das auf Freigabe wartet, sagt er es.
+    /// Freigegeben wird nur im Bereich „Learning & Evolution“ – nie per Sprachbefehl des Modells.
+    private func announceLearning() async {
+        try? await Task.sleep(for: .seconds(6))
+        guard let data = try? await LocalAtlasProvider().learning("overview"),
+              let overview = try? LearningOverview.decode(data), let first = overview.announcements.first else { return }
+        let more = overview.announcements.count > 1 ? " (und \(overview.announcements.count - 1) weitere)" : ""
+        learningNotice = first.text + more
+        engine.announce(first.text + " Sie finden das unter Learning und Evolution.")
+    }
+
     private func open(_ screen: AppScreen) {
         switch screen {
         case .photoPicker: showPhotoPicker = true
@@ -332,6 +355,7 @@ struct MainView: View {
         case .activity: SheetContainer { ActivityView() }
         case .voiceStudio: SheetContainer { VoiceStudioView() }
         case .connections: SheetContainer { ConnectionsView() }
+        case .learning: SheetContainer { LearningView() }
         default: EmptyView()
         }
     }

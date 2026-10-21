@@ -69,6 +69,14 @@ import Foundation
         precondition(!FileManager.default.fileExists(atPath: home.appendingPathComponent("Documents/alt.txt").path),
                      "Datei trotz Zustimmung vorhanden")
 
+        // Bereich „Learning & Evolution“: echte Übersicht vom Backend muss sich dekodieren lassen.
+        var overview = try LearningOverview.decode(try await provider.learning("overview"))
+        precondition(!overview.settings.enabled, "Lernzyklen müssen anfangs aus sein")
+        precondition(overview.metrics.tasks >= 1, "Erfahrung fehlt: \(overview.metrics.tasks)")
+        _ = try await provider.learning("settings", ["paused": true])
+        overview = try LearningOverview.decode(try await provider.learning("overview"))
+        precondition(overview.settings.paused, "Pause nicht gespeichert")
+
         var failed = false
         do { _ = try await collect(provider, "Erstelle einen Fehler-Test", options, tools: tools) } catch { failed = true }
         precondition(failed, "Modellfehler muss gemeldet werden")

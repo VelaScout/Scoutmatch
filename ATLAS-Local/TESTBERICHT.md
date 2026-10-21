@@ -1,4 +1,4 @@
-# Testbericht ATLAS Local 0.5.0
+# Testbericht ATLAS Local 0.6.0
 
 Stand: 21.10.2026.
 
@@ -39,39 +39,73 @@ Weitere Beobachtungen:
 
 **Ob die 16 echten Aufgaben jetzt bestehen, ist noch nicht gemessen.** Das zeigt erst `MAC_TESTEN.command` auf Ihrem Mac.
 
-## 1. Hier ausgeführt: 170 Python-Tests, alle bestanden
+## 1. Hier ausgeführt: 210 Python-Tests, alle bestanden, keiner übersprungen
 
-Ausgeführt mit `-W error::ResourceWarning`. Rohprotokoll: `TESTRESULTS-0.5.0.txt`.
+Ausgeführt mit `-W error::ResourceWarning`. Rohprotokoll: `TESTRESULTS-0.6.0.txt`; das alte Protokoll liegt in `docs/`.
 
 | Testdatei | Anzahl | Echt | Simuliert |
 |---|---|---|---|
-| `test_tools.py` | 31 | Dateien, PDF, Excel (5 Eingabeformen), Sortieren nach Typ, Textstelle ersetzen, Tests erkennen und ausführen (erst rot, dann grün), Datei von gestern, Terminal-Liste (43 Fälle), Pfadregeln | macOS-Programme, Bildmodell, Webseiten |
+| **`test_learning.py`** (neu) | 11 | Erfahrungsspeicher in SQLite, auch über einen simulierten Neustart; Ergebnisbewertung, Reflexion, Korrekturregeln, Kennzahlen, Export | Modell |
+| **`test_skills.py`** (neu) | 8 | Statische Prüfung, Sandbox-Prozesse, Netzwerksperre, Schreibsperre, echte PowerPoint-Datei erzeugt und nachgelesen, Versionen, Rücksetzen, Freigabe, Paketfreigabe | Modell, das den Code schreibt |
+| **`test_evolution.py`** (neu) | 21 | Wissen mit Belegprüfung gegen den Quelltext, Verbesserungsmotor mit automatischem Zurücknehmen, Code-Werkstatt mit echten Testläufen in Kopien und echter Sicherung/Wiederherstellung, Lernplaner (Pause, Limit, Netz, Neustart), Agent und Server-Schnittstelle | Modell, Websuche, Webseiten |
+| `test_tools.py` | 31 | Dateien, PDF, Excel, Sortieren, Ersetzen, Tests ausführen, Terminal-Liste, Pfadregeln | macOS-Programme, Bildmodell, Webseiten |
 | `test_agent.py` | 34 | Server, Streaming, Rundreise zur App, Bestätigungen, Abbruch, Lebenszeichen, Gedächtnis, Router | Modell |
-| ↳ darin neu | | Nachfassen bei Planungstext, nur einmal, kein Nachfassen bei normaler deutscher Antwort, englischer Schlusstext wird ersetzt, „Das war falsch“ als Korrektur, Denk-Modell-Selbstgespräch nie sichtbar, schnelles Modell bevorzugt | |
-| `test_robustness.py` | 9 | Ollama aus, kaputtes JSON, abgebrochener Stream, falsche Werkzeuge und Argumente, offline, Zeitlimit, Migration 0.2.x, Leistung | Modell, Internet |
-| `test_realtests.py` | 7 | Prüflogik der echten Aufgaben mit echten Dateien und echten Testläufen; Modellvergleich mit Eintrag des besten Modells | Entscheidungen des Modells |
-| `test_scripts.py` | 7 | Rollback in temporärem HOME, Autostart-Datei, Zusammenfassung passt auf einen Bildschirm, Skriptsyntax, Reihenfolge im Update | `launchctl` |
-| aus 0.2.3 | 82 | Chat, Daten, Audio-Codecs mit echtem ffmpeg, Rechnen, Befehle | Modell, Spracherkennung |
+| `test_robustness.py` | 9 | Ollama aus, kaputtes JSON, abgebrochener Stream, offline, Zeitlimit, Migration, Leistung | Modell, Internet |
+| `test_realtests.py` | 7 | Prüflogik der 16 echten Aufgaben, Modellvergleich | Entscheidungen des Modells |
+| `test_scripts.py` | 7 | Rollback, Autostart, Zusammenfassung, Skriptsyntax | `launchctl` |
+| aus 0.2.3 | 82 | Chat, Daten, Audio mit echtem ffmpeg, Rechnen, Befehle | Modell, Spracherkennung |
+
+### Nachweise für die vier geforderten Punkte
+
+Alle vier sind **simuliert** im Sinne der Tabelle oben: Das Sprachmodell gibt die Antworten fest vor. Datenbank, Dateien, Prozesse, Sandbox und Rücksetzen laufen echt.
+
+1. **Erfahrungen werden gespeichert:** `test_verified_success_is_reused_for_similar_task`.
+   - Die Aufgabe wird gespeichert (Erfolg, bestätigt, Aufgabenart).
+   - Bei einer ähnlichen Aufgabe steht der bewährte Ablauf im Prompt.
+   - `test_failure_becomes_warning_not_proven`: Fehler werden Warnungen, keine „bewährten“ Abläufe.
+2. **Korrekturen werden später angewandt:** `test_correction_is_learned_and_survives_restart`.
+   - Auf „Atlas, das war nicht richtig. Du solltest die Datei in Dokumente speichern.“ legt ATLAS die Datei sofort in Dokumente an.
+   - Nach einem Neustart steht die Regel bei einer neuen Datei-Aufgabe im Prompt, bei einer Plauderfrage nicht.
+   - `test_durable_preference_applies_everywhere`: „ab jetzt immer“ gilt überall.
+3. **Fähigkeiten entstehen in der Sandbox:** `test_new_skill_is_developed_tested_approved_and_used`.
+   - Der erste Code-Entwurf besteht seine Tests nicht.
+   - ATLAS bekommt die Fehlermeldung, der zweite Entwurf besteht.
+   - Ohne Freigabe ist die Fähigkeit nicht aktiv. Nach der Freigabe erzeugt sie eine **echte .pptx**, die mit python-pptx nachgelesen wird.
+   - Gefährlicher Code wird nie ausgeführt.
+   - Netzwerk und Schreiben außerhalb der Sandbox schlagen fehl.
+4. **Fehlgeschlagene Verbesserungen werden zurückgesetzt:**
+   - `test_failed_improvement_is_rolled_back_automatically`: Ein Hinweis, nach dem der Fehler weiter auftritt, wird automatisch abgeschaltet.
+   - `test_change_with_failing_tests_is_discarded`: Eine Code-Änderung mit roten Tests wird verworfen, das Original bleibt unberührt.
+   - `test_failed_check_after_apply_restores_automatically`: Scheitert die Prüfung nach der Übernahme, wird das Original wiederhergestellt.
+   - `test_tested_change_is_applied_only_after_approval_and_can_be_rolled_back`: Eine übernommene Änderung lässt sich zurücksetzen.
+   - `test_versions_and_rollback`: Fähigkeiten gehen zurück auf die vorige Version.
 
 **Weitere Prüfungen:**
 - 9 Chromium-Prüfgruppen der Weboberfläche bestanden.
-- Swift-Syntax mit tree-sitter geprüft. Das ist kein Compiler-Lauf.
+- Swift-Syntax aller Swift-Dateien mit tree-sitter geprüft: 0 Fehler. Das ist **kein** Compiler-Lauf.
+- Übersicht „Learning & Evolution“ aus dem echten Server (Fixture mit simuliertem Modell) gegen alle Pflichtfelder der Swift-Strukturen geprüft, auch mit gefüllten Listen.
 
-**Gemessen** (Linux, Modell simuliert, nur der Eigenaufwand von ATLAS):
-- Bis zum ersten Wort: 1,3 ms.
-- Erinnerungsauswahl aus 500 Einträgen: 11 ms.
+**Nicht hier geprüft:**
+- Ob das echte `qwen3:4b-instruct` brauchbaren Fähigkeits-Code und brauchbare Wissensauszüge schreibt.
+- Ob das `sandbox-exec`-Profil der Code-Werkstatt auf macOS wie gedacht greift.
 
 ## 2. Automatisch auf dem Mac (hier nicht ausführbar)
 
 | Prüfung | Skript | Art |
 |---|---|---|
 | Xcode-Build und Signatur | `AKTUALISIEREN.command` → `BAUEN.command` | echt |
-| Swift ⇄ Backend (9 Prüfungen) | `Tests/test_provider_mac.sh` | Backend echt, Modell simuliert |
-| 170 Backend-Tests in der Atlas-Umgebung (mit openpyxl/pypdf, ohne Überspringen) | Update, `MAC_TESTEN.command` | wie oben |
+| Swift ⇄ Backend (9 Prüfungen + Learning-Übersicht dekodieren, Pause speichern) | `Tests/test_provider_mac.sh` | Backend echt, Modell simuliert |
+| 210 Backend-Tests in der Atlas-Umgebung (mit openpyxl, pypdf, python-pptx) | Update, `MAC_TESTEN.command` | wie oben |
 | Kurztest mit echtem Modell (3 Aufgaben) | Ende von `AKTUALISIEREN.command` | **echtes Modell** |
 | **16 echte Aufgaben**, Ergebnis in Dateien nachgeprüft, Zeiten gemessen; Modellvergleich, wenn mehrere installiert sind | `MAC_TESTEN.command` | **echtes Modell** |
 
-## 3. Nur von Hand (Hardware)
+## 3. Nur von Hand (Hardware und echtes Modell)
+
+- **Learning & Evolution mit echtem Modell:**
+  1. „Lerne, wie man PowerPoint-Präsentationen erstellt“ sagen.
+  2. Nach einigen Minuten das Gehirn-Symbol öffnen und die Freigabe prüfen.
+  3. Freigeben, dann „Erstelle eine Präsentation über …“ sagen.
+- **Wissen:** „Lerne alles über Unternehmensbewertung“, danach Quellen und Status der Aussagen ansehen.
 
 - Mikrofon, Wake-Word „Atlas“, Unterbrechen, Gesprächsende.
 - Klang der Stimme.
@@ -83,6 +117,8 @@ Ausgeführt mit `-W error::ResourceWarning`. Rohprotokoll: `TESTRESULTS-0.5.0.tx
 
 | Version | Fehler | Gefunden durch |
 |---|---|---|
+| 0.6.0 | Netzsperre der Sandbox ersetzte `socket.socket` durch eine Funktion; dadurch brach `import ssl` und mit ihm python-pptx | Test (echte PowerPoint-Fähigkeit) |
+| 0.6.0 | Schreibschutz der Sandbox erlaubte ganz `/tmp`; jetzt nur ein eigener, leerer Temp-Ordner | Test |
 | 0.5.0 | Modell beschreibt Werkzeuge bzw. plant auf Englisch, statt sie aufzurufen | Ihre Mac-Ergebnisse |
 | 0.5.0 | Englische Überlegungen erschienen als Schlussantwort | Ihre Mac-Ergebnisse |
 | 0.5.0 | Sortieren und Fehlerbehebung brauchten zu viele Einzelaufrufe für ein 4B-Modell | Ursachenanalyse |

@@ -60,7 +60,7 @@ atlas_write_agent
 launchctl bootstrap "gui/$(id -u)" "$ATLAS_AGENT_PLIST"
 atlas_verify_service
 open "$destination"
-echo 'Installiert: ~/Applications/ATLAS Local.app (Version 0.5.0)'
+echo 'Installiert: ~/Applications/ATLAS Local.app (Version 0.6.0)'
 echo 'Der lokale Backend-Dienst startet künftig bei Ihrer Anmeldung. DEINSTALLIEREN.command entfernt diesen Dienst, ohne Gesprächsdaten zu löschen.'
 echo 'Beim ersten Datei- oder Ordnerzugriff fragt macOS, ob „python3“ zugreifen darf – das ist der Atlas-Dienst.'
 echo 'Empfohlen: MAC_TESTEN.command prüft jetzt die echten Modellfähigkeiten.'
