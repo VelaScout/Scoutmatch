@@ -338,7 +338,7 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/api/health':
             result={'voice_ready':voice_ready(),'ollama':False,'models':[]}
             try:
-                with HTTP.open('http://127.0.0.1:11434/api/tags',timeout=3) as r:tags=json.load(r)
+                with HTTP.open(OLLAMA_CLIENT.base+'/api/tags',timeout=3) as r:tags=json.load(r)
                 names=[m['name'] for m in tags.get('models',[]) if llm.is_local_model(m.get('name',''))]
                 result.update(ollama=True,models=[n for n in names if n in MODELS],installed=names)
             except Exception as exc:result['error']=public_error(exc)

@@ -26,6 +26,7 @@ class FakeOllama:
         self.requests = []
         self.embed_calls = 0
         self.delay = 0.0
+        self.responder = None      # Funktion(body) -> Antwort, wenn script leer ist
         fake = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -55,7 +56,12 @@ class FakeOllama:
                     return
                 if fake.delay:
                     threading.Event().wait(fake.delay)
-                item = fake.script.pop(0) if fake.script else answer('Fertig.')
+                if fake.script:
+                    item = fake.script.pop(0)
+                elif fake.responder:
+                    item = fake.responder(body)
+                else:
+                    item = answer('Fertig.')
                 if callable(item):
                     item = item(body)
                 self.reply(item)

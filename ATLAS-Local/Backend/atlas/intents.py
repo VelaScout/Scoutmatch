@@ -69,7 +69,7 @@ def plan(text):
         return {'kind':'tools','steps':[{'name':'remember','input':{'content':memory[1].strip(),'category':'Sonstiges'}}]}
     if t.rstrip('.?!') in ('was weißt du über mich','was hast du dir gemerkt','zeige meine erinnerungen','what do you remember about me'):
         return {'kind':'tools','steps':[{'name':'list_memories','input':{}}]}
-    question=re.sub(r'^(?:was ist|wie viel ist|wieviel ist|berechne|rechne|what is|calculate)\s+','',t)
+    question=re.sub(r'^(?:was ist|was sind|was ergibt|wie viel ist|wieviel ist|wie viel sind|wieviel sind|wie viel macht|berechne|rechne|what is|calculate)\s+','',t)
     question=re.sub(r'\s*(?:[?=]|\.(?!\d))$','',question)
     question=normalize_expression(question)
     if any(op in question for op in '+-*/×÷−'):

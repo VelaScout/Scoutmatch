@@ -89,6 +89,7 @@ class Action:
     ok: bool
     verified: bool
     output: str
+    declined: bool = False
 
 
 @dataclass
@@ -383,7 +384,8 @@ class Agent:
                 if not approved:
                     yield {'type': 'step', 'tool': name, 'label': tool.label, 'status': 'abgelehnt', 'detail': summary}
                     return Action(name, tool.label, summary, False, False,
-                                  'Der Nutzer hat die Aktion nicht bestätigt. Nicht ausführen und nicht erneut fragen.')
+                                  'Der Nutzer hat die Aktion nicht bestätigt. Nicht ausführen und nicht erneut fragen.',
+                                  declined=True)
             yield {'type': 'step', 'tool': name, 'label': tool.label, 'status': 'läuft', 'detail': summary}
             try:
                 result = tool.func(**clean)
@@ -425,10 +427,10 @@ class Agent:
     def validate(answer: str, actions: list[Action]) -> str:
         answer = (answer or '').strip()
         succeeded = [a for a in actions if a.ok]
-        failed = [a for a in actions if not a.ok]
+        failed = [a for a in actions if not a.ok and not a.declined]
         if not answer:
             answer = 'Erledigt.' if succeeded and not failed else 'Das hat leider nicht geklappt.'
-        if CLAIM_WORDS.search(answer) and not succeeded and actions:
+        if CLAIM_WORDS.search(answer) and not succeeded and failed:
             answer = ('Achtung: Keine der Aktionen wurde bestätigt ausgeführt. '
                       + '; '.join(f'{a.label}: {a.output[:120]}' for a in failed[:3]))
         elif CLAIM_WORDS.search(answer) and not actions:
@@ -438,9 +440,10 @@ class Agent:
     @staticmethod
     def report(actions: list[Action], plan: list[str], finished: bool) -> dict:
         done = [f'{a.summary}{"" if a.verified else " (nicht nachgeprüft)"}' for a in actions if a.ok]
-        failed = [f'{a.summary}: {a.output[:160]}' for a in actions if not a.ok]
+        failed = [f'{a.summary}: {a.output[:160]}' for a in actions if not a.ok and not a.declined]
+        declined = [a.summary for a in actions if a.declined]
         open_steps = plan if (plan and not finished) else []
-        return {'done': done[:20], 'failed': failed[:20], 'open': open_steps}
+        return {'done': done[:20], 'failed': failed[:20], 'declined': declined[:20], 'open': open_steps}
 
     @staticmethod
     def report_text(report: dict) -> str:
@@ -449,6 +452,8 @@ class Agent:
             parts.append('Erledigt: ' + '; '.join(report['done'][:6]) + '.')
         if report['failed']:
             parts.append('Fehlgeschlagen: ' + '; '.join(report['failed'][:4]) + '.')
+        if report.get('declined'):
+            parts.append('Nicht ausgeführt, weil Sie abgelehnt haben: ' + '; '.join(report['declined'][:4]) + '.')
         if report['open']:
             parts.append('Offen: ' + '; '.join(report['open'][:6]) + '.')
         return '\n'.join(parts) or 'Keine Aktionen ausgeführt.'

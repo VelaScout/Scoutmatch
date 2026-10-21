@@ -754,7 +754,8 @@ final class ConversationEngine {
             systemPrompt: Persona.systemPrompt(Persona.context(settings: settings, memories: memories,
                                                               recentActivity: settings.memoryEnabled ? recentActivity() : [])),
             webSearch: settings.webSearchEnabled,
-            toolDefinitionsJSON: ToolCatalog.definitionsJSON(memoryEnabled: settings.memoryEnabled, deviceTools: toolsOn)
+            toolDefinitionsJSON: ToolCatalog.definitionsJSON(memoryEnabled: settings.memoryEnabled, deviceTools: toolsOn),
+            memories: memories
         )
         let turns = trimmedHistory()
         let tools: (any ToolExecuting)? = toolbox
@@ -1360,7 +1361,8 @@ extension ConversationEngine {
             systemPrompt: Persona.systemPrompt(context) + "\n\n" + Persona.liveDelegationNote,
             webSearch: settings.webSearchEnabled,
             toolDefinitionsJSON: ToolCatalog.definitionsJSON(memoryEnabled: settings.memoryEnabled,
-                                                             deviceTools: settings.toolsEnabled)
+                                                             deviceTools: settings.toolsEnabled),
+            memories: memories
         )
         var turns = trimmedHistory()
         turns.append(ChatTurn(role: .user, text: Persona.contextLine(language: settings.language)

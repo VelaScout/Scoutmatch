@@ -46,6 +46,7 @@ final class AtlasToolbox: ToolExecuting {
         }
         let result: ToolResult
         switch name {
+        case "atlas_confirm": result = await confirmForAgent(input)
         case "local_open": result = await localOpen(input)
         case "open_view": result = openView(input)
         case "change_setting": result = await changeSetting(input)
@@ -76,6 +77,17 @@ final class AtlasToolbox: ToolExecuting {
         default: result = ToolResult(content: "Unbekanntes Werkzeug: \(name)", isError: true)
         }
         return result
+    }
+
+    /// Bestätigung für eine riskante Aktion des lokalen Agenten (Löschen, Überschreiben, Terminal …).
+    /// Antwort an das Backend: "approved" oder "denied".
+    private func confirmForAgent(_ input: [String: Any]) async -> ToolResult {
+        let title = String((input["title"] as? String ?? "Aktion").prefix(80))
+        let detail = String((input["detail"] as? String ?? "").prefix(400))
+        let request = ConfirmationRequest(title: title, detail: detail, confirmLabel: "Ausführen",
+                                          spokenPrompt: "Soll ich das wirklich machen? \(title).")
+        guard let confirm = self.confirm else { return ToolResult(content: "denied") }
+        return ToolResult(content: await confirm(request) ? "approved" : "denied")
     }
 
     /// Only an explicit user command reaches this fixed allowlist; the model never selects a path.

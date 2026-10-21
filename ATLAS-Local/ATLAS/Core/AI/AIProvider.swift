@@ -45,6 +45,8 @@ struct AIRequestOptions: Sendable {
     /// Werkzeug-Definitionen als JSON (siehe `ToolCatalog`), leer = keine Werkzeuge.
     var toolDefinitionsJSON: Data? = nil
     var maxTokens: Int = 8192
+    /// Alle Erinnerungen; das lokale Backend wählt daraus die zur Frage passenden aus.
+    var memories: [String] = []
 }
 
 /// Was während einer Antwort passiert.

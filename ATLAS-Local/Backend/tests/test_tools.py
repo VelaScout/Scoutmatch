@@ -14,6 +14,17 @@ from unittest.mock import patch
 
 from atlas import tools as t
 
+try:
+    import openpyxl  # noqa: F401
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
+try:
+    import pypdf  # noqa: F401
+    HAS_PYPDF = True
+except ImportError:
+    HAS_PYPDF = False
+
 
 def minimal_pdf(text):
     """Ein gültiges PDF mit einer Textzeile – ohne externe Bibliothek erzeugt."""
@@ -108,6 +119,7 @@ class ToolTests(unittest.TestCase):
         self.assertEqual(tool.risk_of({'path': 'x', 'content': 'y'}), t.SAFE)
         self.assertEqual(tool.risk_of({'path': 'x', 'content': 'y', 'overwrite': True}), t.CONFIRM)
 
+    @unittest.skipUnless(HAS_PYPDF, 'pypdf fehlt (wird vom Installer in die Atlas-Umgebung installiert)')
     def test_read_text_pdf_and_listing(self):
         (self.home / 'Documents' / 'notes.md').write_text('# Titel\nInhalt')
         (self.home / 'Documents' / 'bericht.pdf').write_bytes(minimal_pdf('Quartalsumsatz 42000 Euro'))
@@ -123,6 +135,7 @@ class ToolTests(unittest.TestCase):
         with self.assertRaises(t.ToolError):
             self.call('read_file', path='~/Documents/bin.dat')
 
+    @unittest.skipUnless(HAS_OPENPYXL, 'openpyxl fehlt (wird vom Installer in die Atlas-Umgebung installiert)')
     def test_excel_with_formula_is_readable_again(self):
         rows = [['Monat', 'Einnahmen', 'Ausgaben'], ['Januar', '12000', 8000], ['Februar', 13500, '9200,50'],
                 ['Summe', '=SUM(B2:B3)', '=SUM(C2:C3)']]

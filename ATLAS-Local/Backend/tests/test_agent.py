@@ -170,6 +170,10 @@ class AgentServerTests(unittest.TestCase):
         confirm = [e for e in self.native_seen if e['name'] == 'atlas_confirm'][0]
         self.assertIn('alt.txt', confirm['input']['detail'])
         self.assertIn(('delete_path', 'abgelehnt'), [(e['tool'], e['status']) for e in events if e['type'] == 'step'])
+        report = next(e for e in events if e['type'] == 'report')
+        self.assertEqual(report['failed'], [])
+        self.assertEqual(len(report['declined']), 1)
+        self.assertNotIn('Fehlgeschlagen', self.text(events))
 
     def test_delete_after_yes_moves_to_trash(self):
         file = self.home / 'Documents' / 'alt.txt'

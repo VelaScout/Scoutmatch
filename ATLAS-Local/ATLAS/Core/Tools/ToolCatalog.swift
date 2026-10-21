@@ -41,7 +41,9 @@ enum ToolCatalog {
         case "list_memories": return "Durchsucht das Gedächtnis"
         case "open_view": return "Öffnet die Ansicht"
         case "change_setting": return "Ändert die Einstellung"
-        default: return "Arbeitet"
+        default:
+            // Das lokale Backend schickt bereits lesbare Statustexte („Erstellt die Tabelle“).
+            return name.contains(" ") ? name : "Arbeitet"
         }
     }
 

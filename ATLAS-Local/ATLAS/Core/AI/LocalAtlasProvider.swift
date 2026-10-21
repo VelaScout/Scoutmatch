@@ -26,12 +26,6 @@ struct LocalAtlasProvider: AIProvider {
         return URLSession(configuration: config, delegate: LocalRedirectPolicy(), delegateQueue: nil)
     }
     private struct Handshake: Decodable { let token: String; let `protocol`: Int }
-    private struct Event: Decodable {
-        let type: String
-        let text: String?
-        let error: String?
-        let truncated: Bool?
-    }
     private func token(using session: URLSession) async throws -> String {
         var request = URLRequest(url: try url("/api/native/session"))
         request.timeoutInterval = 5
@@ -55,12 +49,6 @@ struct LocalAtlasProvider: AIProvider {
         request.setValue(token, forHTTPHeaderField: "X-Atlas-Token")
         request.httpBody = try JSONSerialization.data(withJSONObject: object)
         return request
-    }
-    private struct IntentPlan: Decodable {
-        struct Step: Decodable { let name: String; let input: [String: String] }
-        let kind: String
-        let answer: String?
-        let steps: [Step]?
     }
     func actionRequest(kind: String, target: String) async throws -> (token: String, description: String) {
         let data = try await localPost("/api/action/request", object: ["kind": kind, "target": target])
@@ -90,6 +78,21 @@ struct LocalAtlasProvider: AIProvider {
             _ = try await connection.data(for: request)
         } catch { }
     }
+    /// Native Werkzeugliste (aus `ToolCatalog`) als JSON-Objekte für das Backend.
+    private func toolList(_ data: Data?, available: Bool) -> [[String: Any]] {
+        guard available, let data, let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        return list
+    }
+    /// Ergebnis eines App-Werkzeugs oder einer Bestätigung an den wartenden Agenten zurückgeben.
+    private func sendResult(id: String, result: ToolResult, token: String, using connection: URLSession) async throws {
+        let request = try post("/api/native/agent/result",
+                               object: ["id": id, "content": result.content, "isError": result.isError], token: token)
+        let (data, response) = try await connection.data(for: request)
+        try check(response, data: data)
+    }
+    /// Ein Gesprächszug über den lokalen Agenten (Protokoll 2): Das Backend antwortet direkt,
+    /// streamt eine Antwort oder arbeitet mit Werkzeugen. Werkzeuge der App (Kalender, Mail …) und
+    /// Bestätigungen fordert es als `tool_request` an; die App führt sie aus und meldet das Ergebnis.
     func runTurn(history: [ChatTurn], options: AIRequestOptions,
                  tools: (any ToolExecuting)?) -> AsyncThrowingStream<AssistantEvent, Error> {
         AsyncThrowingStream { continuation in
@@ -106,57 +109,62 @@ struct LocalAtlasProvider: AIProvider {
                     }
                     guard history.allSatisfy({ turn in turn.parts.allSatisfy {
                         if case .text = $0 { return true }; return false
-                    } }) else { throw AIError.stream("Dieses Modell verarbeitet nur Text, keine Bilder oder PDFs.") }
+                    } }) else {
+                        throw AIError.stream("Fotos und angehängte PDFs kann das lokale Modell nicht direkt sehen. Legen Sie die PDF in Downloads oder Dokumente und sagen Sie z. B. „Fasse die PDF Bericht in Downloads zusammen“.")
+                    }
                     let key = try await token(using: connection)
                     try Task.checkCancellation()
-                    let intentRequest = try post("/api/native/intent", object: ["message": history.last?.plainText ?? ""], token: key)
-                    let (intentData, intentResponse) = try await connection.data(for: intentRequest)
-                    try check(intentResponse, data: intentData)
-                    let plan = try JSONDecoder().decode(IntentPlan.self, from: intentData)
-                    try Task.checkCancellation()
-                    if plan.kind == "answer", let answer = plan.answer {
-                        continuation.yield(.text(answer)); continuation.finish(); return
-                    }
-                    if plan.kind == "tools" {
-                        guard let tools, let steps = plan.steps, (1...3).contains(steps.count),
-                              steps.allSatisfy({ ["local_open", "remember", "list_memories"].contains($0.name) }) else {
-                            throw AIError.stream("Diese Aktion ist nur im Hauptfenster der Atlas-App verfügbar.")
-                        }
-                        for step in steps {
-                            try Task.checkCancellation()
-                            continuation.yield(.toolStarted(name: step.name))
-                            let input = try JSONEncoder().encode(step.input)
-                            let result = await tools.execute(name: step.name, inputJSON: input)
-                            try Task.checkCancellation()
-                            continuation.yield(.toolFinished(name: step.name, succeeded: !result.isError))
-                            continuation.yield(.text(result.content + "\n"))
-                            if result.isError { break }
-                        }
-                        continuation.finish(); return
-                    }
-                    guard plan.kind == "chat" else { throw AIError.invalidResponse }
-                    let request = try post("/api/native/chat/stream", object: [
+                    let request = try post("/api/native/agent/stream", object: [
                         "request_id": id, "model": options.model, "system": options.systemPrompt,
-                        "history": history.map { ["role": $0.role.rawValue, "content": $0.plainText] }
+                        "history": history.suffix(60).map { ["role": $0.role.rawValue, "content": String($0.plainText.prefix(12_000))] },
+                        "memories": options.memories.prefix(500).map { String($0.prefix(1_000)) },
+                        "tools": toolList(options.toolDefinitionsJSON, available: tools != nil)
                     ], token: key)
                     let (bytes, response) = try await connection.bytes(for: request)
-                    try check(response)
+                    if (response as? HTTPURLResponse)?.statusCode != 200 {
+                        var body = Data()
+                        for try await byte in bytes { body.append(byte); if body.count > 4_096 { break } }
+                        try check(response, data: body)
+                    }
                     var completed = false
                     for try await line in bytes.lines {
                         try Task.checkCancellation()
                         if line.isEmpty { continue }
-                        let event = try JSONDecoder().decode(Event.self, from: Data(line.utf8))
-                        switch event.type {
-                        case "start": break
-                        case "delta": if let text = event.text { continuation.yield(.text(text)) }
-                        case "done":
-                            guard event.truncated != true else {
-                                throw AIError.stream("Antwort hat das Längenlimit erreicht. Bitte nach einem kürzeren Abschnitt fragen.")
+                        guard let event = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                              let type = event["type"] as? String else { throw AIError.invalidResponse }
+                        switch type {
+                        case "start", "plan", "report":
+                            break
+                        case "status":
+                            if let label = event["label"] as? String { continuation.yield(.toolStarted(name: label)) }
+                        case "step":
+                            let label = event["label"] as? String ?? "Arbeitet"
+                            switch (event["status"] as? String) ?? "" {
+                            case "läuft": continuation.yield(.toolStarted(name: label))
+                            case "erledigt": continuation.yield(.toolFinished(name: label, succeeded: true))
+                            default: continuation.yield(.toolFinished(name: label, succeeded: false))
                             }
+                        case "delta":
+                            if let text = event["text"] as? String { continuation.yield(.text(text)) }
+                        case "tool_request":
+                            guard let requestID = event["id"] as? String, let name = event["name"] as? String else {
+                                throw AIError.invalidResponse
+                            }
+                            let input = try JSONSerialization.data(withJSONObject: event["input"] as? [String: Any] ?? [:])
+                            let result: ToolResult
+                            if let tools {
+                                result = await tools.execute(name: name, inputJSON: input)
+                            } else {
+                                result = ToolResult(content: name == "atlas_confirm" ? "denied" : "Diese Aktion ist nur im Hauptfenster der Atlas-App verfügbar.",
+                                                    isError: name != "atlas_confirm")
+                            }
+                            try Task.checkCancellation()
+                            try await sendResult(id: requestID, result: result, token: key, using: connection)
+                        case "done":
                             completed = true
                         case "cancelled": throw CancellationError()
-                        case "error": throw AIError.stream(event.error ?? "Lokale Antwort fehlgeschlagen.")
-                        default: throw AIError.invalidResponse
+                        case "error": throw AIError.stream(event["error"] as? String ?? "Lokale Antwort fehlgeschlagen.")
+                        default: break
                         }
                         if completed { break }
                     }
@@ -180,7 +188,7 @@ struct LocalAtlasProvider: AIProvider {
         let (data, response) = try await connection.data(for: request)
         try check(response, data: data)
         let result = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        let models = result?["models"] as? [String] ?? []
+        let models = (result?["installed"] as? [String]) ?? (result?["models"] as? [String] ?? [])
         guard result?["ollama"] as? Bool == true, !models.isEmpty else {
             throw AIError.stream("Ollama oder Qwen3 fehlt. Bitte Ollama starten und INSTALLIEREN.command erneut ausführen.")
         }

@@ -1,0 +1,83 @@
+#!/bin/bash
+# Gemeinsame Schritte für INSTALLIEREN.command und AKTUALISIEREN.command.
+# Wird mit "source" eingebunden; erwartet set -euo pipefail im Aufrufer.
+
+ATLAS_LABEL=de.atlas.localbackend
+ATLAS_INSTALL_ROOT="$HOME/Library/Application Support/AtlasLocal"
+ATLAS_AGENT_PLIST="$HOME/Library/LaunchAgents/$ATLAS_LABEL.plist"
+ATLAS_VENV="$ATLAS_INSTALL_ROOT/venv"
+
+# Eigene Python-Umgebung für das Backend (Excel- und PDF-Unterstützung), unabhängig vom System.
+atlas_setup_venv() {
+  mkdir -p "$ATLAS_INSTALL_ROOT"
+  if [[ ! -x "$ATLAS_VENV/bin/python3" ]]; then
+    echo 'Lege die Python-Umgebung für Atlas an …'
+    python3 -m venv "$ATLAS_VENV"
+  fi
+  "$ATLAS_VENV/bin/python3" -m pip install --quiet --disable-pip-version-check \
+    'openpyxl==3.1.5' 'pypdf==6.17.0'
+  "$ATLAS_VENV/bin/python3" -c 'import openpyxl, pypdf, sys; assert sys.version_info >= (3, 10)'
+  echo 'Python-Umgebung bereit (Excel und PDF).'
+}
+
+# Empfohlene lokale Modelle: qwen3:4b (schnelle Antworten), qwen3:8b (Agent mit Werkzeugen),
+# nomic-embed-text (Gedächtnissuche). Mit ATLAS_SKIP_MODELS=1 überspringen.
+atlas_pull_models() {
+  if [[ "${ATLAS_SKIP_MODELS:-0}" == 1 ]]; then echo 'Modelldownload übersprungen (ATLAS_SKIP_MODELS=1).'; return; fi
+  local free_gb
+  free_gb=$(df -g "$HOME" | awk 'NR==2 {print $4}')
+  for model in qwen3:4b nomic-embed-text qwen3:8b; do
+    if ollama list 2>/dev/null | awk '{print $1}' | grep -Eqx "${model}(:latest)?"; then continue; fi
+    if [[ "$model" == qwen3:8b && "${free_gb:-0}" -lt 12 ]]; then
+      echo "Nur ${free_gb} GB frei – qwen3:8b (ca. 5 GB) wird nicht geladen. Atlas nutzt dann qwen3:4b auch für Aufgaben."
+      continue
+    fi
+    echo "Lade lokales Modell $model (einmalig) …"
+    ollama pull "$model" || echo "Hinweis: $model konnte nicht geladen werden. Atlas funktioniert mit den vorhandenen Modellen weiter."
+  done
+}
+
+# Autostart des Backends bei der Anmeldung, mit der eigenen Python-Umgebung.
+atlas_write_agent() {
+  mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs/AtlasLocal"
+  ATLAS_INSTALL_ROOT="$ATLAS_INSTALL_ROOT" ATLAS_AGENT_PLIST="$ATLAS_AGENT_PLIST" ATLAS_VENV="$ATLAS_VENV" \
+  "$ATLAS_VENV/bin/python3" - <<'PY'
+import os, pathlib, plistlib
+root = pathlib.Path(os.environ['ATLAS_INSTALL_ROOT'])
+logs = pathlib.Path.home() / 'Library/Logs/AtlasLocal'
+data = {'Label': 'de.atlas.localbackend',
+        'ProgramArguments': [os.environ['ATLAS_VENV'] + '/bin/python3', '-m', 'atlas.server'],
+        'WorkingDirectory': str(root / 'Backend'), 'RunAtLoad': True, 'KeepAlive': True, 'ThrottleInterval': 10,
+        'EnvironmentVariables': {'PATH': '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin',
+                                 'ATLAS_DATA_DIR': str(pathlib.Path.home() / '.atlas-ai'), 'ATLAS_PORT': '8765',
+                                 'ATLAS_MODEL': 'qwen3:4b'},
+        'StandardOutPath': str(logs / 'backend.log'), 'StandardErrorPath': str(logs / 'backend-error.log')}
+path = pathlib.Path(os.environ['ATLAS_AGENT_PLIST'])
+path.write_bytes(plistlib.dumps(data))
+path.chmod(0o600)
+PY
+}
+
+# Prüft den laufenden Dienst: Agent-Protokoll vorhanden und direkte Rechnung korrekt.
+atlas_verify_service() {
+  "$ATLAS_VENV/bin/python3" - <<'PY'
+import json, time, urllib.request
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+for _ in range(60):
+    try:
+        with opener.open('http://127.0.0.1:8765/api/native/session', timeout=1) as r:
+            session = json.load(r)
+        request = urllib.request.Request('http://127.0.0.1:8765/api/native/intent', data=b'{"message":"17*23"}',
+                                         headers={'X-Atlas-Token': session['token']})
+        with opener.open(request, timeout=2) as r:
+            answer = json.load(r)
+        if session.get('agent') == 2 and answer.get('answer') == '391.':
+            print('Lokaler Dienst geprüft: Agent-Protokoll 2 aktiv, Rechner korrekt.')
+            break
+    except (OSError, ValueError, KeyError):
+        pass
+    time.sleep(.25)
+else:
+    raise SystemExit('Dienstprüfung fehlgeschlagen. Siehe ~/Library/Logs/AtlasLocal/backend-error.log')
+PY
+}

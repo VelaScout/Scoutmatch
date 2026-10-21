@@ -3,10 +3,18 @@ set -euo pipefail
 cd "$(dirname "$0")"
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 export OLLAMA_HOST=127.0.0.1:11434
+source Scripts/backend_common.sh
 mkdir -p build
 exec > >(tee build/MAC-TESTS.txt) 2>&1
+python_bin="$ATLAS_VENV/bin/python3"
+[[ -x "$python_bin" ]] || python_bin=python3
+echo '== 1. Swift ⇄ Backend (echter Server, simuliertes Modell) und Sprachtext'
 bash Tests/test_provider_mac.sh
-(cd Backend && python3 -W error::ResourceWarning -m unittest discover -s tests -v)
-# Avoid concurrent real-model generation in the app during this benchmark.
-(cd Backend && python3 -m atlas.doctor --benchmark --compare --audio --output ../build/MAC-DIAGNOSE.json)
-echo 'Automatische Mac-Prüfungen abgeschlossen. Mikrofon, Berechtigungen, Klang und native Oberfläche bitte anhand TESTBERICHT.md prüfen.'
+echo '== 2. Backend-Tests (Werkzeuge mit echten Dateien, Agent-Protokoll, Sicherheit)'
+(cd Backend && "$python_bin" -W error::ResourceWarning -m unittest discover -s tests -v)
+echo '== 3. ECHTE Modelltests (Qwen über Ollama, Ergebnisse werden in Dateien nachgeprüft)'
+(cd Backend && "$python_bin" -m atlas.realtests --output ../build/MAC-ECHTE-MODELLTESTS.json) || echo 'Echte Modelltests: nicht alle bestanden – Details oben und in build/MAC-ECHTE-MODELLTESTS.json'
+echo '== 4. Diagnose: Werkzeuge, Antwortzeiten, Spracherkennung (synthetische Stimme, kein Mikrofon)'
+(cd Backend && "$python_bin" -m atlas.doctor --benchmark --compare --audio --output ../build/MAC-DIAGNOSE.json) || true
+echo 'Fertig. Ergebnisse: build/MAC-TESTS.txt, build/MAC-ECHTE-MODELLTESTS.json, build/MAC-DIAGNOSE.json'
+echo 'Bitte noch selbst prüfen: Mikrofon, Klang der Stimme, Unterbrechen, Wake-Word „Atlas“ (siehe TESTBERICHT.md).'
