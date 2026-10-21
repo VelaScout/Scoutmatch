@@ -847,8 +847,9 @@ final class ConversationEngine {
         let text = greetingText()
         state = .speaking
         streamFinished = true
-        isInConversation = false
-        listenAfterSpeech = false
+        // Nach der Begrüßung direkt zuhören – ohne dass erst „Atlas“ gesagt werden muss.
+        isInConversation = true
+        listenAfterSpeech = true
         responseText = text
         say(text)
     }

@@ -170,10 +170,28 @@ final class SpeechSynthesizer: NSObject {
         let waiter = AppleWaiter()
         appleWaiter = waiter
         let sink = AppleSink(hub: hub)
+        // Sicherheitsnetz: Kommt kein Ende-Signal, gilt der Abschnitt als fertig, sobald eine
+        // Weile kein Ton mehr nachkommt – sonst würde A.T.L.A.S. ewig „sprechen“ und nie zuhören.
+        let watchdog = Task.detached {
+            let started = Date()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(250))
+                if let idle = sink.secondsSinceLastBuffer {
+                    if idle > 0.8 { break }
+                } else if Date().timeIntervalSince(started) > 5 {
+                    break
+                }
+            }
+            if !Task.isCancelled {
+                sink.finish()
+                waiter.finish()
+            }
+        }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             waiter.set(continuation)
             apple.write(utterance, toBufferCallback: Self.makeBufferCallback(sink: sink, waiter: waiter))
         }
+        watchdog.cancel()
         if appleWaiter === waiter { appleWaiter = nil }
     }
 
@@ -269,6 +287,13 @@ private final class AppleSink: @unchecked Sendable {
     private let hub: AudioHub
     private let converter: PCMStreamConverter
     private let lock = NSLock()
+    private var lastBuffer: Date?
+    private var finished = false
+
+    /// Sekunden seit dem letzten Ton-Puffer (`nil` = noch keiner angekommen).
+    var secondsSinceLastBuffer: Double? {
+        lock.withLock { lastBuffer.map { Date().timeIntervalSince($0) } }
+    }
 
     init(hub: AudioHub) {
         self.hub = hub
@@ -276,12 +301,19 @@ private final class AppleSink: @unchecked Sendable {
     }
 
     func play(_ buffer: AVAudioPCMBuffer) {
-        let converted = lock.withLock { converter.convert(buffer) }
+        let converted: AVAudioPCMBuffer? = lock.withLock {
+            lastBuffer = Date()
+            return finished ? nil : converter.convert(buffer)
+        }
         if let converted { hub.play(converted) }
     }
 
     func finish() {
-        let tail = lock.withLock { converter.flush() }
+        let tail: AVAudioPCMBuffer? = lock.withLock {
+            guard !finished else { return nil }
+            finished = true
+            return converter.flush()
+        }
         if let tail { hub.play(tail) }
     }
 }

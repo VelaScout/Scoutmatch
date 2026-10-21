@@ -123,7 +123,17 @@ final class SpeechRecognizer {
     nonisolated private static func makeInputHandler(
         request: SFSpeechAudioBufferRecognitionRequest
     ) -> (AVAudioPCMBuffer) -> Void {
-        { buffer in request.append(buffer) }
+        // Mit Echo-Unterdrückung liefert der Mac teils mehrere Kanäle – die Erkennung bekommt
+        // sicherheitshalber immer Mono.
+        let mono = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
+        let converter = PCMStreamConverter(target: mono)
+        return { buffer in
+            if buffer.format.channelCount == 1 {
+                request.append(buffer)
+            } else if let converted = converter.convert(buffer) {
+                request.append(converted)
+            }
+        }
     }
 
     nonisolated private static func makeResultHandler(
