@@ -164,7 +164,8 @@ struct MainView: View {
     private var caption: some View {
         let text: String
         switch engine.state {
-        case .listening, .confirming: text = engine.liveTranscript
+        case .listening, .confirming:
+            text = engine.liveTranscript.isEmpty ? (engine.listeningHint ?? "") : engine.liveTranscript
         case .error(let message): text = message
         // Beim Nachdenken keine Statusanzeige – Ihre Frage bleibt einfach stehen.
         case .thinking: text = engine.liveTranscript

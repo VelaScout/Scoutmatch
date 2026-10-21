@@ -10,12 +10,25 @@ final class AudioMeter: @unchecked Sendable {
     private let lock = NSLock()
     private var inputValue: Float = 0
     private var outputValue: Float = 0
+    private var inputPeak: Float = 0
 
     var input: Float { lock.withLock { inputValue } }
     var output: Float { lock.withLock { outputValue } }
 
     func setInput(_ level: Float) {
-        lock.withLock { inputValue = inputValue * 0.5 + level * 0.5 }
+        lock.withLock {
+            inputValue = inputValue * 0.5 + level * 0.5
+            inputPeak = max(inputPeak, level)
+        }
+    }
+
+    /// Lautester Mikrofonwert seit dem letzten Zurücksetzen – zeigt, ob überhaupt Ton ankommt.
+    func takeInputPeak() -> Float {
+        lock.withLock {
+            let peak = inputPeak
+            inputPeak = 0
+            return peak
+        }
     }
 
     /// Schnell ansteigend, weich abklingend – wirkt wie natürliches Atmen statt Flackern.

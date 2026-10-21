@@ -110,6 +110,9 @@ final class ConversationEngine {
     /// Bereits erkannte Wörter, wenn der Nutzer A.T.L.A.S. ins Wort gefallen ist.
     @ObservationIgnored private var listeningPrefix = ""
     @ObservationIgnored private var lastCaptionUpdate = Date.distantPast
+    @ObservationIgnored private var micCheckTask: Task<Void, Never>?
+    /// Hinweis unter dem Kern, wenn beim Zuhören kein Ton vom Mikrofon ankommt.
+    private(set) var listeningHint: String?
     @ObservationIgnored private var fillerTask: Task<Void, Never>?
 
     private let endPhrases: Set<String> = [
@@ -404,6 +407,7 @@ final class ConversationEngine {
             isInConversation = true
             if !quiet { Haptics.soft() }
             scheduleSilenceTimer(after: noSpeechTimeout)
+            startMicCheck()
         } catch {
             state = .error(error.localizedDescription)
         }
@@ -426,6 +430,7 @@ final class ConversationEngine {
             } else {
                 liveTranscript = listeningPrefix.isEmpty ? text : listeningPrefix + " " + text
             }
+            listeningHint = nil
             // Nach jeder neuen Erkennung beginnt die Pausenerkennung von vorn.
             scheduleSilenceTimer(after: settings.silenceTimeout)
         case .confirming:
@@ -467,6 +472,24 @@ final class ConversationEngine {
         Haptics.soft()
         let prefix = onlyStop ? "" : recent.joined(separator: " ")
         Task { await self.startListening(prefix: prefix) }
+    }
+
+    /// Prüft beim Zuhören, ob das Mikrofon überhaupt Ton liefert, und sagt sonst, woran es liegt.
+    private func startMicCheck() {
+        micCheckTask?.cancel()
+        _ = AudioMeter.shared.takeInputPeak()
+        micCheckTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            guard let self, !Task.isCancelled, self.state == .listening else { return }
+            let peak = AudioMeter.shared.takeInputPeak()
+            if peak < 0.02 {
+                self.listeningHint = PlatformBridge.isMac
+                    ? "Ich höre nichts vom Mikrofon. Bitte prüfen: Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon → A.T.L.A.S. an, und Systemeinstellungen → Ton → Eingang: das richtige Mikrofon."
+                    : "Ich höre nichts vom Mikrofon. Bitte prüfen: Einstellungen → A.T.L.A.S. → Mikrofon an."
+            } else {
+                self.listeningHint = nil
+            }
+        }
     }
 
     private func scheduleSilenceTimer(after seconds: Double) {

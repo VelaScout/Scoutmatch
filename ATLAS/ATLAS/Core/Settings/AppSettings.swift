@@ -125,7 +125,7 @@ final class AppSettings {
             Keys.userName: "",
             Keys.greetOnLaunch: true,
             Keys.thinkingFillers: true,
-            Keys.bargeIn: true,
+            Keys.bargeIn: false,
             Keys.language: AtlasLanguage.german.rawValue,
             Keys.voiceIdentifier: "",
             Keys.speechRate: 0.5,
@@ -154,6 +154,12 @@ final class AppSettings {
             Keys.mailAddress: "",
             Keys.spotifyClientID: "",
         ])
+        // Einmalig: Echo-Unterdrückung (für Unterbrechen per Stimme) aus – sie lieferte auf
+        // manchen Macs keinen Mikrofonton. Kann in den Einstellungen wieder eingeschaltet werden.
+        if !defaults.bool(forKey: "bargeInMigrationV1") {
+            defaults.set(false, forKey: Keys.bargeIn)
+            defaults.set(true, forKey: "bargeInMigrationV1")
+        }
         // Einmalig: Ein früher automatisch abgeschaltetes Wake-Word wieder einschalten.
         if !defaults.bool(forKey: "wakeWordMigrationV2") {
             defaults.set(true, forKey: Keys.wakeWord)
