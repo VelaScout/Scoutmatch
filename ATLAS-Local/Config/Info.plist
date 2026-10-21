@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>A.T.L.A.S.-Gedächtnis</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>de.atlas.memory</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleSpokenName</key>
+	<string>Atlas</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>ATLAS liest Ihre Termine für Tagesübersichten und Planungen und trägt auf Ihren Wunsch neue Termine ein.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>ATLAS liest Ihre Termine für Tagesübersichten und Planungen und trägt auf Ihren Wunsch neue Termine ein.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ATLAS nutzt die Kamera, wenn Sie ein Foto zur Analyse aufnehmen möchten.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>ATLAS sucht Telefonnummern und E-Mail-Adressen, um auf Ihren Wunsch Nachrichtenentwürfe vorzubereiten.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Atlas verbindet sich ausschließlich mit seinem lokalen Backend und Ollama auf diesem Mac.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>ATLAS nutzt Ihren Standort nur bei Bedarf, zum Beispiel für das Wetter vor Ort oder Routen.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ATLAS nutzt Ihren Standort nur bei Bedarf, zum Beispiel für das Wetter vor Ort oder Routen.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Atlas erkennt Ihre Sprache ausschließlich auf diesem Mac. Das Mikrofon kann jederzeit ausgeschaltet werden.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ATLAS greift nur auf Fotos zu, die Sie zur Analyse auswählen.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>ATLAS liest, erstellt und erledigt auf Ihren Wunsch Erinnerungen, Aufgaben und Listen wie die Einkaufsliste.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>ATLAS liest, erstellt und erledigt auf Ihren Wunsch Erinnerungen, Aufgaben und Listen wie die Einkaufsliste.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Die Spracherkennung läuft ausschließlich auf dem Gerät. Falls das lokale Sprachmodell fehlt, bleibt Texteingabe verfügbar.</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>A.T.L.A.S.-Gedächtnis</string>
+			<key>UTTypeIdentifier</key>
+			<string>de.atlas.memory</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>atlasmemory</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>
