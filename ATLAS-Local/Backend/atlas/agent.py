@@ -224,6 +224,8 @@ class Agent:
         # Zusätzliche Werkzeuge, die sich zur Laufzeit ändern (freigegebene, selbst entwickelte Fähigkeiten).
         self.dynamic_tools: Callable[[], dict[str, Tool]] | None = None
         self.base_tools = tools
+        # Lernbausteine (atlas.evolution.Evolution): Lernaufträge erkennen, Wissensbasis abrufen – optional.
+        self.evolution = None
 
     # -- Kontext ---------------------------------------------------------------
     def context(self, request: Request, query: str, budget: int = 9_000) -> list[dict]:
@@ -338,6 +340,19 @@ class Agent:
                 yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
                 return
 
+        hit = self.evolution.intent(text) if self.evolution else None
+        if hit and hit[0] in self.tools:
+            # Lernauftrag („lerne …“) direkt annehmen – zuverlässiger als ihn dem Modell zu überlassen.
+            tool = self.tools[hit[0]]
+            yield {'type': 'status', 'label': tool.label}
+            try:
+                result = tool.func(**hit[1])
+                yield {'type': 'delta', 'text': result.output}
+            except ToolError as exc:
+                yield {'type': 'delta', 'text': str(exc)}
+            yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
+            return
+
         if self.learning and is_correction(text):
             learned = self.learning.learn_correction(text)
             if learned and learned.get('rule'):
@@ -355,6 +370,10 @@ class Agent:
                 rules = self.learning.context_for(text, rules_only=True)
                 if rules:
                     messages[0]['content'] += '\n\n' + rules
+            knowledge = self.evolution.context_for(text) if self.evolution else ''
+            if knowledge:
+                messages[0]['content'] += '\n\n' + knowledge
+                yield {'type': 'status', 'label': 'Nutzt die Wissensbasis'}
             first = None
             for piece in self.llm.stream(model, messages, stop=stop):
                 if first is None:
@@ -380,6 +399,9 @@ class Agent:
             if experience:
                 messages[0]['content'] += '\n\nAus deiner Erfahrung:\n' + experience
                 yield {'type': 'status', 'label': 'Nutzt frühere Erfahrungen'}
+        knowledge = self.evolution.context_for(text) if self.evolution else ''
+        if knowledge:
+            messages[0]['content'] += '\n\n' + knowledge
         plan: list[str] = []
         if mode == 'plan':
             yield {'type': 'status', 'label': 'Plant die Aufgabe', 'mode': 'plan', 'model': model}

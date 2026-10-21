@@ -1042,6 +1042,7 @@ CATEGORY_HINTS = {
     'system': r'system|akku|batterie|speicherplatz|festplatte|arbeitsspeicher|ram|cpu|mac\b|version',
     'terminal': r'terminal|befehl|kommando|fehler|bug|test|build|kompil|git|projekt|code|skript|behebe|repariere',
     'screen': r'bildschirm|screenshot|bildschirmfoto|screen|bild\b|foto|siehst du|schau|fehlermeldung',
+    'learn': r'\blern|bring dir|beibring|fähigkeit|informier dich|eigne dir',
     'core': r'rechne|berechne|prozent|summe|\d\s*[+*/×÷-]\s*\d',
 }
 

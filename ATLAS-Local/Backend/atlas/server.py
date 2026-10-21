@@ -1,10 +1,11 @@
-"""Atlas 0.3.0: lokales Backend – Chat, Agent mit Werkzeugen, Gedächtnis-Abruf, Sprache."""
+"""Atlas: lokales Backend – Chat, Agent mit Werkzeugen, Gedächtnis, Lernen & Weiterentwicklung, Sprache."""
 from .intents import plan
 from . import agent as agent_mod
 from . import llm
 from .memory import MemoryIndex
 from .learning import Learning
-from .tools import Environment, build_tools
+from .evolution import Evolution
+from .tools import Environment, build_tools, fetch_webpage, search_web
 import contextlib
 import json
 import math
@@ -69,6 +70,25 @@ def learning():
     with LOCK:
         if _LEARNING is None:_LEARNING=Learning(database)
         return _LEARNING
+def log(message):print(f'{stamp()} {message}',flush=True)
+_ENV=None
+def tool_env():
+    global _ENV
+    with LOCK:
+        if _ENV is None:_ENV=Environment(roots=allowed_roots(),vision=OLLAMA_CLIENT.see)
+        return _ENV
+_EVOLUTION=None
+def evolution():
+    """Lernbausteine: Fähigkeiten, Wissen, Verbesserungen, Code-Werkstatt, Freigaben, Lernplaner."""
+    global _EVOLUTION
+    with LOCK:
+        if _EVOLUTION is None:
+            env=tool_env()
+            _EVOLUTION=Evolution(database,learning(),OLLAMA_CLIENT,DATA,ROOT,
+                                 search=lambda query:search_web(env,query,max_results=8).data.get('results',[]),
+                                 fetch=lambda url:fetch_webpage(env,url,40000).output,
+                                 busy=CHAT_LOCK.locked,log=log)
+        return _EVOLUTION
 BRIDGE=agent_mod.Bridge()
 _AGENT=None
 def agent():
@@ -76,9 +96,10 @@ def agent():
     with LOCK:
         if _AGENT is None:
             memory=MemoryIndex(database,embed=lambda model,texts:OLLAMA_CLIENT.embed(model,texts))
-            log=lambda message:print(f'{stamp()} {message}',flush=True)
-            _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(Environment(roots=allowed_roots(),vision=OLLAMA_CLIENT.see)),BRIDGE,memory,
-                                   log=log,learning=learning())
+            env=tool_env()
+            _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(env),BRIDGE,memory,log=log,learning=learning())
+            _AGENT.evolution=evolution()
+            _AGENT.dynamic_tools=lambda:evolution().tools(env)
         return _AGENT
 
 def agent_request(obj):
@@ -298,6 +319,58 @@ def stop_speech():
             except subprocess.TimeoutExpired:SPEECH.kill();SPEECH.wait()
         SPEECH=None
 
+def positive_id(obj,key='id'):
+    value=obj.get(key)
+    if type(value)!=int or value<1:raise ValueError('Ungültige ID.')
+    return value
+
+def learning_route(action,obj):
+    """Bereich „Learning & Evolution“ der App. Nur mit Sitzungstoken erreichbar – das Sprachmodell
+    selbst kann diese Schnittstelle nicht aufrufen (lokale Adressen sind für Werkzeuge gesperrt)."""
+    evo=evolution()
+    if action=='overview':return evo.overview()
+    if action=='decide':
+        if not isinstance(obj.get('approved'),bool):raise ValueError('approved fehlt.')
+        return evo.decide(positive_id(obj),obj['approved'],obj.get('confirm_security') is True)
+    if action=='rule':
+        text=obj.get('text');active=obj.get('active');scope=obj.get('scope')
+        if text is not None and not isinstance(text,str):raise ValueError('Ungültiger Text.')
+        if active is not None and not isinstance(active,bool):raise ValueError('Ungültiger Status.')
+        return {'ok':evo.learning.edit_rule(positive_id(obj),text=text,active=active,scope=scope)}
+    if action=='fact':
+        statement=obj.get('statement')
+        if statement is not None and not isinstance(statement,str):raise ValueError('Ungültige Aussage.')
+        return {'ok':evo.knowledge.edit_fact(positive_id(obj),statement=statement,status=obj.get('status'))}
+    if action=='facts':return {'facts':evo.knowledge.facts(positive_id(obj))}
+    if action=='delete':
+        kind=obj.get('kind')
+        if kind in ('experiences','rules'):return {'ok':evo.learning.delete(kind,positive_id(obj))}
+        if kind in ('fact','topic'):return {'ok':evo.knowledge.delete(kind,positive_id(obj))}
+        raise ValueError('Unbekannte Art.')
+    if action=='confirm':
+        if not isinstance(obj.get('good'),bool):raise ValueError('good fehlt.')
+        evo.learning.confirm_experience(positive_id(obj),obj['good']);return {'ok':True}
+    if action=='settings':
+        changes={k:v for k,v in obj.items() if k in ('enabled','paused','max_minutes_per_day','allow_network','cycle_hours')}
+        return evo.scheduler.update(**changes)
+    if action=='job':
+        kind=obj.get('kind')
+        if kind=='skill':return {'job':evo.scheduler.submit('skill',{'description':text_field(obj,'text',300)})}
+        if kind=='topic':return {'job':evo.scheduler.submit('topic',{'topic':text_field(obj,'text',200)})}
+        if kind=='analyse':return {'job':evo.scheduler.submit('analyse',{})}
+        raise ValueError('Unbekannte Auftragsart.')
+    if action=='cancel':return {'ok':evo.scheduler.cancel(positive_id(obj))}
+    if action=='skill':
+        name=obj.get('name')
+        if not isinstance(name,str) or len(name)>60:raise ValueError('Ungültiger Name.')
+        if obj.get('do')=='rollback':return {'message':evo.skills.rollback(name)}
+        if obj.get('do')=='disable':evo.skills.disable(name);return {'message':f'{name} deaktiviert.'}
+        raise ValueError('Unbekannte Aktion.')
+    if action=='hint/rollback':evo.improvement.rollback(positive_id(obj));return {'ok':True}
+    if action=='code/rollback':return {'message':evo.workshop.rollback(positive_id(obj))}
+    if action=='export':return {'examples':evo.learning.export_training_data()}
+    raise ValueError('Unbekannte Lern-Aktion.')
+
 def text_field(obj,key,limit):
     value=obj.get(key)
     if not isinstance(value,str) or not value.strip() or len(value)>limit:raise ValueError('Text fehlt oder ist zu lang.')
@@ -400,6 +473,8 @@ class Handler(BaseHTTPRequestHandler):
             ident=obj.get('request_id',uuid.uuid4().hex)
             if not isinstance(ident,str) or len(ident)>80:raise ValueError('Ungültige Anfrage-ID.')
             return self.stream_events(chat_events(text,model,ident,persist=context is None,native_context=context))
+        if path.startswith('/api/native/learning/'):
+            return self.send_json(learning_route(path.removeprefix('/api/native/learning/'),obj))
         return self.route_rest(path,obj)
     def stream_events(self,events):
         # Advance before headers, so a busy model returns an actual HTTP 409.
@@ -472,7 +547,10 @@ def main():
     except OSError as exc:raise SystemExit(f'Atlas kann Port {PORT} nicht öffnen: {exc}. Alte Atlas-Instanz mit Ctrl+C beenden.')
     print(f'ATLAS {VERSION} | http://127.0.0.1:{server.server_port} | {MODEL}',flush=True)
     print('Lokal. Beenden mit Ctrl+C.',flush=True)
+    evolution().scheduler.start()
     try:server.serve_forever()
     except KeyboardInterrupt:pass
-    finally:stop_speech();server.server_close()
+    finally:
+        stop_speech();server.server_close()
+        if _EVOLUTION:_EVOLUTION.scheduler.stop()
 if __name__=='__main__':main()
