@@ -1,96 +1,99 @@
-# Testbericht ATLAS Local 0.4.1
+# Testbericht ATLAS Local 0.5.0
 
 Stand: 21.10.2026.
 
-Die Entwicklungsumgebung ist ein Linux-Container: ohne Mac, ohne Swift-Compiler und ohne Ollama-Modelle. Die Netzwerkregel sperrt `ollama.com`, `registry.ollama.ai` und `huggingface.co`.
+Die Entwicklungsumgebung ist ein Linux-Container ohne Mac, ohne Swift-Compiler und ohne Ollama-Modelle. Die Netzwerkregel sperrt `ollama.com`, `registry.ollama.ai` und `huggingface.co`.
 
-**Wichtig:** Kein Ergebnis in Abschnitt 1 ist ein Hardware- oder Echtmodelltest. Wo ein Modell beteiligt ist, war es simuliert (FakeOllama). Echte Modell-, Build- und Audiotests laufen erst auf dem Mac (Abschnitt 2).
+Die Tests sind in drei Arten getrennt:
 
-## 0. Erster echter Mac-Test (von Ihnen, 21.10.2026, Version 0.4.0)
+| Art | Bedeutung |
+|---|---|
+| **Simuliert** | Das Modell ist vorgegeben (FakeOllama). Alles andere läuft echt. |
+| **Echtes Modell** | Qwen über Ollama. Läuft nur auf dem Mac. |
+| **Hardware** | Mikrofon, Lautsprecher, Freigaben. Nur von Hand auf dem Mac. |
 
-Ausschnitt der Diagnose mit `qwen3:4b` auf dem MacBook Pro M4:
+## 0. Ergebnisse von Ihrem Mac (Version 0.4.0, laut Ihren Angaben und Screenshots)
 
-- Erste Ausgabe nach 0,07–0,12 s.
-- Rund 35 Tokens/s.
-- Aber 8,8–14,9 s Gesamtzeit, auch für „Antworte exakt mit: Atlas bereit.“, also etwa 300 Tokens statt drei Wörtern.
-- Spracherkennung mit synthetischer Stimme: fehlerfrei („Hallo Atlas, heute testen wir die lokale Spracherkennung.“).
-- qwen3:8b war nicht installiert.
+**Echte Modelltests: 6 von 12 bestanden.** Fehlgeschlagen sind:
+1. Kurze Antwort
+2. Ordner und Datei
+3. Excel
+4. PDF
+5. Sortieren
+6. Fehler beheben
 
-Diagnose: Das Modell schreibt vor der Antwort ein Selbstgespräch (Denk-Variante). Die Ergebnisse der 12 echten Aufgaben lagen mir nicht vor.
+Weitere Beobachtungen:
+- Lange englische Überlegungen statt Werkzeugaufrufen.
+- 30 bis über 100 s pro Aufgabe.
+- **Diagnose:** `qwen3:4b` mit 35 Tokens/s, erste Ausgabe nach 0,07–0,12 s, aber 8,8–14,9 s für Kurzantworten.
+- Spracherkennung (synthetische Stimme): fehlerfrei.
+- **Backend-Tests:** 153 ausgeführt, davon 151 bestanden und 2 übersprungen (fehlendes openpyxl/pypdf in der genutzten Python-Umgebung).
 
-Reaktion in 0.4.1:
+**Ursachenanalyse:**
+1. `qwen3:4b` ist bei Ollama die Denk-Variante (Selbstgespräch vor jeder Antwort, meist auf Englisch).
+2. Weil `qwen3:8b` nicht installiert war, lief auch der Agent mit diesem Modell.
+3. Kleine Modelle beschreiben Werkzeuge oft, statt sie aufzurufen.
+4. Mehrschrittige Aufgaben (Sortieren: ca. 7 Aufrufe; Fehler beheben: ca. 5) überfordern sie leicht.
 
-- Schnelle Variante ohne Denkschritt bevorzugen und automatisch laden.
-- Denk-Modelle automatisch erkennen (einmalige Probeanfrage) und ihr Selbstgespräch nie anzeigen oder vorlesen.
-- Gefunden dabei: Modellnamen mit Großbuchstaben (`q4_K_M`) wurden als ungültig verworfen. Behoben.
+**Behebung in 0.4.1 und 0.5.0:** siehe Abschnitt 4.
 
-**Ob die Antwortzeit damit tatsächlich auf 1–2 s sinkt, zeigt erst der nächste Mac-Test.**
+**Ob die 16 echten Aufgaben jetzt bestehen, ist noch nicht gemessen.** Das zeigt erst `MAC_TESTEN.command` auf Ihrem Mac.
 
-## 1. Hier tatsächlich ausgeführt
+## 1. Hier ausgeführt: 170 Python-Tests, alle bestanden
 
-**157 Python-Tests bestanden** (0.2.3 hatte 82). Neu in 0.4.1: Denk-Modell-Erkennung und Ausblenden des Selbstgesprächs (auch zerstückelt im Stream, ohne Textverlust bei Fehleinschätzung), Bevorzugung der schnellen Variante, Großbuchstaben in Modellnamen, Zusammenfassung auf einem Bildschirm. Ausgeführt mit `-W error::ResourceWarning`. Rohprotokoll: `TESTRESULTS-0.4.1.txt`.
+Ausgeführt mit `-W error::ResourceWarning`. Rohprotokoll: `TESTRESULTS-0.5.0.txt`.
 
-| Testdatei | Anzahl | Was echt läuft | Was simuliert ist |
+| Testdatei | Anzahl | Echt | Simuliert |
 |---|---|---|---|
-| `test_tools.py` | 26 | Dateien, Ordner, PDF (pypdf), Excel (openpyxl), Papierkorb, Suche, Terminal mit echtem `ls`/`python3 -m unittest`, Zeitlimit, Pfad- und Symlink-Regeln, 43 Befehlsfälle der Terminal-Liste | macOS-Programme (`open`, `pgrep`, `osascript`, `screencapture`), Bildmodell, Webseiten |
-| `test_agent.py` | 27 | HTTP-Server, Streaming, Rundreise zur App, Bestätigungen, Abbruch, 409, Lebenszeichen, Gedächtnisauswahl, Duplikate und veraltete Erinnerungen, Korrekturen, Englisch, Router | Sprachmodell |
-| `test_robustness.py` | 9 | Ollama nicht erreichbar, kaputtes JSON, abgebrochener Stream, unbekanntes Werkzeug, falsche Argumente, kein Internet, Zeitlimit, Migration einer 0.2.x-Datenbank (50 Gespräche und 1 Erinnerung bleiben erhalten), Leistungsmessung | Sprachmodell, Internet |
-| `test_realtests.py` | 3 | „Ordner sortieren“ und „Fehler beheben“ als mehrstufige Abläufe mit echtem Verschieben, echtem Testlauf (erst rot, nach Korrektur grün) und der Prüflogik der Echtmodell-Tests; ohne Bestätigung bleibt alles unverändert | die Entscheidungen des Modells (vorgegeben) |
-| `test_scripts.py` | 6 | `ZURUECKSETZEN.command` in einem temporären HOME (Rückweg, nichts gelöscht, Daten nur auf Wunsch), Autostart-Datei, Syntax aller Skripte, Reihenfolge im Update (erst bauen und testen, dann ersetzen) | `launchctl` |
-| Bestehende Tests von 0.2.3 (`test_atlas`, `test_native`, `test_intents`, `test_diagnostics`) | 82 | Chat, Daten, Abbruch, Audio-Codecs mit echtem ffmpeg, Rechnen, Befehle | Modell, Spracherkennung |
+| `test_tools.py` | 31 | Dateien, PDF, Excel (5 Eingabeformen), Sortieren nach Typ, Textstelle ersetzen, Tests erkennen und ausführen (erst rot, dann grün), Datei von gestern, Terminal-Liste (43 Fälle), Pfadregeln | macOS-Programme, Bildmodell, Webseiten |
+| `test_agent.py` | 34 | Server, Streaming, Rundreise zur App, Bestätigungen, Abbruch, Lebenszeichen, Gedächtnis, Router | Modell |
+| ↳ darin neu | | Nachfassen bei Planungstext, nur einmal, kein Nachfassen bei normaler deutscher Antwort, englischer Schlusstext wird ersetzt, „Das war falsch“ als Korrektur, Denk-Modell-Selbstgespräch nie sichtbar, schnelles Modell bevorzugt | |
+| `test_robustness.py` | 9 | Ollama aus, kaputtes JSON, abgebrochener Stream, falsche Werkzeuge und Argumente, offline, Zeitlimit, Migration 0.2.x, Leistung | Modell, Internet |
+| `test_realtests.py` | 7 | Prüflogik der echten Aufgaben mit echten Dateien und echten Testläufen; Modellvergleich mit Eintrag des besten Modells | Entscheidungen des Modells |
+| `test_scripts.py` | 7 | Rollback in temporärem HOME, Autostart-Datei, Zusammenfassung passt auf einen Bildschirm, Skriptsyntax, Reihenfolge im Update | `launchctl` |
+| aus 0.2.3 | 82 | Chat, Daten, Audio-Codecs mit echtem ffmpeg, Rechnen, Befehle | Modell, Spracherkennung |
 
 **Weitere Prüfungen:**
-- 9 Chromium-Prüfgruppen der Weboberfläche bestanden (Playwright).
-- Swift-Syntax aller geänderten Dateien mit tree-sitter geprüft. Das ist kein Compiler-Lauf.
+- 9 Chromium-Prüfgruppen der Weboberfläche bestanden.
+- Swift-Syntax mit tree-sitter geprüft. Das ist kein Compiler-Lauf.
 
-**Gemessen** in der Linux-Umgebung, mit simuliertem Modell. Das zeigt nur den Eigenaufwand von ATLAS, nicht die Modellzeit:
-- Bis zum ersten Wort: Median **1,1 ms**.
-- Auswahl passender Erinnerungen aus 500 Einträgen: **9 ms**, Speicherspitze unter 0,1 MB.
+**Gemessen** (Linux, Modell simuliert, nur der Eigenaufwand von ATLAS):
+- Bis zum ersten Wort: 1,3 ms.
+- Erinnerungsauswahl aus 500 Einträgen: 11 ms.
 
-## 2. Automatisch auf dem Mac, hier NICHT ausführbar
+## 2. Automatisch auf dem Mac (hier nicht ausführbar)
 
-| Prüfung | Wo | Art |
+| Prüfung | Skript | Art |
 |---|---|---|
-| Xcode-Build, Signaturprüfung | `BAUEN.command` (vor jedem Update) | echt |
-| Swift ⇄ Backend, 9 Prüfungen | `Tests/test_provider_mac.sh` | echtes Backend, Modell simuliert |
-| Swift-Sprachtext-Tests | dito | echt |
-| 157 Backend-Tests in der Atlas-Python-Umgebung | Update, `MAC_TESTEN.command` | wie oben |
-| **12 Aufgaben mit dem echten Qwen**, Ergebnis jeweils in Dateien nachgeprüft, mit gemessenen Antwortzeiten | `MAC_TESTEN.command` → `build/MAC-ECHTE-MODELLTESTS.json` | **echtes Modell** |
-| Dienstprüfung nach dem Update (Agent-Protokoll, Rechner) | `AKTUALISIEREN.command` | echt |
-| Spracherkennung mit synthetischer Stimme | `atlas.doctor --audio` | echt, ohne Mikrofon |
+| Xcode-Build und Signatur | `AKTUALISIEREN.command` → `BAUEN.command` | echt |
+| Swift ⇄ Backend (9 Prüfungen) | `Tests/test_provider_mac.sh` | Backend echt, Modell simuliert |
+| 170 Backend-Tests in der Atlas-Umgebung (mit openpyxl/pypdf, ohne Überspringen) | Update, `MAC_TESTEN.command` | wie oben |
+| Kurztest mit echtem Modell (3 Aufgaben) | Ende von `AKTUALISIEREN.command` | **echtes Modell** |
+| **16 echte Aufgaben**, Ergebnis in Dateien nachgeprüft, Zeiten gemessen; Modellvergleich, wenn mehrere installiert sind | `MAC_TESTEN.command` | **echtes Modell** |
 
-Die 12 echten Aufgaben:
-1. Rechnen
-2. Prozent
-3. Kurze Antwort
-4. Englisch
-5. Ordner und Datei
-6. Excel
-7. PDF
-8. Systeminfo
-9. Löschen abgelehnt
-10. **Ordner nach Typ sortieren**
-11. **Fehler im Projekt finden, beheben, Tests grün**
-12. Keine erfundene E-Mail
-
-Fehlt Ollama, steht im Bericht „nicht ausgeführt“, nicht „bestanden“.
-
-## 3. Nur von Hand prüfbar
+## 3. Nur von Hand (Hardware)
 
 - Mikrofon, Wake-Word „Atlas“, Unterbrechen, Gesprächsende.
 - Klang der Stimme.
-- Darstellung der neuen Statuszeile und des Aufgabenfelds.
-- Freigabe-Dialoge von macOS.
-- Gefühlte Antwortqualität.
+- Statuszeile und Aufgabenfeld.
+- macOS-Freigaben.
+- Gedächtnis nach einem Neustart: Die native Datenbank liegt in SwiftData und bleibt bei Updates unverändert. Ein Neustart-Test hat auf dem Mac aber noch nicht stattgefunden.
 
-## 4. In dieser Runde gefundene und behobene Fehler
+## 4. Liste aller behobenen Fehler
 
-1. **Veralteter Python-Bytecode:** Korrigierte ATLAS eine Datei und testete in derselben Sekunde, lief der alte Code (gefunden durch einen echten Testlauf). Jetzt läuft jeder Projektlauf mit leerem Bytecode-Ordner.
-2. **„Merk dir bitte, dass …“** speicherte „bitte, dass …“. Behoben.
-3. **Duplikatprüfung:** Der Schnellweg „Merk dir …“ umging sie. Behoben.
-4. **Semantische Nähe galt als Duplikat:** „Wohnt in Berlin“ und „wohnt in Hamburg“ wären zusammengefallen. Jetzt nur ein Hinweis an das Modell, die veraltete Erinnerung zu ersetzen.
-5. **Rollback ohne Sicherung** brach stumm ab. Jetzt erscheint eine klare Meldung, und nichts wird verändert.
-6. **Unklare Fehlermeldungen:** Bei ausgeschaltetem Ollama hieß es „kein Modell installiert“. Jetzt heißt es „Ollama ist nicht erreichbar …“. Kaputte Antworten und Zeitüberschreitungen werden ebenfalls klar gemeldet.
-7. **Abschlussbericht:** Ein erst roter, dann behobener Testlauf stand als „fehlgeschlagen“ im Bericht. Jetzt gilt er als erledigt.
-
-Behoben in früheren Runden (0.3.x): `~`-Auflösung, unnötiges Planen, Wortgrenzen im Router, abgelehnte Aktionen im Bericht, feste Ollama-Adresse, Prozentfragen, Verbindungsabbruch bei langen Aufgaben.
+| Version | Fehler | Gefunden durch |
+|---|---|---|
+| 0.5.0 | Modell beschreibt Werkzeuge bzw. plant auf Englisch, statt sie aufzurufen | Ihre Mac-Ergebnisse |
+| 0.5.0 | Englische Überlegungen erschienen als Schlussantwort | Ihre Mac-Ergebnisse |
+| 0.5.0 | Sortieren und Fehlerbehebung brauchten zu viele Einzelaufrufe für ein 4B-Modell | Ursachenanalyse |
+| 0.5.0 | Excel scheiterte an verschachteltem Eingabeformat | Ursachenanalyse |
+| 0.5.0 | „Das war falsch“ wurde nicht als Korrektur erkannt | Test |
+| 0.4.1 | `qwen3:4b` (Denk-Variante) für alles benutzt; Selbstgespräch sichtbar | Ihr Diagnose-Screenshot |
+| 0.4.1 | Modellnamen mit Großbuchstaben (`q4_K_M`) galten als ungültig | Test |
+| 0.4.0 | Veralteter Python-Bytecode beim Testen nach einer Korrektur | echter Testlauf |
+| 0.4.0 | „Merk dir bitte, dass …“ speicherte „bitte, dass …“ | Test |
+| 0.4.0 | Duplikatprüfung umgangen; Berlin und Hamburg als Duplikat | Test |
+| 0.4.0 | Rollback brach ohne Sicherung stumm ab | Test |
+| 0.4.0 | Irreführende Fehlermeldung bei ausgeschaltetem Ollama | Test |
+| 0.4.0 | Behobener Testlauf stand als Fehler im Bericht | Test |
+| 0.3.x | `~`-Auflösung, unnötiges Planen, Wortgrenzen im Router, abgelehnte Aktionen als Fehler, feste Ollama-Adresse, Prozentfragen, Verbindungsabbruch bei langen Aufgaben | Tests, Durchsicht |

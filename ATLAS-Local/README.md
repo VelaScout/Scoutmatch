@@ -1,8 +1,24 @@
-# ATLAS Local 0.4.1 – lokaler KI-Agent für den Mac
+# ATLAS Local 0.5.0 – lokaler KI-Agent für den Mac
 
 Native SwiftUI-App mit lokalem Python-Backend und Ollama. Gerechnet wird mit Qwen3 auf Ihrem MacBook M4, ohne Cloud-KI und ohne API-Schlüssel.
 
 Seit 0.3 ist ATLAS ein **Agent**. Er versteht Aufgaben, wählt selbst Werkzeuge, arbeitet sie Schritt für Schritt ab, prüft die Ergebnisse und berichtet ehrlich, was geklappt hat.
+
+Neu in 0.5.0, gezielt für die 6 fehlgeschlagenen echten Aufgaben (kurze Antwort, Ordner und Datei, Excel, PDF, Sortieren, Fehler beheben):
+
+- **Nachfassen statt Planungstext:** Schreibt das Modell nur Überlegungen (oft Englisch) oder beschreibt ein Werkzeug, statt es aufzurufen, fordert ATLAS einmal ausdrücklich den Werkzeugaufruf an.
+  - Englische Überlegungen nach getaner Arbeit werden durch eine kurze deutsche Antwort ersetzt.
+  - Ein Werkzeug wird nie aus Text „erraten“.
+- **Ein schnelles Modell für alles:** `qwen3:4b-instruct` übernimmt Gespräch und Aufgaben. Das spart Speicher und Ladezeit; `qwen3:8b` ist optional (`ATLAS_WITH_8B=1`).
+  - `MAC_TESTEN.command` vergleicht alle installierten Modelle an echten Aufgaben und trägt das beste als Standard ein.
+- **Einfachere Werkzeuge für kleine Modelle:**
+  - `organize_folder` sortiert einen Ordner in einem Schritt.
+  - `replace_in_file` ändert gezielt eine Code-Stelle.
+  - `run_tests` erkennt den Testbefehl selbst.
+  - `recent_files` findet „die Datei von gestern“.
+  - Excel versteht Spalten und Zeilen, Objekte oder CSV-Text.
+- **Lernen aus Korrekturen:** Auf „Das war falsch“ prüft ATLAS seine Antwort, korrigiert sie und merkt sich dauerhafte Vorlieben.
+- **16 statt 12 echte Testaufgaben.**
 
 Neu in 0.4.1, nach Ihrem ersten Mac-Test:
 
@@ -27,9 +43,9 @@ Neu in 0.4.0:
 3. Das Update arbeitet von allein:
    - Es baut die App und führt alle automatischen Tests aus.
    - Es richtet eine eigene Python-Umgebung für Excel und PDF ein.
-   - Es lädt die Modelle `qwen3:8b` (ca. 5 GB) und `nomic-embed-text`. Mit `ATLAS_SKIP_MODELS=1` lässt sich das überspringen.
+   - Es lädt das schnelle Modell `qwen3:4b-instruct` (ca. 2,5 GB) und `nomic-embed-text`. Mit `ATLAS_SKIP_MODELS=1` lässt sich das überspringen, mit `ATLAS_WITH_8B=1` kommt `qwen3:8b` dazu.
    - Erst dann ersetzt es App und Dienst. Vorher sichert es Backend, App, Datenbank und Autostart.
-4. Danach **`MAC_TESTEN.command`** öffnen. Es prüft mit dem echten Qwen zwölf Aufgaben und misst die Antwortzeiten.
+4. Danach **`MAC_TESTEN.command`** öffnen. Es prüft mit dem echten Qwen 16 Aufgaben, misst die Antwortzeiten, vergleicht die installierten Modelle und endet mit einer Zusammenfassung auf einem Bildschirm.
 5. Falls etwas nicht passt: **`ZURUECKSETZEN.command`** stellt App, Backend und Autostart vor dem Update wieder her.
    - Gespräche und Erinnerungen bleiben dabei unverändert.
    - Die Backend-Datenbank wird nur mit `ATLAS_RESTORE_DATA=1` zurückgesetzt, und dann mit Sicherheitskopie.

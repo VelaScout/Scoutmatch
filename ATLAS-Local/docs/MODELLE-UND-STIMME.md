@@ -21,7 +21,16 @@ Die echten Werte für Ihren Mac misst `MAC_TESTEN.command`. Ergebnis: `build/MAC
 
 \* Bei 4-Bit-Quantisierung (Q4_K_M) und 8 000 Tokens Kontext. Der Speicher wächst mit der Kontextlänge.
 
-**Entscheidung für 0.3.0:**
+**Entscheidung ab 0.5.0** (nach den ersten Messungen auf Ihrem M4):
+
+- `qwen3:4b` lieferte 35 Tokens/s und das erste Wort nach 0,1 s, brauchte aber 9–15 s für Kurzantworten.
+  - Es ist bei Ollama inzwischen die Denk-Variante, die ein Selbstgespräch voranstellt.
+- Darum übernimmt jetzt **`qwen3:4b-instruct-2507`** Gespräch **und** Aufgaben.
+  - Es ist gleich groß und gleich schnell, hat keinen Denkschritt und ruft Werkzeuge zuverlässig auf.
+  - Nur ein Modell im Speicher heißt: weniger RAM, kein Nachladen.
+- `qwen3:8b` ist optional. `MAC_TESTEN.command` vergleicht die installierten Modelle an 16 echten Aufgaben und trägt das bessere ein (`~/.atlas-ai/settings.json`, `chat_model`/`agent_model`).
+
+**Frühere Entscheidung (0.3.0):**
 
 - **Gespräch:** `qwen3:4b`, im Stream und ohne Werkzeuge. So erscheinen die ersten Wörter am schnellsten.
 - **Aufgaben:** `qwen3:8b`, falls installiert, sonst 4b. Der Router entscheidet pro Anfrage.

@@ -8,12 +8,16 @@ test_delete_requires_confirmation_and_respects_no (test_agent.AgentServerTests.t
 test_duplicate_from_model_is_reported_back (test_agent.AgentServerTests.test_duplicate_from_model_is_reported_back) ... ok
 test_duplicate_memory_is_not_stored_twice (test_agent.AgentServerTests.test_duplicate_memory_is_not_stored_twice) ... ok
 test_english_question_gets_english_instruction (test_agent.AgentServerTests.test_english_question_gets_english_instruction) ... ok
+test_english_reasoning_after_tools_is_replaced_by_clean_answer (test_agent.AgentServerTests.test_english_reasoning_after_tools_is_replaced_by_clean_answer) ... ok
 test_false_success_claim_is_corrected (test_agent.AgentServerTests.test_false_success_claim_is_corrected) ... ok
 test_fast_instruct_model_is_preferred_for_qwen3_4b (test_agent.AgentServerTests.test_fast_instruct_model_is_preferred_for_qwen3_4b) ... ok
+test_german_direct_answer_is_not_nudged (test_agent.AgentServerTests.test_german_direct_answer_is_not_nudged) ... ok
 test_invalid_requests (test_agent.AgentServerTests.test_invalid_requests) ... ok
 test_long_model_call_sends_heartbeats (test_agent.AgentServerTests.test_long_model_call_sends_heartbeats) ... ok
 test_native_calendar_round_trip (test_agent.AgentServerTests.test_native_calendar_round_trip) ... ok
+test_only_one_nudge_and_honest_answer (test_agent.AgentServerTests.test_only_one_nudge_and_honest_answer) ... ok
 test_plan_mode_reports_open_steps_when_stopped_early (test_agent.AgentServerTests.test_plan_mode_reports_open_steps_when_stopped_early) ... ok
+test_planning_text_gets_one_nudge_then_tool_runs (test_agent.AgentServerTests.test_planning_text_gets_one_nudge_then_tool_runs) ... ok
 test_reasoning_model_self_talk_is_never_shown (test_agent.AgentServerTests.test_reasoning_model_self_talk_is_never_shown) ... ok
 test_relevant_memories_reach_the_model (test_agent.AgentServerTests.test_relevant_memories_reach_the_model) ... ok
 test_repeated_failure_is_not_retried_forever (test_agent.AgentServerTests.test_repeated_failure_is_not_retried_forever) ... ok
@@ -110,9 +114,13 @@ test_native_remote_model_rejected (test_native.NativeTests.test_native_remote_mo
 test_native_requires_token (test_native.NativeTests.test_native_requires_token) ... ok
 test_native_session (test_native.NativeTests.test_native_session) ... ok
 test_session_cross_origin_blocked (test_native.NativeTests.test_session_cross_origin_blocked) ... ok
+test_bug_fix_with_run_tests_and_replace (test_realtests.RealTestLogicTests.test_bug_fix_with_run_tests_and_replace) ... ok
 test_bug_fix_without_confirmation_changes_nothing (test_realtests.RealTestLogicTests.test_bug_fix_without_confirmation_changes_nothing) ... ok
+test_compare_picks_best_model_and_applies_it (test_realtests.RealTestLogicTests.test_compare_picks_best_model_and_applies_it) ... ok
 test_fixing_bug_passes_only_when_tests_really_pass (test_realtests.RealTestLogicTests.test_fixing_bug_passes_only_when_tests_really_pass) ... ok
+test_new_everyday_cases_check_real_results (test_realtests.RealTestLogicTests.test_new_everyday_cases_check_real_results) ... ok
 test_sorting_folder_passes_only_when_really_sorted (test_realtests.RealTestLogicTests.test_sorting_folder_passes_only_when_really_sorted) ... ok
+test_sorting_with_one_high_level_tool (test_realtests.RealTestLogicTests.test_sorting_with_one_high_level_tool) ... ok
 test_broken_model_output_is_reported_not_crashing (test_robustness.FailureTests.test_broken_model_output_is_reported_not_crashing) ... ok
 test_incomplete_stream_is_an_error (test_robustness.FailureTests.test_incomplete_stream_is_an_error) ... ok
 test_model_timeout_is_clear (test_robustness.FailureTests.test_model_timeout_is_clear) ... ok
@@ -121,7 +129,7 @@ test_ollama_unreachable_gives_clear_message (test_robustness.FailureTests.test_o
 test_unknown_tool_and_wrong_arguments_are_survived (test_robustness.FailureTests.test_unknown_tool_and_wrong_arguments_are_survived) ... ok
 test_old_database_keeps_all_rows (test_robustness.MigrationTests.test_old_database_keeps_all_rows) ... ok
 test_memory_selection_is_fast_and_small (test_robustness.PerformanceTests.test_memory_selection_is_fast_and_small) ... 
-[Messung Linux] Erinnerungsauswahl aus 500 Einträgen: 10.4 ms, Speicherspitze 0.0 MB
+[Messung Linux] Erinnerungsauswahl aus 500 Einträgen: 10.7 ms, Speicherspitze 0.0 MB
 ok
 test_overhead_until_first_word (test_robustness.PerformanceTests.test_overhead_until_first_word) ... 
 [Messung Linux, Modell simuliert] Eigenaufwand bis zum ersten Wort: Median 1.3 ms
@@ -139,17 +147,22 @@ test_calculate_and_system_info (test_tools.ToolTests.test_calculate_and_system_i
 test_category_selection (test_tools.ToolTests.test_category_selection) ... ok
 test_command_risk_levels (test_tools.ToolTests.test_command_risk_levels) ... ok
 test_create_folder_and_write_file_really_happen (test_tools.ToolTests.test_create_folder_and_write_file_really_happen) ... ok
+test_excel_accepts_what_small_models_send (test_tools.ToolTests.test_excel_accepts_what_small_models_send) ... ok
 test_excel_falls_back_to_csv_without_openpyxl (test_tools.ToolTests.test_excel_falls_back_to_csv_without_openpyxl) ... ok
 test_excel_with_formula_is_readable_again (test_tools.ToolTests.test_excel_with_formula_is_readable_again) ... ok
 test_fetch_webpage_strips_scripts (test_tools.ToolTests.test_fetch_webpage_strips_scripts) ... ok
 test_inspect_project_detects_type_tests_and_git (test_tools.ToolTests.test_inspect_project_detects_type_tests_and_git) ... ok
 test_move_and_delete_go_to_trash_not_gone (test_tools.ToolTests.test_move_and_delete_go_to_trash_not_gone) ... ok
 test_open_app_and_url_use_open_command (test_tools.ToolTests.test_open_app_and_url_use_open_command) ... ok
+test_organize_folder_sorts_by_type_and_needs_confirmation (test_tools.ToolTests.test_organize_folder_sorts_by_type_and_needs_confirmation) ... ok
 test_paths_outside_or_protected_are_rejected (test_tools.ToolTests.test_paths_outside_or_protected_are_rejected) ... ok
 test_project_tests_really_run (test_tools.ToolTests.test_project_tests_really_run) ... ok
 test_read_text_pdf_and_listing (test_tools.ToolTests.test_read_text_pdf_and_listing) ... ok
+test_recent_files (test_tools.ToolTests.test_recent_files) ... ok
+test_replace_in_file_exact_and_with_other_indentation (test_tools.ToolTests.test_replace_in_file_exact_and_with_other_indentation) ... ok
 test_run_command_really_runs_in_folder_without_shell (test_tools.ToolTests.test_run_command_really_runs_in_folder_without_shell) ... ok
 test_run_command_timeout (test_tools.ToolTests.test_run_command_timeout) ... ok
+test_run_tests_detects_command_and_reports_red_then_green (test_tools.ToolTests.test_run_tests_detects_command_and_reports_red_then_green) ... ok
 test_safari_current_page (test_tools.ToolTests.test_safari_current_page) ... ok
 test_schemas_are_valid_ollama_functions (test_tools.ToolTests.test_schemas_are_valid_ollama_functions) ... ok
 test_screen_analysis_uses_local_vision_and_deletes_photo (test_tools.ToolTests.test_screen_analysis_uses_local_vision_and_deletes_photo) ... ok
@@ -161,7 +174,7 @@ test_web_search_parses_results (test_tools.ToolTests.test_web_search_parses_resu
 test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation (test_tools.ToolTests.test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation) ... ok
 
 ----------------------------------------------------------------------
-Ran 157 tests in 31.576s
+Ran 170 tests in 37.748s
 
 OK
 

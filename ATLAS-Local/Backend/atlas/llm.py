@@ -348,6 +348,7 @@ ACTION_VERBS = re.compile(r'\b(öffne|erstell\w*|speicher\w*|lösch\w*|such\w*|t
 
 
 CORRECTION = re.compile(r'^(nein|falsch|stimmt nicht|nicht so|ich meinte|eigentlich|korrektur)\b|'
+                        r'\b(das|es|du) (war|ist|liegst|hast) (leider )?(falsch|nicht richtig|daneben|unrecht)\b|'
                         r'\b(ab jetzt|ab sofort|in zukunft|künftig|immer wenn|bitte immer|bitte nie|nenn mich|sprich mich)\b', re.I)
 ENGLISH_WORDS = set('the and is are what how why can could would you your please with this that for of to in on my me '
                     'do does show open create find search tell about which when where who'.split())

@@ -418,6 +418,7 @@ class RouterAndMemoryTests(unittest.TestCase):
             'Atlas, untersuche mein Projekt auf Fehler, behebe sie, teste die Anwendung und erstelle eine neue Version.': 'plan',
             'Aufgabe: räume meinen Schreibtisch auf': 'plan',
             'Nein, ich meinte den Termin am Dienstag.': 'agent',
+            'Atlas, das war falsch.': 'agent', 'Du liegst falsch, Berlin hat 3,7 Millionen Einwohner.': 'agent',
             'Was siehst du auf meinem Bildschirm?': 'agent',
         }
         for text, expected in cases.items():

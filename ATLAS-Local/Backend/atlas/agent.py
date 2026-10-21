@@ -256,7 +256,8 @@ class Agent:
         if language_of(query) == 'en':
             system += '\n\nThe user is speaking English. Answer in natural English.'
         if is_correction(query):
-            system += ('\n\nDer Nutzer korrigiert dich oder nennt eine dauerhafte Vorliebe. Übernimm die Korrektur sofort. '
+            system += ('\n\nDer Nutzer korrigiert dich oder nennt eine dauerhafte Vorliebe. Prüfe deine letzte Antwort, '
+                       'nenne kurz den Fehler und gib die richtige Antwort. Übernimm die Korrektur sofort. '
                        'Gilt sie dauerhaft, speichere sie mit remember als kurze Vorliebe – ohne lange Ankündigung.')
         return [{'role': 'system', 'content': system}] + kept
 
