@@ -1,8 +1,16 @@
-# ATLAS Local 0.3.1 – lokaler KI-Agent für den Mac
+# ATLAS Local 0.4.0 – lokaler KI-Agent für den Mac
 
 Native SwiftUI-App mit lokalem Python-Backend und Ollama. Gerechnet wird mit Qwen3 auf Ihrem MacBook M4, ohne Cloud-KI und ohne API-Schlüssel.
 
-Neu in 0.3: ATLAS ist ein **Agent**. Er versteht Aufgaben, wählt selbst Werkzeuge, arbeitet sie Schritt für Schritt ab, prüft die Ergebnisse und berichtet ehrlich, was geklappt hat.
+Seit 0.3 ist ATLAS ein **Agent**. Er versteht Aufgaben, wählt selbst Werkzeuge, arbeitet sie Schritt für Schritt ab, prüft die Ergebnisse und berichtet ehrlich, was geklappt hat.
+
+Neu in 0.4.0:
+
+- **Terminal ohne freie Shell:** nur Programme aus einer festen Liste, ohne Pipes und Umleitungen.
+- **Gedächtnis:** erkennt Duplikate und veraltete Einträge.
+- **Oberfläche:** zeigt Dienst, Modell und Mikrofon an und listet jede Werkzeugaktion.
+- **Rollback:** `ZURUECKSETZEN.command` dreht ein Update zurück.
+- **Mehr Tests:** Ollama aus, kaputte Antworten, kein Internet, Migration, Leistung. Neue Echtmodell-Tests für „Ordner sortieren“ und „Fehler im Projekt beheben“.
 
 ## Aktualisieren (vorhandene Installation)
 
@@ -13,7 +21,10 @@ Neu in 0.3: ATLAS ist ein **Agent**. Er versteht Aufgaben, wählt selbst Werkzeu
    - Es richtet eine eigene Python-Umgebung für Excel und PDF ein.
    - Es lädt die Modelle `qwen3:8b` (ca. 5 GB) und `nomic-embed-text`. Mit `ATLAS_SKIP_MODELS=1` lässt sich das überspringen.
    - Erst dann ersetzt es App und Dienst. Vorher sichert es Backend, App, Datenbank und Autostart.
-4. Danach **`MAC_TESTEN.command`** öffnen. Es prüft mit dem echten Qwen zehn Aufgaben und misst die Antwortzeiten.
+4. Danach **`MAC_TESTEN.command`** öffnen. Es prüft mit dem echten Qwen zwölf Aufgaben und misst die Antwortzeiten.
+5. Falls etwas nicht passt: **`ZURUECKSETZEN.command`** stellt App, Backend und Autostart vor dem Update wieder her.
+   - Gespräche und Erinnerungen bleiben dabei unverändert.
+   - Die Backend-Datenbank wird nur mit `ATLAS_RESTORE_DATA=1` zurückgesetzt, und dann mit Sicherheitskopie.
 
 Erstinstallation: `INSTALLIEREN.command`. Dafür müssen Homebrew und das vollständige Xcode installiert sein.
 
@@ -52,15 +63,18 @@ Weitere Werkzeuge der App:
   - Neue Dateien und Ordner anlegen
   - Programme und Webseiten öffnen
   - Internetsuche, Systeminfos, Rechnen
-  - Lesende Terminalbefehle (`ls`, `git status` …)
+  - Lesende Terminalbefehle aus der Liste (`ls`, `cat`, `grep`, `find`, `git status`, `git diff`, `git log` …)
 - **Nur mit Ihrer Bestätigung:**
   - Überschreiben, verschieben, löschen. Löschen heißt immer: in den Papierkorb, also wiederherstellbar.
-  - Alle anderen Terminalbefehle
+  - Bauen und Testen: `python3 -m pytest` bzw. `unittest`, Projektskripte, `swift build`/`test`, `xcodebuild`, `npm test`/`run`/`install`, `cargo`, `go`, `make`
+  - Git-Änderungen: `add`, `commit`, `push` …
   - Senden von Nachrichten und E-Mails, Anrufe
-- **Gesperrt:**
-  - `sudo`, Systemschutz (`csrutil`, `spctl`, `tccutil`)
-  - Festplatten formatieren, `curl | sh`
-  - Schlüsselbund auslesen, Prozesse beenden, Neustart
+- **Gesperrt** (keine freie Shell):
+  - Alles, was nicht auf der Liste steht, zum Beispiel `rm`, `sudo`, `python -c`, `pip`, `osascript`, `curl`
+  - Pipes `|`, Umleitungen `>`, Befehlsketten `;` `&&`, Variablen `$`
+  - `git push --force`, `git reset --hard`
+  - Pfade außerhalb der freigegebenen Ordner
+  - Befehle laufen ohne Shell, die Argumente werden einzeln übergeben.
 - **Ordner:** ATLAS arbeitet nur in Ihrem Benutzerordner.
   - `~/Library`, versteckte Ordner und alles außerhalb sind tabu.
   - Weitere Ordner lassen sich in `~/.atlas-ai/settings.json` unter `"allowed_roots"` freigeben.
@@ -78,10 +92,20 @@ Weitere Werkzeuge der App:
 - Stimme: Es spricht die beste installierte Apple-Stimme. Bitte eine **Premium**-Stimme laden, siehe `docs/MODELLE-UND-STIMME.md`. Eine neuronale lokale Stimme ist geplant, aber noch nicht eingebaut.
 - Die Swift-App konnte in dieser Entwicklungsumgebung nicht kompiliert werden (kein Mac). Der Build läuft im Update auf Ihrem Mac. Bei einem Fehler stoppt das Update, bevor etwas ersetzt wird; das Protokoll steht in `build/BUILD-LOG.txt`.
 
+## Oberfläche
+
+- **Statuszeile oben:**
+  - Dienst: „Lokal bereit“, „Ollama fehlt“ oder „Dienst aus“
+  - Aktives Modell, etwa „qwen3:4b · Aufgaben 8b“
+  - Mikrofon: „Wartet auf ‚Atlas‘“, „Hört zu“ oder „Mikrofon aus“
+- **Aufgabenfeld unten:** jede Werkzeugaktion mit Status (läuft, erledigt, fehlgeschlagen)
+- **Nicht geändert:** Gesprächsverlauf und Einstellungen über die Knöpfe oben rechts; der blaue Kern in der Mitte (Darstellung „Schlicht“, Hologramm optional)
+
 ## Dokumente
 
 - `TESTBERICHT.md`: was getestet wurde, was simuliert war und was nur auf dem Mac geprüft werden kann.
-- `docs/ARCHITEKTUR-0.3.md`: Aufbau, Agenten-Ablauf, Protokoll.
+- `OFFENE-PUNKTE.md`: bekannte Grenzen und nächste Schritte.
+- `docs/ARCHITEKTUR.md`: Aufbau, Agenten-Ablauf, Protokoll.
 - `docs/MODELLE-UND-STIMME.md`: Modellvergleich für M4/16 GB, Laufzeiten, Stimmen.
 
 ## Daten

@@ -25,6 +25,7 @@ struct MainView: View {
     @State private var typedText = ""
     @State private var captionVisible = false
     @State private var captionHideTask: Task<Void, Never>?
+    @State private var systemStatus = SystemStatus()
     @FocusState private var textFieldFocused: Bool
 
     var body: some View {
@@ -40,13 +41,19 @@ struct MainView: View {
                     Button { sheet = .settings } label: { Image(systemName: "gearshape") }
                         .accessibilityLabel("Einstellungen")
                 }.padding().foregroundStyle(.white)
-                Text(engine.state.label).font(.caption).foregroundStyle(.secondary)
+                StatusBar(status: systemStatus)
+                Text(engine.state.label).font(.caption).foregroundStyle(.secondary).padding(.top, 6)
                 atlasVisual
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
                     .onTapGesture { engine.primaryAction() }
                     .onLongPressGesture(minimumDuration: 0.6) { sheet = .settings }
                     .overlay(alignment: .bottom) { caption }
+                if !engine.activity.isEmpty {
+                    ActivityPanel(items: engine.activity)
+                        .padding(.bottom, 6)
+                        .transition(.opacity)
+                }
                 attachmentChips
                 inputBar
             }
@@ -100,6 +107,7 @@ struct MainView: View {
             Text(attachmentError ?? "")
         }
         .onAppear {
+            systemStatus.start()
             showOnboarding = !UserDefaults.standard.bool(forKey: "localAtlasOnboarded")
             processPendingRequest()
         }

@@ -50,6 +50,8 @@ final class ConversationEngine {
     private(set) var responseText = ""
     /// Was ATLAS gerade im Hintergrund tut (z. B. „Prüft Ihren Kalender“).
     private(set) var statusDetail: String?
+    /// Werkzeugaktionen der laufenden bzw. letzten Aufgabe – sichtbar in der Oberfläche.
+    private(set) var activity: [ActivityItem] = []
     /// Mikrofonpegel 0...1
     private(set) var inputLevel: Float = 0
     /// Zählt gesprochene Wörter hoch – treibt die Mundbewegung.
@@ -766,6 +768,7 @@ final class ConversationEngine {
         scheduleThinkingFiller(generation: currentGeneration)
         startBargeInListening()
 
+        activity = []
         responseTask = Task { [weak self] in
             guard let self else { return }
             var full = ""
@@ -801,8 +804,10 @@ final class ConversationEngine {
                         if Self.slowTools.contains(name) { self.sayFiller(.tool) }
                         if !full.isEmpty { full += " " }
                         self.statusDetail = ToolCatalog.statusText(for: name)
-                    case .toolFinished:
+                        self.recordActivity(started: ToolCatalog.statusText(for: name))
+                    case .toolFinished(let name, let succeeded):
                         self.statusDetail = nil
+                        self.recordActivity(finished: ToolCatalog.statusText(for: name), succeeded: succeeded)
                     case .searching:
                         // Kurze Vorrede vor einer Suche („Ich schau mal nach …“) nicht vorlesen –
                         // die Wartezeit überbrückt A.T.L.A.S. selbst; so klingt es nach einer Antwort.
@@ -1096,6 +1101,23 @@ final class ConversationEngine {
         descriptor.fetchLimit = 200
         let items = (try? modelContext.fetch(descriptor)) ?? []
         return items.map { "[\($0.category)] \($0.content)" }
+    }
+
+    // MARK: - Aufgabenanzeige
+
+    private func recordActivity(started label: String) {
+        // „Arbeitet“ ohne Inhalt nicht doppelt anzeigen.
+        if let last = activity.last, last.label == label, last.status == .running { return }
+        activity.append(ActivityItem(label: label))
+        if activity.count > 12 { activity.removeFirst(activity.count - 12) }
+    }
+
+    private func recordActivity(finished label: String, succeeded: Bool) {
+        if let index = activity.lastIndex(where: { $0.label == label && $0.status == .running }) {
+            activity[index].status = succeeded ? .done : .failed
+        } else {
+            activity.append(ActivityItem(label: label, status: succeeded ? .done : .failed))
+        }
     }
 
     private func persist(role: ChatTurn.Role, text: String) {

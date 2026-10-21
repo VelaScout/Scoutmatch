@@ -5,6 +5,8 @@ test_correction_offers_remember_and_is_learned (test_agent.AgentServerTests.test
 test_dangerous_command_is_blocked_without_asking (test_agent.AgentServerTests.test_dangerous_command_is_blocked_without_asking) ... ok
 test_delete_after_yes_moves_to_trash (test_agent.AgentServerTests.test_delete_after_yes_moves_to_trash) ... ok
 test_delete_requires_confirmation_and_respects_no (test_agent.AgentServerTests.test_delete_requires_confirmation_and_respects_no) ... ok
+test_duplicate_from_model_is_reported_back (test_agent.AgentServerTests.test_duplicate_from_model_is_reported_back) ... ok
+test_duplicate_memory_is_not_stored_twice (test_agent.AgentServerTests.test_duplicate_memory_is_not_stored_twice) ... ok
 test_english_question_gets_english_instruction (test_agent.AgentServerTests.test_english_question_gets_english_instruction) ... ok
 test_false_success_claim_is_corrected (test_agent.AgentServerTests.test_false_success_claim_is_corrected) ... ok
 test_invalid_requests (test_agent.AgentServerTests.test_invalid_requests) ... ok
@@ -15,6 +17,7 @@ test_relevant_memories_reach_the_model (test_agent.AgentServerTests.test_relevan
 test_repeated_failure_is_not_retried_forever (test_agent.AgentServerTests.test_repeated_failure_is_not_retried_forever) ... ok
 test_result_requires_token (test_agent.AgentServerTests.test_result_requires_token) ... ok
 test_session_advertises_agent_protocol (test_agent.AgentServerTests.test_session_advertises_agent_protocol) ... ok
+test_similar_memory_suggests_update (test_agent.AgentServerTests.test_similar_memory_suggests_update) ... ok
 test_simple_calculation_needs_no_model (test_agent.AgentServerTests.test_simple_calculation_needs_no_model) ... ok
 test_small_talk_streams_without_tools (test_agent.AgentServerTests.test_small_talk_streams_without_tools) ... ok
 test_text_tool_calls_from_small_models_are_understood (test_agent.AgentServerTests.test_text_tool_calls_from_small_models_are_understood) ... ok
@@ -104,6 +107,28 @@ test_native_remote_model_rejected (test_native.NativeTests.test_native_remote_mo
 test_native_requires_token (test_native.NativeTests.test_native_requires_token) ... ok
 test_native_session (test_native.NativeTests.test_native_session) ... ok
 test_session_cross_origin_blocked (test_native.NativeTests.test_session_cross_origin_blocked) ... ok
+test_bug_fix_without_confirmation_changes_nothing (test_realtests.RealTestLogicTests.test_bug_fix_without_confirmation_changes_nothing) ... ok
+test_fixing_bug_passes_only_when_tests_really_pass (test_realtests.RealTestLogicTests.test_fixing_bug_passes_only_when_tests_really_pass) ... ok
+test_sorting_folder_passes_only_when_really_sorted (test_realtests.RealTestLogicTests.test_sorting_folder_passes_only_when_really_sorted) ... ok
+test_broken_model_output_is_reported_not_crashing (test_robustness.FailureTests.test_broken_model_output_is_reported_not_crashing) ... ok
+test_incomplete_stream_is_an_error (test_robustness.FailureTests.test_incomplete_stream_is_an_error) ... ok
+test_model_timeout_is_clear (test_robustness.FailureTests.test_model_timeout_is_clear) ... ok
+test_offline_internet (test_robustness.FailureTests.test_offline_internet) ... ok
+test_ollama_unreachable_gives_clear_message (test_robustness.FailureTests.test_ollama_unreachable_gives_clear_message) ... ok
+test_unknown_tool_and_wrong_arguments_are_survived (test_robustness.FailureTests.test_unknown_tool_and_wrong_arguments_are_survived) ... ok
+test_old_database_keeps_all_rows (test_robustness.MigrationTests.test_old_database_keeps_all_rows) ... ok
+test_memory_selection_is_fast_and_small (test_robustness.PerformanceTests.test_memory_selection_is_fast_and_small) ... 
+[Messung Linux] Erinnerungsauswahl aus 500 Einträgen: 9.0 ms, Speicherspitze 0.0 MB
+ok
+test_overhead_until_first_word (test_robustness.PerformanceTests.test_overhead_until_first_word) ... 
+[Messung Linux, Modell simuliert] Eigenaufwand bis zum ersten Wort: Median 1.1 ms
+ok
+test_all_scripts_have_valid_syntax_and_are_executable (test_scripts.ScriptTests.test_all_scripts_have_valid_syntax_and_are_executable) ... ok
+test_autostart_file_uses_atlas_environment (test_scripts.ScriptTests.test_autostart_file_uses_atlas_environment) ... ok
+test_rollback_of_data_only_on_request_and_with_safety_copy (test_scripts.ScriptTests.test_rollback_of_data_only_on_request_and_with_safety_copy) ... ok
+test_rollback_restores_app_backend_agent_and_keeps_data (test_scripts.ScriptTests.test_rollback_restores_app_backend_agent_and_keeps_data) ... ok
+test_rollback_without_backup_changes_nothing (test_scripts.ScriptTests.test_rollback_without_backup_changes_nothing) ... ok
+test_update_never_replaces_before_build_and_tests (test_scripts.ScriptTests.test_update_never_replaces_before_build_and_tests) ... ok
 test_aliases_resolve_inside_home (test_tools.ToolTests.test_aliases_resolve_inside_home) ... ok
 test_binary_file_is_not_dumped (test_tools.ToolTests.test_binary_file_is_not_dumped) ... ok
 test_calculate_and_system_info (test_tools.ToolTests.test_calculate_and_system_info) ... ok
@@ -117,8 +142,9 @@ test_inspect_project_detects_type_tests_and_git (test_tools.ToolTests.test_inspe
 test_move_and_delete_go_to_trash_not_gone (test_tools.ToolTests.test_move_and_delete_go_to_trash_not_gone) ... ok
 test_open_app_and_url_use_open_command (test_tools.ToolTests.test_open_app_and_url_use_open_command) ... ok
 test_paths_outside_or_protected_are_rejected (test_tools.ToolTests.test_paths_outside_or_protected_are_rejected) ... ok
+test_project_tests_really_run (test_tools.ToolTests.test_project_tests_really_run) ... ok
 test_read_text_pdf_and_listing (test_tools.ToolTests.test_read_text_pdf_and_listing) ... ok
-test_run_command_really_runs_in_folder (test_tools.ToolTests.test_run_command_really_runs_in_folder) ... ok
+test_run_command_really_runs_in_folder_without_shell (test_tools.ToolTests.test_run_command_really_runs_in_folder_without_shell) ... ok
 test_run_command_timeout (test_tools.ToolTests.test_run_command_timeout) ... ok
 test_safari_current_page (test_tools.ToolTests.test_safari_current_page) ... ok
 test_schemas_are_valid_ollama_functions (test_tools.ToolTests.test_schemas_are_valid_ollama_functions) ... ok
@@ -131,7 +157,7 @@ test_web_search_parses_results (test_tools.ToolTests.test_web_search_parses_resu
 test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation (test_tools.ToolTests.test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation) ... ok
 
 ----------------------------------------------------------------------
-Ran 131 tests in 21.260s
+Ran 153 tests in 30.302s
 
 OK
 

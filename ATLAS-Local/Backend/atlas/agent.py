@@ -510,7 +510,12 @@ class Agent:
     @staticmethod
     def report(actions: list[Action], plan: list[str], finished: bool) -> dict:
         done = [f'{a.summary}{"" if a.verified else " (nicht nachgeprüft)"}' for a in actions if a.ok]
-        failed = [f'{a.summary}: {a.output[:160]}' for a in actions if not a.ok and not a.declined]
+        # Ein Fehlschlag, der später mit demselben Schritt behoben wurde (z. B. Tests erst rot, nach der
+        # Korrektur grün), gilt als erledigt und nicht als offener Fehler.
+        resolved = {i for i, x in enumerate(actions) if not x.ok and any(
+            later.ok and later.tool == x.tool and later.summary == x.summary for later in actions[i + 1:])}
+        failed = [f'{x.summary}: {x.output[:160]}' for i, x in enumerate(actions)
+                  if not x.ok and not x.declined and i not in resolved]
         declined = [a.summary for a in actions if a.declined]
         open_steps = plan if (plan and not finished) else []
         return {'done': done[:20], 'failed': failed[:20], 'declined': declined[:20], 'open': open_steps}
