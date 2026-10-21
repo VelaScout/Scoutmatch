@@ -79,6 +79,7 @@ class Limits:
     max_rounds: int = 12
     seconds: float = 240.0
     native_timeout: float = 150.0
+    heartbeat: float = 8.0
 
 
 @dataclass
@@ -152,6 +153,31 @@ def sentences(text: str) -> Iterator[str]:
     for part in re.split(r'(?<=[.!?…])\s+', text):
         if part:
             yield part + ' '
+
+
+def in_background(work, stop: threading.Event, every: float = 8.0) -> Iterator[dict]:
+    """Führt eine blockierende Arbeit aus und sendet währenddessen Lebenszeichen (``ping``),
+    damit die App die Verbindung bei langen Modell- oder Werkzeugläufen nicht abbricht."""
+    box: dict[str, Any] = {}
+
+    def target():
+        try:
+            box['value'] = work()
+        except BaseException as exc:  # wird im aufrufenden Thread erneut ausgelöst
+            box['error'] = exc
+    worker = threading.Thread(target=target, daemon=True)
+    worker.start()
+    while True:
+        worker.join(every)
+        if not worker.is_alive():
+            break
+        yield {'type': 'ping'}
+        if stop.is_set():
+            # Die Arbeit läuft ggf. noch zu Ende, ihr Ergebnis wird verworfen.
+            raise InterruptedError('abgebrochen')
+    if 'error' in box:
+        raise box['error']
+    return box.get('value')
 
 
 class Agent:
@@ -287,12 +313,12 @@ class Agent:
         if mode == 'plan':
             yield {'type': 'status', 'label': 'Plant die Aufgabe', 'mode': 'plan', 'model': model}
             try:
-                reply = self.llm.chat(model, [{'role': 'system', 'content': PLAN_PROMPT},
-                                              {'role': 'user', 'content': text}], json_mode=True, num_predict=400,
-                                      timeout=90)
+                reply = yield from in_background(lambda: self.llm.chat(
+                    model, [{'role': 'system', 'content': PLAN_PROMPT}, {'role': 'user', 'content': text}],
+                    json_mode=True, num_predict=400, timeout=90), stop, self.limits.heartbeat)
                 steps = json.loads(reply.content or '{}').get('steps', [])
                 plan = [str(s).strip()[:160] for s in steps if str(s).strip()][:6]
-            except (ValueError, ModelError, AttributeError):
+            except (ValueError, ModelError, AttributeError, InterruptedError):
                 plan = []
             if plan:
                 yield {'type': 'plan', 'steps': plan}
@@ -314,7 +340,11 @@ class Agent:
                 reason = 'Zeitlimit erreicht'
                 break
             try:
-                reply = self.llm.chat(model, messages, schemas, timeout=max(30, self.limits.seconds - (time.monotonic() - started)))
+                remaining = max(30, self.limits.seconds - (time.monotonic() - started))
+                reply = yield from in_background(lambda: self.llm.chat(model, messages, schemas, timeout=remaining), stop, self.limits.heartbeat)
+            except InterruptedError:
+                reason = 'abgebrochen'
+                break
             except ModelError as exc:
                 if 'unterstützt keine Werkzeuge' in str(exc):
                     raise ModelError(f'{model} kann keine Werkzeuge benutzen. Bitte Qwen3 verwenden.') from exc
@@ -388,7 +418,9 @@ class Agent:
                                   declined=True)
             yield {'type': 'step', 'tool': name, 'label': tool.label, 'status': 'läuft', 'detail': summary}
             try:
-                result = tool.func(**clean)
+                result = yield from in_background(lambda: tool.func(**clean), stop, self.limits.heartbeat)
+            except InterruptedError:
+                result = Result(False, 'Abgebrochen.')
             except ToolError as exc:
                 result = Result(False, str(exc))
             except (OSError, subprocess.SubprocessError, ValueError, TypeError) as exc:
@@ -413,7 +445,10 @@ class Agent:
     def native_call(self, name: str, args: dict, stop: threading.Event) -> Iterator[dict]:
         ident = self.bridge.register()
         yield {'type': 'tool_request', 'id': ident, 'name': name, 'input': args}
-        result = self.bridge.wait(ident, self.limits.native_timeout, stop)
+        try:
+            result = yield from in_background(lambda: self.bridge.wait(ident, self.limits.native_timeout, stop), stop, self.limits.heartbeat)
+        except InterruptedError:
+            result = None
         if result is None:
             return {'content': 'Keine Rückmeldung der App (Zeitlimit oder Abbruch).', 'isError': True}
         return {'content': str(result.get('content', ''))[:20_000], 'isError': bool(result.get('isError'))}

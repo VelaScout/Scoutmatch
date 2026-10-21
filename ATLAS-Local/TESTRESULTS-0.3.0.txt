@@ -6,6 +6,7 @@ test_delete_after_yes_moves_to_trash (test_agent.AgentServerTests.test_delete_af
 test_delete_requires_confirmation_and_respects_no (test_agent.AgentServerTests.test_delete_requires_confirmation_and_respects_no) ... ok
 test_false_success_claim_is_corrected (test_agent.AgentServerTests.test_false_success_claim_is_corrected) ... ok
 test_invalid_requests (test_agent.AgentServerTests.test_invalid_requests) ... ok
+test_long_model_call_sends_heartbeats (test_agent.AgentServerTests.test_long_model_call_sends_heartbeats) ... ok
 test_native_calendar_round_trip (test_agent.AgentServerTests.test_native_calendar_round_trip) ... ok
 test_plan_mode_reports_open_steps_when_stopped_early (test_agent.AgentServerTests.test_plan_mode_reports_open_steps_when_stopped_early) ... ok
 test_relevant_memories_reach_the_model (test_agent.AgentServerTests.test_relevant_memories_reach_the_model) ... ok
@@ -123,7 +124,7 @@ test_web_search_parses_results (test_tools.ToolTests.test_web_search_parses_resu
 test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation (test_tools.ToolTests.test_write_refuses_silent_overwrite_and_overwrite_needs_confirmation) ... ok
 
 ----------------------------------------------------------------------
-Ran 123 tests in 18.680s
+Ran 124 tests in 20.357s
 
 OK
 

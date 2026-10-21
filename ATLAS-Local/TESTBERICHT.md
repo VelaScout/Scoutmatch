@@ -6,7 +6,7 @@ Die Netzwerkregel der Umgebung sperrt `ollama.com`, `registry.ollama.ai` und `hu
 
 ## 1. Hier tatsächlich ausgeführt
 
-**123 Python-Tests bestanden** (vorher 82; 41 neu). Rohprotokoll: `TESTRESULTS-0.3.0.txt`.
+**124 Python-Tests bestanden** (vorher 82; 42 neu). Rohprotokoll: `TESTRESULTS-0.3.0.txt`.
 
 ### Werkzeuge (`test_tools.py`, 21 Tests)
 
@@ -28,7 +28,7 @@ Echt ausgeführt, in einem temporären Home-Ordner:
 
 Simuliert: macOS-Programme (`open`, `pgrep`) und Webseiteninhalte.
 
-### Agent über den echten HTTP-Server (`test_agent.py`, 20 Tests)
+### Agent über den echten HTTP-Server (`test_agent.py`, 21 Tests)
 
 Simuliertes Modell, alles andere echt:
 
@@ -45,6 +45,7 @@ Simuliertes Modell, alles andere echt:
 - Keine Endlosschleife bei wiederholtem Fehler.
 - Planmodus mit Bericht über offene Schritte.
 - Abbruch, während der Agent auf die App wartet (unter 4 s).
+- Lebenszeichen bei langen Modellläufen, damit die App die Verbindung nicht abbricht.
 - Parallele Anfrage ergibt HTTP 409.
 - Ungültige Anfragen und Cloud-Modelle werden abgewiesen.
 - Ergebnisse nur mit Token.
@@ -75,7 +76,7 @@ Alle 82 erneut bestanden: Chat, Fehler, Daten, Abbruch, Audio-Codecs mit echtem 
 | Xcode-Build und Signatur | `BAUEN.command` (Teil von Update/Installation) | echt |
 | Swift ⇄ Backend, 9 Prüfungen | `Tests/test_provider_mac.sh` | echtes Backend, Modell simuliert |
 | Sprachtext-Tests (Swift) | dito | echt |
-| 123 Backend-Tests in der Atlas-Python-Umgebung | Update und `MAC_TESTEN.command` | wie oben |
+| 124 Backend-Tests in der Atlas-Python-Umgebung | Update und `MAC_TESTEN.command` | wie oben |
 | **10 Aufgaben mit dem echten Qwen** | `MAC_TESTEN.command` → `build/MAC-ECHTE-MODELLTESTS.json` | **echte Modellaufrufe** |
 | Antwortzeiten (erste Ausgabe, gesamt) je Aufgabe | dito | echt gemessen |
 | Dienstprüfung nach dem Update (Agent-Protokoll, Rechner) | `AKTUALISIEREN.command` | echt |
@@ -112,3 +113,4 @@ Fehlt Ollama, steht im Bericht „nicht ausgeführt“, nicht „bestanden“.
 4. Eine abgelehnte Aktion erschien im Bericht als „fehlgeschlagen“. Jetzt steht sie als „nicht ausgeführt, weil abgelehnt“ da.
 5. Die Health-Abfrage nutzte eine feste Ollama-Adresse statt der konfigurierten. Behoben (wichtig für die Swift-Testumgebung).
 6. „Wie viel sind 19 Prozent von 2500“ ging ans Modell statt an den exakten Rechner. Behoben.
+7. Bei der Durchsicht gefunden: Die App hätte lange Agenten-Aufgaben abgebrochen (75 s ohne Daten bzw. 180 s gesamt). Jetzt sendet das Backend alle 8 s ein Lebenszeichen, und die Gesamtgrenze liegt bei 15 Minuten. Mit Test.

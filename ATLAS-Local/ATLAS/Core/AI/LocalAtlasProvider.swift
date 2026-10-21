@@ -19,8 +19,10 @@ struct LocalAtlasProvider: AIProvider {
     }
     private func session() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
+        // Pause ohne Daten (das Backend sendet bei langen Aufgaben alle 8 s ein Lebenszeichen)
         config.timeoutIntervalForRequest = 75
-        config.timeoutIntervalForResource = 180
+        // Gesamtdauer einer Agenten-Aufgabe (Zeitlimit im Backend: 4 Minuten plus Bestätigungen)
+        config.timeoutIntervalForResource = 900
         config.connectionProxyDictionary = [:]
         config.urlCache = nil
         return URLSession(configuration: config, delegate: LocalRedirectPolicy(), delegateQueue: nil)
@@ -133,7 +135,7 @@ struct LocalAtlasProvider: AIProvider {
                         guard let event = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
                               let type = event["type"] as? String else { throw AIError.invalidResponse }
                         switch type {
-                        case "start", "plan", "report":
+                        case "start", "plan", "report", "ping":
                             break
                         case "status":
                             if let label = event["label"] as? String { continuation.yield(.toolStarted(name: label)) }

@@ -245,6 +245,14 @@ class AgentServerTests(unittest.TestCase):
         self.assertEqual(events[-1]['type'], 'cancelled')
         self.assertLess(time.monotonic() - started, 4)
 
+    def test_long_model_call_sends_heartbeats(self):
+        self.agent.limits.heartbeat = 0.2
+        self.ollama.delay = 0.7
+        self.ollama.script = [tool_call('list_directory', path='~'), answer('Hier ist die Liste.')]
+        _, events = self.run_agent(self.body('Liste die Dateien in meinem Ordner auf'))
+        self.assertGreaterEqual(sum(e['type'] == 'ping' for e in events), 4)
+        self.assertEqual(events[-1]['type'], 'done')
+
     def test_busy_returns_409(self):
         self.ollama.delay = 1.0
         self.ollama.script = [tool_call('list_directory', path='~'), answer('ok')]
