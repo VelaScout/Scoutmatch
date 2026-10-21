@@ -131,7 +131,7 @@ final class PremiumVoice: NSObject {
         let style = config.instructions.trimmingCharacters(in: .whitespacesAndNewlines)
         // Der eigene Name klingt englisch – auch mitten im deutschen Satz.
         body["instructions"] = (style.isEmpty ? "" : style + " ")
-            + "Sprich den Namen „Atlas“ immer englisch aus, wie [ˈætləs] („Ätlas“), nie deutsch.
+            + "Sprich den Namen „Atlas“ immer englisch aus, wie [ˈætləs] („Ätlas“), nie deutsch."
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         return request
     }
