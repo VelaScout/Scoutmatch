@@ -1149,9 +1149,8 @@ extension ConversationEngine {
         responseTask?.cancel()
         synthesizer.stop()
         do {
-            // Echo-Unterdrückung: A.T.L.A.S. hört sich nicht selbst und kann unterbrochen werden.
-            let echoCancellation = !UserDefaults.standard.bool(forKey: AudioHub.voiceProcessingUnavailableKey)
-            try AudioHub.shared.enableInput(voiceProcessing: echoCancellation)
+            // Gleiche Audio-Einstellung wie in der Bereitschaft – kein Neustart, kein Haken.
+            try AudioHub.shared.enableInput()
         } catch {
             return false
         }

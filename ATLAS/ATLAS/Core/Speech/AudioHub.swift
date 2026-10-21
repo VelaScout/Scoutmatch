@@ -129,15 +129,33 @@ final class AudioHub: @unchecked Sendable {
         if !player.isPlaying { player.play() }
     }
 
-    /// Schaltet das Mikrofon mit Echo-Unterdrückung zu. Erst nach erteilter Erlaubnis aufrufen.
-    /// - Parameter voiceProcessing: Echo-Unterdrückung (nötig, um A.T.L.A.S. per Stimme zu
-    ///   unterbrechen). Ohne sie klingt die Wiedergabe etwas voller, er hört beim Sprechen aber nicht zu.
-    func enableInput(voiceProcessing: Bool = true) throws {
+    /// Soll Apples Echo-Unterdrückung laufen? Eine feste Entscheidung für alle Teile der App –
+    /// ein Umschalten startet die Audio-Leitung neu, und genau das ließ Ton und Zuhören haken.
+    /// Mac: nur, wenn „Unterbrechen per Stimme“ ausdrücklich eingeschaltet ist; sie überlastet dort
+    /// teils die Audio-Verarbeitung („state fault“). Ohne sie hört A.T.L.A.S. nicht zu, während er spricht.
+    static var wantsVoiceProcessing: Bool {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: voiceProcessingUnavailableKey) else { return false }
+        #if os(macOS)
+        return defaults.bool(forKey: "bargeInEnabled")
+        #else
+        return defaults.bool(forKey: "bargeInEnabled") || defaults.bool(forKey: "liveModeEnabled")
+        #endif
+    }
+
+    /// Schaltet das Mikrofon zu. Erst nach erteilter Erlaubnis aufrufen.
+    func enableInput() throws {
+        try enableInput(voiceProcessing: Self.wantsVoiceProcessing)
+    }
+
+    private func enableInput(voiceProcessing: Bool) throws {
         if inputReady, voiceProcessingActive == voiceProcessing {
             try startIfNeeded()
             return
         }
         try prepareOutput()
+        // Neustart der Leitung: Laufende Wiedergabe sauber beenden, sonst bleibt „spielt noch“ hängen.
+        stopPlayback()
         if engine.isRunning { engine.stop() }
         let input = engine.inputNode
         if inputReady { input.removeTap(onBus: 0) }
@@ -208,7 +226,7 @@ final class AudioHub: @unchecked Sendable {
     func takePreroll() -> Data {
         lock.withLock {
             defer { preroll.removeAll() }
-            return preroll
+            return Data(preroll)
         }
     }
 
@@ -218,7 +236,8 @@ final class AudioHub: @unchecked Sendable {
                   let samples = converted.int16ChannelData?[0] else { return }
             preroll.append(Data(bytes: samples, count: Int(converted.frameLength) * 2))
             if preroll.count > Self.prerollBytes + 48_000 {
-                preroll.removeFirst(preroll.count - Self.prerollBytes)
+                // Neu anlegen statt removeFirst: so beginnt der Puffer wieder bei Index 0.
+                preroll = Data(preroll.suffix(Self.prerollBytes))
             }
         }
     }

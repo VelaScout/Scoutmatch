@@ -60,6 +60,11 @@ final class RealtimeSession {
     /// Es läuft gerade eine Antwort – ein neues `response.create` muss warten.
     private var responseActive = false
     private var responseQueued = false
+    /// Polster am Anfang jeder Antwort (200 ms), damit Netzschwankungen keine Lücken reißen.
+    private var cushion: [AVAudioPCMBuffer] = []
+    private var cushionFrames = 0
+    private var cushionFilled = false
+    private static let cushionTarget = 4_800
 
     // MARK: - Verbinden
 
@@ -104,6 +109,8 @@ final class RealtimeSession {
         socket?.cancel(with: .goingAway, reason: nil)
         socket = nil
         currentItemID = nil
+        cushion.removeAll()
+        cushionFrames = 0
         if notify { onEvent?(.closed) }
     }
 
@@ -208,11 +215,15 @@ final class RealtimeSession {
     private func handle(_ event: [String: Any]) {
         switch event["type"] as? String ?? "" {
         case "session.updated":
-            if usePreroll, case let preroll = hub.takePreroll(), !preroll.isEmpty {
+            if usePreroll {
                 // Was kurz vor der Aktivierung gesagt wurde („Atlas, …“), zuerst übertragen.
-                for chunk in stride(from: 0, to: preroll.count, by: 9_600) {
-                    let part = preroll.subdata(in: chunk..<min(chunk + 9_600, preroll.count))
-                    send(["type": "input_audio_buffer.append", "audio": part.base64EncodedString()])
+                let preroll = hub.takePreroll()
+                var offset = preroll.startIndex
+                while offset < preroll.endIndex {
+                    let end = min(offset + 9_600, preroll.endIndex)
+                    send(["type": "input_audio_buffer.append",
+                          "audio": preroll.subdata(in: offset..<end).base64EncodedString()])
+                    offset = end
                 }
             }
             usePreroll = false
@@ -242,16 +253,26 @@ final class RealtimeSession {
             guard let base64 = event["delta"] as? String, let bytes = Data(base64Encoded: base64) else { return }
             let itemID = event["item_id"] as? String
             if itemID != currentItemID {
+                flushCushion()
                 currentItemID = itemID
                 receivedSamples = 0
                 playbackStarted = nil
+                cushionFilled = false
                 onEvent?(.assistantStartedSpeaking)
             }
             if let buffer = Self.makeBuffer(bytes, format: hub.playbackFormat) {
-                if playbackStarted == nil, !hub.isPlaying { playbackStarted = Date() }
                 receivedSamples += Int(buffer.frameLength)
-                hub.play(buffer)
+                if cushionFilled {
+                    hub.play(buffer)
+                } else {
+                    cushion.append(buffer)
+                    cushionFrames += Int(buffer.frameLength)
+                    if cushionFrames >= Self.cushionTarget { flushCushion() }
+                }
             }
+
+        case "response.output_audio.done":
+            flushCushion()
 
         case "response.output_audio_transcript.done":
             if let transcript = event["transcript"] as? String, !transcript.isEmpty {
@@ -265,6 +286,7 @@ final class RealtimeSession {
                                arguments: event["arguments"] as? String ?? "{}"))
 
         case "response.done":
+            flushCushion()
             if let response = event["response"] as? [String: Any], let usage = response["usage"] as? [String: Any] {
                 recordUsage(usage)
             }
@@ -287,8 +309,20 @@ final class RealtimeSession {
         }
     }
 
+    /// Gesammeltes Polster abspielen – ab dann läuft jeder Abschnitt direkt durch.
+    private func flushCushion() {
+        cushionFilled = true
+        guard !cushion.isEmpty else { return }
+        if playbackStarted == nil { playbackStarted = Date() }
+        for buffer in cushion { hub.play(buffer) }
+        cushion.removeAll()
+        cushionFrames = 0
+    }
+
     /// Wiedergabe stoppen und dem Server mitteilen, wie viel der Antwort wirklich gehört wurde.
     private func truncatePlayback() {
+        cushion.removeAll()
+        cushionFrames = 0
         guard let itemID = currentItemID else {
             hub.stopPlayback()
             return

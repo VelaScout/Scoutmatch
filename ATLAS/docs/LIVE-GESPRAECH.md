@@ -46,6 +46,7 @@ Jeder Schritt wartet auf den vorherigen. Deshalb fühlte es sich langsam, abgeha
 - **Echo- und Geräuschunterdrückung:**
   - Apples Echo-Unterdrückung (Voice Processing): A.T.L.A.S. hört sich nicht selbst.
   - Dazu die Rauschunterdrückung von OpenAI.
+  - Auf dem Mac ist sie nur an, wenn „Unterbrechen per Stimme“ eingeschaltet ist – sie überlastete dort die Audio-Verarbeitung. Ohne sie hört A.T.L.A.S. nicht zu, während er selbst spricht; Unterbrechen geht per Tipp auf den Kern.
   - Liefert die Echo-Unterdrückung auf einem Gerät keinen Ton, schaltet A.T.L.A.S. sie automatisch ab. Dann hört er nicht zu, während er selbst spricht. Unterbrechen geht in dem Fall per Tipp auf den Kern.
 - **Gesprächsende:** Nach 45 Sekunden Ruhe endet das Live-Gespräch und die Verbindung wird getrennt. Ebenso bei „Danke, das war's“ oder per Tipp auf den Kern.
 - **Sicherheitsabfragen bleiben:** Vor dem Senden einer E-Mail, einem Anruf oder dem Löschen fragt A.T.L.A.S. nach. Erst nach einem klaren „Ja“ wird es ausgeführt.
