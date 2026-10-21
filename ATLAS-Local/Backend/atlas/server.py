@@ -1,5 +1,9 @@
-"""Atlas 0.2.3: local-only streaming backend, standard library only."""
+"""Atlas 0.3.0: lokales Backend – Chat, Agent mit Werkzeugen, Gedächtnis-Abruf, Sprache."""
 from .intents import plan
+from . import agent as agent_mod
+from . import llm
+from .memory import MemoryIndex
+from .tools import Environment, build_tools
 import contextlib
 import json
 import math
@@ -31,6 +35,7 @@ OLLAMA = 'http://127.0.0.1:11434/api/chat'
 PORT = int(os.environ.get('ATLAS_PORT', '8765'))
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 SYSTEM = (ROOT/'personality.txt').read_text(encoding='utf-8')
+VERSION = '0.3.0'
 TOKEN = secrets.token_urlsafe(32)
 LOCK = threading.RLock()
 CHAT_LOCK = threading.Lock()
@@ -43,6 +48,61 @@ ALLOWED_APPS = {'finder':'Finder','calculator':'Calculator','notes':'Notes','cal
 ALLOWED_FOLDERS = {'downloads':Path.home()/'Downloads','desktop':Path.home()/'Desktop','documents':Path.home()/'Documents'}
 
 class BusyError(Exception): pass
+
+def settings():
+    """Optionale Nutzereinstellungen aus ~/.atlas-ai/settings.json (z. B. zusätzliche Ordner)."""
+    try:return json.loads((DATA/'settings.json').read_text(encoding='utf-8'))
+    except (OSError,ValueError):return {}
+
+def allowed_roots():
+    roots=[Path.home()]
+    for raw in settings().get('allowed_roots',[]) if isinstance(settings().get('allowed_roots'),list) else []:
+        path=Path(os.path.expanduser(str(raw)))
+        if path.is_absolute() and path.is_dir() and str(path) not in ('/','/System','/usr','/bin','/etc'):roots.append(path)
+    return roots
+
+OLLAMA_CLIENT=llm.Ollama(opener=HTTP)
+BRIDGE=agent_mod.Bridge()
+_AGENT=None
+def agent():
+    global _AGENT
+    with LOCK:
+        if _AGENT is None:
+            memory=MemoryIndex(database,embed=lambda model,texts:OLLAMA_CLIENT.embed(model,texts))
+            log=lambda message:print(f'{stamp()} {message}',flush=True)
+            _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(Environment(roots=allowed_roots())),BRIDGE,memory,log=log)
+        return _AGENT
+
+def agent_request(obj):
+    """Validate the native agent request (protocol 2)."""
+    system=text_field(obj,'system',8000)
+    rows=obj.get('history')
+    if not isinstance(rows,list) or not 1<=len(rows)<=60:raise ValueError('Ein bis 60 Gesprächsbeiträge erwartet.')
+    for row in rows:
+        if not isinstance(row,dict) or row.get('role') not in ('user','assistant'):raise ValueError('Ungültige Gesprächsrolle.')
+        text_field(row,'content',12000)
+    if rows[-1]['role']!='user':raise ValueError('Die letzte Nachricht muss vom Nutzer stammen.')
+    memories=obj.get('memories',[])
+    if not isinstance(memories,list) or len(memories)>500 or not all(isinstance(m,str) and len(m)<=1000 for m in memories):
+        raise ValueError('Ungültige Erinnerungen.')
+    tools=obj.get('tools',[])
+    if not isinstance(tools,list) or len(tools)>80 or not all(isinstance(t,dict) and isinstance(t.get('name'),str) for t in tools):
+        raise ValueError('Ungültige Werkzeugliste.')
+    model=obj.get('model')
+    if model is not None and not llm.is_local_model(model):raise ValueError('Nur lokale Modelle sind erlaubt.')
+    return agent_mod.Request(system=system,history=[{'role':r['role'],'content':r['content'].strip()} for r in rows],
+                             memories=memories,native_tools=tools,model=model)
+
+def agent_events(request,request_id):
+    if not CHAT_LOCK.acquire(blocking=False):raise BusyError('Atlas arbeitet noch an einer Anfrage. Bitte kurz warten oder abbrechen.')
+    stop=threading.Event()
+    with LOCK:ACTIVE[request_id]=stop
+    try:
+        yield {'type':'start','request_id':request_id,'protocol':2}
+        yield from agent().run(request,stop)
+    finally:
+        with LOCK:ACTIVE.pop(request_id,None)
+        CHAT_LOCK.release()
 
 def stamp(): return datetime.now(timezone.utc).isoformat()
 def whisper_model():
@@ -115,6 +175,7 @@ def ollama_request(messages, model, stream=True):
     }).encode(), headers={'Content-Type':'application/json'})
 
 def public_error(exc):
+    if isinstance(exc,llm.ModelError):return str(exc)
     if isinstance(exc,urllib.error.HTTPError) and exc.code==404:
         return 'Modell fehlt in Ollama. Für 8B zuerst enable_quality.command ausführen.'
     if isinstance(exc,(TimeoutError,socket.timeout)):
@@ -266,19 +327,20 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/':return self.send_bytes((ROOT/'web/index.html').read_text().replace('__ATLAS_TOKEN__',TOKEN).encode(),'text/html; charset=utf-8')
         if path=='/app.js':return self.send_bytes((ROOT/'web/app.js').read_bytes(),'application/javascript; charset=utf-8')
         if path=='/api/native/session':
-            return self.send_json({'protocol':1,'version':'0.2.3','token':TOKEN})
+            return self.send_json({'protocol':1,'agent':2,'version':VERSION,'token':TOKEN})
         if path=='/api/state':
             with database() as db:
                 messages=db.execute('SELECT role,content FROM messages ORDER BY id DESC LIMIT 50').fetchall()
                 notes=db.execute('SELECT id,content FROM memories ORDER BY id DESC LIMIT 50').fetchall()
-            return self.send_json({'version':'0.2.3','model':MODEL,'models':MODELS,
+            return self.send_json({'version':VERSION,'model':MODEL,'models':MODELS,
                 'messages':[{'role':r,'content':c} for r,c in reversed(messages)],
                 'memories':[{'id':i,'content':c} for i,c in notes],'voice_ready':voice_ready()})
         if path=='/api/health':
             result={'voice_ready':voice_ready(),'ollama':False,'models':[]}
             try:
                 with HTTP.open('http://127.0.0.1:11434/api/tags',timeout=3) as r:tags=json.load(r)
-                result.update(ollama=True,models=[m['name'] for m in tags.get('models',[]) if m['name'] in MODELS])
+                names=[m['name'] for m in tags.get('models',[]) if llm.is_local_model(m.get('name',''))]
+                result.update(ollama=True,models=[n for n in names if n in MODELS],installed=names)
             except Exception as exc:result['error']=public_error(exc)
             return self.send_json(result)
         self.send_json({'error':'Nicht gefunden'},404)
@@ -304,6 +366,19 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:self.send_json({'error':public_error(exc)},503)
     def route(self,path,obj):
         global SPEECH
+        if path=='/api/native/agent/result':
+            ident=obj.get('id')
+            if not isinstance(ident,str) or len(ident)>80:raise ValueError('Ungültige ID.')
+            content=obj.get('content','')
+            if not isinstance(content,str) or len(content)>200000:raise ValueError('Ungültiges Ergebnis.')
+            if not BRIDGE.resolve(ident,{'content':content,'isError':bool(obj.get('isError'))}):
+                return self.send_json({'error':'Keine wartende Anfrage.'},404)
+            return self.send_json({'ok':True})
+        if path=='/api/native/agent/stream':
+            request=agent_request(obj)
+            ident=obj.get('request_id',uuid.uuid4().hex)
+            if not isinstance(ident,str) or len(ident)>80:raise ValueError('Ungültige Anfrage-ID.')
+            return self.stream_events(agent_events(request,ident))
         if path=='/api/native/intent':
             return self.send_json(plan(text_field(obj,'message',4000)))
         if path=='/api/native/memory/export':
@@ -320,22 +395,25 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/chat':return self.send_json({'answer':ask(text,model)})
             ident=obj.get('request_id',uuid.uuid4().hex)
             if not isinstance(ident,str) or len(ident)>80:raise ValueError('Ungültige Anfrage-ID.')
-            events=chat_events(text,model,ident,persist=context is None,native_context=context)
-            # Advance before headers, so a busy model returns an actual HTTP 409.
-            first=next(events)
+            return self.stream_events(chat_events(text,model,ident,persist=context is None,native_context=context))
+        return self.route_rest(path,obj)
+    def stream_events(self,events):
+        # Advance before headers, so a busy model returns an actual HTTP 409.
+        first=next(events)
+        try:
+            self.send_response(200);self.send_header('Content-Type','application/x-ndjson; charset=utf-8')
+            self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff')
+            self.send_header('Connection','close');self.end_headers();self.close_connection=True
+            def emit(event):
+                self.wfile.write((json.dumps(event,ensure_ascii=False)+'\n').encode());self.wfile.flush()
+            emit(first)
             try:
-                self.send_response(200);self.send_header('Content-Type','application/x-ndjson; charset=utf-8')
-                self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff')
-                self.send_header('Connection','close');self.end_headers();self.close_connection=True
-                def emit(event):
-                    self.wfile.write((json.dumps(event,ensure_ascii=False)+'\n').encode());self.wfile.flush()
-                emit(first)
-                try:
-                    for event in events:emit(event)
-                except (BrokenPipeError,ConnectionResetError):pass
-                except Exception as exc:emit({'type':'error','error':public_error(exc)})
-            finally:events.close()
-            return
+                for event in events:emit(event)
+            except (BrokenPipeError,ConnectionResetError):pass
+            except Exception as exc:emit({'type':'error','error':public_error(exc)})
+        finally:events.close()
+    def route_rest(self,path,obj):
+        global SPEECH
         if path=='/api/chat/cancel':
             ident=obj.get('request_id')
             if not isinstance(ident,str):raise ValueError('Ungültige Anfrage-ID.')
@@ -388,7 +466,7 @@ def main():
     connect().close()
     try:server=ThreadingHTTPServer(('127.0.0.1',PORT),Handler)
     except OSError as exc:raise SystemExit(f'Atlas kann Port {PORT} nicht öffnen: {exc}. Alte Atlas-Instanz mit Ctrl+C beenden.')
-    print(f'ATLAS 0.2.3 | http://127.0.0.1:{server.server_port} | {MODEL}',flush=True)
+    print(f'ATLAS {VERSION} | http://127.0.0.1:{server.server_port} | {MODEL}',flush=True)
     print('Lokal. Beenden mit Ctrl+C.',flush=True)
     try:server.serve_forever()
     except KeyboardInterrupt:pass

@@ -71,7 +71,7 @@ def main():
             models=[m['name'] for m in json.load(r).get('models',[]) if m['name'] in s.MODELS]
         check('Ollama und Modell '+s.MODEL,s.MODEL in models)
     except Exception as exc:check('Ollama: '+s.public_error(exc),False)
-    report={'version':'0.2.3','created_at':datetime.now().astimezone().isoformat(),'platform':platform.system(),
+    report={'version':s.VERSION,'created_at':datetime.now().astimezone().isoformat(),'platform':platform.system(),
             'architecture':platform.machine(),'python':platform.python_version(),'checks':checks,
             'scope':'Reale lokale Modelltests mit synthetischen Fragen; kein umfassender Qualitätsnachweis.'}
     try:

@@ -17,7 +17,7 @@ def main():
             if child.poll() is not None:return child.returncode
             try:
                 with s.HTTP.open(f'http://127.0.0.1:{s.PORT}/api/state',timeout=1) as r:state=json.load(r)
-                if state.get('version')=='0.2.3':
+                if state.get('version')==s.VERSION:
                     subprocess.run(['open',f'http://127.0.0.1:{s.PORT}'],check=True);break
             except (OSError,ValueError):pass
             time.sleep(.1)

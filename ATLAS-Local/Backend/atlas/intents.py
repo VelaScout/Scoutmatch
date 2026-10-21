@@ -44,6 +44,17 @@ def calculate(expression):
             return text.replace('.',',')+'.'
     except (SyntaxError,ValueError,ArithmeticError,InvalidOperation):return None
 
+WORD_OPERATORS=[('multipliziert mit','*'),('geteilt durch','/'),('divided by','/'),('times','*'),('plus','+'),('minus','-'),('mal','*')]
+
+def normalize_expression(text):
+    """Spoken arithmetic to symbols, including percentages ("15 % von 80" -> 15/100*80)."""
+    question=text.lower().strip()
+    for word,op in WORD_OPERATORS:
+        question=re.sub(r'\b'+word+r'\b',op,question)
+    question=re.sub(r'(\d+(?:[.,]\d+)?)\s*(?:%|prozent|percent)\s*(?:von|of)\s*',r'\1/100*',question)
+    question=re.sub(r'(\d+(?:[.,]\d+)?)\s*(?:%|prozent|percent)',r'(\1/100)',question)
+    return question
+
 def plan(text):
     # Strip the trusted native date prefix only, not arbitrary quoted text.
     text=re.sub(r'^\[Kontext:[^\n]*\]\n','',text).strip()
@@ -60,8 +71,7 @@ def plan(text):
         return {'kind':'tools','steps':[{'name':'list_memories','input':{}}]}
     question=re.sub(r'^(?:was ist|wie viel ist|wieviel ist|berechne|rechne|what is|calculate)\s+','',t)
     question=re.sub(r'\s*(?:[?=]|\.(?!\d))$','',question)
-    for word,op in [('multipliziert mit','*'),('geteilt durch','/'),('divided by','/'),('times','*'),('plus','+'),('minus','-'),('mal','*')]:
-        question=re.sub(r'\b'+word+r'\b',op,question)
+    question=normalize_expression(question)
     if any(op in question for op in '+-*/×÷−'):
         answer=calculate(question)
         if answer is not None:return {'kind':'answer','answer':answer}

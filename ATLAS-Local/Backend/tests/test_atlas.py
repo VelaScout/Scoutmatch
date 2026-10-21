@@ -47,7 +47,7 @@ class AtlasTests(unittest.TestCase):
     def test_ui_token(self):
         code,body=self.call('/');self.assertEqual(code,200);self.assertIn(s.TOKEN.encode(),body)
     def test_javascript_served(self):self.assertIn(b'/api/chat/stream',self.call('/app.js')[1])
-    def test_state(self):self.assertEqual(self.state()['version'],'0.2.3')
+    def test_state(self):self.assertEqual(self.state()['version'],s.VERSION)
     def test_unknown(self):self.assertEqual(self.call('/missing')[0],404)
     def test_unknown_post(self):self.assertEqual(self.call('/missing',{})[0],404)
     def test_origin(self):self.assertEqual(self.call('/api/clear',{}, {'Origin':'https://evil.test'})[0],403)
