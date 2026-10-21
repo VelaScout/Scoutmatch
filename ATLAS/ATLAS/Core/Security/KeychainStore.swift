@@ -57,6 +57,13 @@ enum KeychainStore {
             query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
             if SecItemAdd(query as CFDictionary, nil) == errSecSuccess {
                 SecItemDelete(baseQuery(key, modern: false) as CFDictionary)
+            } else {
+                // Moderner Schlüsselbund nicht verfügbar: Eintrag im alten Schlüsselbund neu anlegen.
+                // Dann gehört er dieser App-Version, und der Mac fragt nicht mehr nach dem Passwort.
+                SecItemDelete(baseQuery(key, modern: false) as CFDictionary)
+                var legacyQuery = baseQuery(key, modern: false)
+                legacyQuery[kSecValueData as String] = Data(legacy.utf8)
+                SecItemAdd(legacyQuery as CFDictionary, nil)
             }
         }
         #endif
