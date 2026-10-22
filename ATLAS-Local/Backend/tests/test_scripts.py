@@ -131,6 +131,20 @@ class ScriptTests(unittest.TestCase):
         self.assertIn('XX anweisung', text)
         self.assertIn('Spracherkennung: OK', text)
 
+    def test_update_keeps_learned_skills_memory_and_settings(self):
+        """Fähigkeiten, Gedächtnis, Einstellungen und Schlüssel liegen in ~/.atlas-ai bzw. im Schlüsselbund –
+        Update, Installation und Rücksetzen dürfen dort nichts verschieben oder löschen (nur Sicherungskopien)."""
+        for name in ('AKTUALISIEREN.command', 'INSTALLIEREN.command', 'ZURUECKSETZEN.command', 'DEINSTALLIEREN.command'):
+            for line in (PROJECT / name).read_text(encoding='utf-8').splitlines():
+                if '.atlas-ai' in line and not line.lstrip().startswith('#'):
+                    with self.subTest(script=name, line=line.strip()):
+                        self.assertNotRegex(line, r'\brm\b[^|;&]*\.atlas-ai')
+                        if '.partial' not in line:          # fertigen Download umbenennen ist erlaubt
+                            self.assertNotRegex(line, r'\bmv\b[^|;&]*\.atlas-ai')
+                        self.assertNotIn('delete-generic-password', line)
+        update = (PROJECT / 'AKTUALISIEREN.command').read_text(encoding='utf-8')
+        self.assertLess(update.index('Daten-backup'), update.index('mv "$ATLAS_INSTALL_ROOT/Backend"'))
+
     def test_update_never_replaces_before_build_and_tests(self):
         text = (PROJECT / 'AKTUALISIEREN.command').read_text()
         order = [text.index('bash BAUEN.command'), text.index('unittest discover'), text.index('mv "$ATLAS_INSTALL_ROOT/Backend"')]
