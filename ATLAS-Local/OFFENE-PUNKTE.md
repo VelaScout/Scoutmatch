@@ -1,50 +1,71 @@
-# Grenzen, bekannte Fehler und nächste Schritte – ATLAS Local 0.8.0
+# Grenzen, bekannte Fehler und nächste Schritte – ATLAS 0.9.0
+
+## Ehrlich vorweg: ATLAS und ChatGPT/Claude
+
+ATLAS ist eine echte KI: Ein generatives Sprachmodell formuliert jede Antwort selbst und entscheidet, welche Werkzeuge es nutzt.
+
+Das lokale Modell auf Ihrem Mac (Qwen3 4B, etwa 2,5 GB) ist aber **deutlich schwächer** als ChatGPT oder Claude in der Cloud. Diese laufen auf Rechenzentren mit hundertfach größeren Modellen.
+
+Was ATLAS ausgleicht:
+- Werkzeuge, die viel selbst erledigen und ihr Ergebnis prüfen
+- Gedächtnis und Erfahrungen
+- Recherche mit Quellen
+- **optional die Cloud** – damit erreicht er bei schwierigen Aufgaben tatsächlich Claude-Niveau, gegen Kosten
+
+Größere lokale Modelle (14B, 30B) sind deutlich besser, brauchen aber mehr Arbeitsspeicher. `MODELLE_VERGLEICHEN.command` zeigt, was auf Ihrem Mac sinnvoll läuft.
 
 ## Nicht nachgewiesen (läuft erst auf Ihrem Mac)
 
-- **Xcode-Build 0.8.0.** Neu sind die Cloud-Einstellungen, der Passwortfilter in Swift und die Herkunftsanzeige im Gedächtnis. Die Syntax ist geprüft, nicht kompiliert. Schlägt der Build fehl, stoppt das Update, bevor es etwas ersetzt.
-- **Leistung des echten Modells bei den 25 Arbeitsaufgaben.** Zuletzt gemessen: 0.4.0 bestand 6 von 12. Neuere Ergebnisse von Ihrem Mac liegen mir nicht vor.
-- **macOS-Sandbox.** Das Profil wird jetzt vor Gebrauch geprüft. Ob eine der Varianten auf Ihrem macOS greift, zeigt `MAC_TESTEN.command` (Schritt 5). Greift keine:
-  - Selbst entwickelte Fähigkeiten laufen dann nicht. Das ist absichtlich: ohne Schutz kein Start.
-  - Die Code-Werkstatt bleibt dann aus.
-- **Antwortzeiten.** Es gibt keine gemessenen Werte für 0.8.0. Die Messung trennt jetzt erste Rückmeldung und vollständiges Ergebnis.
-- **Sprache.** Mikrofon, „Atlas“, Unterbrechen und Stimme sind in 0.8.0 unverändert und nicht neu geprüft. Englische Wörter in deutschen Sätzen werden nur korrekt ausgesprochen, wenn das Modell sie als Englisch markiert.
-- **Lernaufträge mit dem echten Modell** („Lerne, wie man …“, „Lerne alles über …“): Der Ablauf ist getestet. Ob das 4B-Modell brauchbaren Code oder brauchbare Auszüge liefert, ist offen.
+- **Xcode-Build 0.9.0.** Neu sind die Wissenspakete, der Cloud-Modus und die neue Persona. Die Syntax ist geprüft, nicht kompiliert. Schlägt der Build fehl, stoppt das Update, bevor es etwas ersetzt.
+- **Ihr letzter Testlauf (0.8.0)** zeigte:
+  - Sandbox und Neustart: in Ordnung.
+  - Fehlgeschlagen: markdown_liste, teilweise_fehler, Diagnose „rechnung“.
+  - Recherche: nicht ausgeführt.
+
+  Die vermuteten Ursachen sind in 0.8.1/0.9.0 behoben. Ob es jetzt klappt, zeigt erst der nächste Lauf. Den oberen Teil der Zusammenfassung (die ersten Aufgaben und die Zeiten) habe ich nicht gesehen.
+- **Recherche auf Ihrem Mac.** Mehrere Suchdienste und certifi sind eingebaut. Ob die Suchdienste automatische Abfragen von Ihrem Mac zulassen, zeigt der nächste Testlauf. Im Fehlerfall steht der genaue Grund dabei.
+- **Lernaufträge und Wissenspakete mit dem echten Modell:** Der Ablauf ist getestet, die Qualität der Ergebnisse noch nicht.
+
+## Sprache (Abschnitt 7 Ihres Auftrags) – Stand
+
+| Wunsch | Stand |
+|---|---|
+| Aktivierungswort „ATLAS“ | vorhanden, über die Apple-Spracherkennung auf dem Gerät |
+| Weiterreden ohne neue Aktivierung | vorhanden (Einstellung „Nach einer Antwort weiter zuhören“) |
+| Unterbrechen | vorhanden („Stopp“ oder eine neue Frage) |
+| Textmodus | vorhanden (Textfeld) |
+| Englische Begriffe richtig aussprechen | teilweise: Nur Abschnitte, die das Modell als Englisch markiert, spricht eine englische Stimme |
+| **Automatische Erkennung Deutsch/Englisch** | **nicht umgesetzt** – Apple erkennt eine eingestellte Sprache. Geantwortet wird aber in der Sprache der Frage. |
+| **Menschlich klingende Stimme** | **teilweise:** Apple-„Premium“-Stimmen klingen gut, sind aber keine neuronale Stimme. Im Projekt liegt ein lokaler XTTS-Sprachserver aus der frühen Version. Er ist ausgeschaltet, weil er ohne Hörtest auf Ihrem Mac nicht geprüft werden kann. Seine Modell-Lizenz (Coqui) erlaubt nur nicht-kommerzielle Nutzung. |
+| Schnelle Reaktion | gemessen nur in Ihrem Testlauf (erste Rückmeldung getrennt von der Gesamtzeit) |
+
+Eine neuronale deutsche Stimme (z. B. Piper, MIT-Lizenz) und die Erkennung beider Sprachen gleichzeitig (Whisper) sind der sinnvollste nächste Schritt für die Sprache. Beides braucht einen Hörtest auf Ihrem Mac.
 
 ## Bekannte Grenzen
 
-1. **Intelligenz:** Das lokale 4B-Modell ist weit von großen Cloud-Modellen entfernt.
-   - Lange, unklare oder sehr verschachtelte Aufträge können scheitern. ATLAS meldet das dann.
-   - Für schwierige Aufgaben gibt es die optionale Cloud.
-2. **Dokumentlayout:**
-   - Word, PDF und PowerPoint entstehen mit klarem, einfachem Layout: Überschriften, Absätze, Aufzählungen, Tabellen.
-   - Professionelle Gestaltung mit Logos, Spalten oder Vorlagen gibt es nicht.
-   - Beim Ändern von Word ersetzt ATLAS ganze Absätze. Gemischte Formatierung innerhalb eines geänderten Absatzes (z. B. ein fettes Wort) geht dort verloren. Die Sicherung bleibt erhalten.
-3. **Recherche:**
-   - Sie nutzt die DuckDuckGo-HTML-Suche. Ändert DuckDuckGo das Format, findet sie nichts mehr, und ATLAS meldet das.
-   - Die Quellenprüfung erkennt erfundene Adressen, aber keine falsch wiedergegebenen Inhalte. Deshalb stehen die Quellen immer dabei.
-4. **Doppelschutz:**
-   - Er greift bei inhaltlich identischen Aktionen binnen 24 Stunden.
-   - Eine leicht umformulierte zweite Nachricht gilt als neue Nachricht.
-5. **Passworterkennung:**
-   - Sie folgt festen Mustern („Passwort ist …“, „PIN: …“, Schlüssel- und Kartenformate).
-   - Ein Passwort ohne solches Stichwort, z. B. „merk dir: Hund123“, erkennt sie nicht.
-6. **Cloud:**
-   - Die Kosten sind Listenpreise in US-Dollar, berechnet aus den gemeldeten Token. Steuern und Ihre Rechnung können abweichen.
-   - Bei einer Ablehnung durch das Cloud-Modell springt automatisch das von Anthropic empfohlene Ersatzmodell ein. Dessen Abschnitt wird mit seinem eigenen Preis berechnet.
-   - Antworten der Cloud werden nicht gestreamt, sie erscheinen am Stück.
-7. **Code-Werkstatt:** Übernommene Änderungen am eigenen Code ersetzt ein späteres Update wieder durch die ausgelieferte Version. Selbst entwickelte Fähigkeiten bleiben dagegen erhalten.
-8. **Hintergrundarbeit:**
-   - Lernzyklen sind anfangs aus.
-   - Es gibt ein Tageslimit für die Rechenzeit, aber kein eigenes Arbeitsspeicher-Limit pro Auftrag, weil macOS es für Python nicht zuverlässig durchsetzt.
-   - Lernaufträge laufen nur, wenn ATLAS gerade nicht antwortet.
-9. **Kein Modelltraining** (bewusst; siehe `docs/FINE-TUNING-STUDIE.md`).
-10. **iPhone:** Es gibt keinen Zugriff auf den Mac-Agenten. Der Dienst lauscht nur lokal.
+1. **Dokumentlayout:**
+   - Word, PDF und PowerPoint entstehen mit klarem, einfachem Layout.
+   - PowerPoint kann ATLAS erstellen und lesen, aber nicht bearbeiten. Auf Wunsch entwickelt er das als neue Fähigkeit.
+   - Beim Ändern von Word ersetzt ATLAS ganze Absätze; gemischte Formatierung in diesem Absatz geht verloren. Die Sicherung bleibt.
+2. **Recherche:**
+   - Sie liest öffentliche Webseiten.
+   - Die Quellenbewertung ordnet nach Herkunft ein, nicht nach Inhalt.
+   - Erfundene Adressen werden entfernt, falsch wiedergegebene Inhalte nicht erkannt. Deshalb stehen die Quellen dabei.
+3. **Doppelschutz:** gilt für inhaltlich identische Aktionen binnen 24 Stunden.
+4. **Passworterkennung:** folgt festen Mustern („Passwort ist …“, „PIN: …“, Schlüssel- und Kartenformate).
+5. **Cloud:**
+   - Kosten sind Listenpreise in US-Dollar, berechnet aus den gemeldeten Token.
+   - Antworten kommen am Stück, nicht gestreamt.
+6. **Code-Werkstatt:** Übernommene Codeänderungen ersetzt ein späteres Update wieder. Selbst entwickelte Fähigkeiten bleiben erhalten.
+7. **Hintergrundarbeit:**
+   - Lernzyklen und Wissenspakete laufen nur eingeschaltet und im Tageslimit.
+   - Es gibt kein eigenes Arbeitsspeicher-Limit pro Auftrag.
+8. **Kein Modelltraining** (bewusst; siehe `docs/FINE-TUNING-STUDIE.md`). ATLAS lernt über Gedächtnis, Erfahrungen, Regeln, Wissen und neue Werkzeuge, nicht über die Modellgewichte.
+9. **iPhone:** kein Zugriff auf den Mac-Agenten.
+10. **Webseiten entwickeln:** ATLAS kann HTML/CSS/JS-Dateien schreiben und prüfen. Veröffentlichen (Hosting) gehört nicht dazu.
 
 ## Nächste Schritte (Empfehlung)
 
-1. Update installieren, dann `MAC_TESTEN.command` laufen lassen und **einen Screenshot der Zusammenfassung** schicken.
-   - Daran sehe ich, welche Arbeitsaufgaben das echte Modell schafft und wie schnell es ist.
-   - Ich sehe auch, ob Sandbox und Neustart funktionieren.
-2. Für jede FEHLGESCHLAGENE Aufgabe gezielt nachschärfen: Werkzeugbeschreibung, höherwertiges Werkzeug oder anderes Modell. Danach erneut messen.
-3. Optional die Cloud einrichten und mit einem Monatslimit von wenigen Dollar ausprobieren.
+1. Update installieren, `MAC_TESTEN.command` laufen lassen und **die ganze Zusammenfassung** schicken (bitte auch den oberen Teil).
+2. Optional `MODELLE_VERGLEICHEN.command`: Damit sehen wir, ob ein größeres Modell auf Ihrem Mac spürbar besser ist.
+3. Danach: Sprache verbessern (neuronale Stimme, Deutsch und Englisch gleichzeitig), mit Hörtest.

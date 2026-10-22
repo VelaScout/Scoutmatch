@@ -1,4 +1,4 @@
-# ATLAS Local 0.8.1 – persönlicher Arbeitsassistent für den Mac
+# ATLAS 0.9.0 – dein persönlicher KI-Assistent auf dem Mac
 
 ATLAS läuft lokal auf Ihrem MacBook: eine SwiftUI-App, ein Python-Dienst auf Ihrem Mac und ein Open-Weight-Sprachmodell (Qwen3) über Ollama. Ohne Cloud und ohne Konto.
 
@@ -29,12 +29,14 @@ Gleichwertig wird es dadurch nicht.
 4. Danach `MAC_TESTEN.command` öffnen (ca. 10–20 Minuten). Es prüft:
    - App ⇄ Dienst
    - alle Tests
-   - **25 echte Arbeitsaufgaben mit Ihrem Modell**
+   - **29 echte Arbeitsaufgaben mit Ihrem Modell**
    - die macOS-Sandbox
    - einen Neustart mit Prüfung des Datenerhalts
 
    Am Ende steht eine Zusammenfassung auf einem Bildschirm. Bitte schicken Sie mir davon einen Screenshot.
 5. Falls etwas nicht passt: `ZURUECKSETZEN.command` stellt den Stand vor dem Update wieder her. Gedächtnis, Erfahrungen, Fähigkeiten und Einstellungen bleiben erhalten.
+
+**Optional – Modelle vergleichen:** `MODELLE_VERGLEICHEN.command` lädt nach Rückfrage weitere passende Modelle, vergleicht sie mit Ihren Arbeitsaufgaben und trägt das beste ein. Danach können Sie nicht gewählte Modelle wieder löschen.
 
 **Erstinstallation:** `INSTALLIEREN.command`. Dafür braucht es Homebrew und das vollständige Xcode.
 
@@ -46,6 +48,41 @@ Gleichwertig wird es dadurch nicht.
 **Was ATLAS konkret kann**, mit Beispielaufträgen: `FUNKTIONEN.md`.
 **Was geprüft wurde und was nicht:** `TESTBERICHT.md`.
 **Grenzen und bekannte Fehler:** `OFFENE-PUNKTE.md`.
+
+## Neu in 0.9.0
+
+- **ATLAS versteht sich als KI** mit der Identität: „Ich bin ATLAS, dein persönlicher KI-Assistent. Ich unterstütze dich beim Denken, Recherchieren, Entwickeln, Organisieren und Erledigen deiner Aufgaben.“
+  - Er spricht selbstbewusst und erledigt Dinge direkt.
+  - Er macht eigene Vorschläge und gibt Fehler zu.
+  - Er fragt nur nach, wenn es wirklich nötig ist.
+- **Lokal oder Cloud:** „Wechsle in den Cloud-Modus“ / „Wechsle in den lokalen Modus“, oder in den Einstellungen.
+  - Die Cloud geht nur, wenn eingeschaltet und mit Schlüssel.
+  - Vor jeder Übertragung kommt eine Rückfrage, außer Sie haben eine Dauerfreigabe gesetzt. Es gilt ein Monatslimit.
+- **Modelle vergleichen:** `MODELLE_VERGLEICHEN.command` schlägt passend zu Ihrem Arbeitsspeicher Modelle aus Qwen, Llama, Mistral, Gemma und gpt-oss vor.
+  - Es lädt nur nach Zustimmung.
+  - Es misst alle mit den Arbeitsaufgaben und trägt das beste ein.
+- **„Ich möchte, dass du Excel-Dateien bearbeiten kannst.“** ATLAS prüft zuerst, ob er es schon kann. Nur Fehlendes wird entwickelt.
+- **Dokumente vergleichen:** in allen lesbaren Formaten.
+- **Quellen bewerten:** offizielle Stelle, Wissenschaft, Wikipedia, Nachrichtenmedium oder sonstige. Widersprüche nennt ATLAS mit beiden Quellen.
+- **Wissenspakete** aus Ihrem Paket 0.8.0_2: 193 Themen, eingebaut und an drei Stellen korrigiert (siehe `docs/WISSENSPAKETE.md`).
+- **29 Arbeitsaufgaben** im Mac-Test, neu sind Kontext, Logik, Gedächtnis, Vergleich und KI-Identität. Dazu kommt ein Langlauftest mit 300 Anfragen.
+- **Architektur:** `docs/ARCHITEKTUR.md` ordnet alle 15 geforderten Komponenten den Dateien zu.
+
+## Kosten (nur wenn Sie die Cloud einschalten)
+
+Lokal kostet ATLAS nichts außer Strom. Für das optionale Cloud-Modell gelten die Listenpreise von Anthropic (Stand 06.10.2026, US-Dollar je 1 Million Token):
+
+| Modell | Eingabe | Ausgabe | Kurze Frage* | Aufgabe mit Werkzeugen* |
+|---|---|---|---|---|
+| claude-opus-5-5 (Standard) | 4,00 | 20,00 | ca. 0,02 | ca. 0,16 |
+| claude-sonnet-5-5 | 2,00 | 10,00 | ca. 0,01 | ca. 0,08 |
+| claude-haiku-5-5 | 0,10 | 0,50 | unter 0,001 | ca. 0,004 |
+
+\* Grobe Schätzung:
+- Kurze Frage: 3.000 Token hin, 500 zurück.
+- Aufgabe mit Werkzeugen: 4 Runden mit je 6.000 Token hin und 800 zurück.
+
+Die tatsächlichen Kosten zeigt ATLAS nach jeder Cloud-Antwort, berechnet aus den gemeldeten Token. Die Monatssumme steht in den Cloud-Einstellungen. Beim Monatslimit (Standard 5 US-$) sendet ATLAS nichts mehr.
 
 ## Neu in 0.8.1 (nach Ihrem ersten Testlauf mit 0.8.0)
 

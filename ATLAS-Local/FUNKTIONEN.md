@@ -1,4 +1,4 @@
-# Was ATLAS 0.8.0 kann – mit Beispielaufträgen
+# Was ATLAS 0.9.0 kann – mit Beispielaufträgen
 
 **Geprüft heißt:** Die Werkzeuge und Abläufe sind mit echten Dateien und Prozessen getestet, die Modellentscheidungen dabei simuliert.
 
@@ -11,9 +11,14 @@
 | „Was ist 17 mal 23?“, „19 Prozent von 2500“ | Exakte Rechnung ohne Modell | rechnen, prozent |
 | „Erkläre mir kurz, was ein Cashflow ist.“ | Kurze Antwort; bei komplexen Fragen ausführlicher | kurze_antwort |
 | „What's the capital of Japan?“ | Antwort auf Englisch | englisch |
+| „Bist du eine KI?“ | „Ja …“ – ATLAS ist eine KI mit lokalem Sprachmodell | identitaet |
+| „Mein Hund heißt Bello und ist drei.“ → „Wie heißt mein Hund, und wie alt ist er?“ | Merkt sich den Gesprächsverlauf | kontext |
+| „Anna ist älter als Ben, Ben älter als Clara. Wer ist am jüngsten?“ | Logische Schlüsse | logik |
+| „An welchen Tagen habe ich Fußballtraining?“ (wenn gespeichert) | Nutzt gespeicherte Erinnerungen | gedaechtnis |
 | „Recherchiere die aktuellen Förderprogramme für Photovoltaik und nenne Quellen.“ | Liest mehrere Seiten. Aussagen sind mit [1], [2] belegt, am Ende stehen die Quellen mit Datum. Nicht abgerufene Adressen werden entfernt. | recherche_quellen |
 | „Lerne alles über Unternehmensbewertung.“ | Wissensaufbau im Hintergrund. Jede Aussage hat Quelle und Status (belegt, Vermutung, Widerspruch). | – |
 | „Cloud: Analysiere diesen Vertragsentwurf auf Risiken.“ | Nur wenn eingeschaltet. Vorher Rückfrage mit Datenübersicht, danach Kostenangabe. | – (kostet Geld) |
+| „Wechsle in den Cloud-Modus“ / „Wechsle in den lokalen Modus“ | Alle Anfragen gehen in die Cloud bzw. bleiben lokal; „Lokal: …“ hält eine einzelne Anfrage auf dem Mac | – |
 
 ## Dokumente
 
@@ -26,6 +31,7 @@
 | „Setze in Budget.xlsx die Zelle B3 auf 95 und füge eine Summenzeile hinzu.“ | Tabelle geändert (mit Bestätigung und Sicherung) | – |
 | „Erstelle eine Präsentation mit zwei Folien: Training und Erholung.“ | Echte .pptx | powerpoint_erstellen |
 | „Erstelle einen Quartalsbericht als PDF: Umsatz 42.000 €.“ | Echte PDF mit automatischen Seitenumbrüchen | pdf_erstellen |
+| „Vergleiche vertrag_alt.txt mit vertrag_neu.docx.“ | Unterschiede Zeile für Zeile, mit Übereinstimmung in Prozent (alle lesbaren Formate) | vergleich |
 | „Fasse die PDF Bericht in Dokumente zusammen.“ / „Was steht in Plan.pptx?“ | PDF, Word, Excel, CSV und PowerPoint lesen | pdf_zusammenfassen |
 | „Lies ausgaben.csv und sag mir die Summe.“ | Summe mit dem Rechenwerkzeug, nicht im Kopf | csv_summe |
 
@@ -68,7 +74,8 @@ Fehlt eine Kontoverbindung oder Berechtigung, sagt ATLAS das, statt eine Ausfüh
 | **Gedächtnis** | „Merk dir: Ich arbeite montags im Homeoffice.“ wird gespeichert und passt zu späteren Aufgaben. Sie können es ansehen, bearbeiten, exportieren und löschen. Herkunft und Zeitpunkt werden angezeigt. Zugangsdaten werden nie gespeichert. |
 | **Wissenssuche** | Recherche mit Quellen und die aufgebaute Wissensbasis, immer mit Quellenangabe |
 | **Erlernte Arbeitsabläufe** | Aus geprüften Erfahrungen und Ihren Korrekturen („Nein, speichere so etwas immer in Dokumente.“) |
-| **Neue Werkzeuge** | „Lerne, wie man …“: Entwicklung und Tests in einer Sandbox; aktiv erst nach Ihrer Freigabe |
+| **Neue Werkzeuge** | „Ich möchte, dass du … kannst“ / „Lerne, wie man …“: Zuerst prüft ATLAS, ob er es schon kann (z. B. Excel bearbeiten → „Das kann ich bereits“). Sonst Entwicklung und Tests in einer Sandbox; aktiv erst nach Ihrer Freigabe. |
+| **Wissenspakete** | 193 vorbereitete Themen aus 15 Fachgebieten (Learning & Evolution → Wissen). Bearbeitet nur mit eingeschalteten Lernzyklen; siehe `docs/WISSENSPAKETE.md`. |
 | **Modelltraining** | **Findet nicht statt.** Die Gewichte des Modells ändern sich nicht. Siehe `docs/FINE-TUNING-STUDIE.md`. |
 
 ## Bedienung
