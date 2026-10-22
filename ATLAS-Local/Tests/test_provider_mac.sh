@@ -14,3 +14,5 @@ xcrun swiftc -target arm64-apple-macosx14.0 -parse-as-library ATLAS/Core/AI/AIPr
 build/provider-tests "$(cat "$fixture_dir/port")" "$(cat "$fixture_dir/home")"
 xcrun swiftc -target arm64-apple-macosx14.0 -parse-as-library ATLAS/Core/Speech/LanguageSegments.swift ATLAS/Core/Speech/SpeechText.swift Tests/SpeechTextTests.swift -o build/speech-text-tests
 build/speech-text-tests
+xcrun swiftc -target arm64-apple-macosx14.0 -parse-as-library ATLAS/Core/Security/SecretFilter.swift Tests/SecretFilterTests.swift -o build/secret-filter-tests
+build/secret-filter-tests

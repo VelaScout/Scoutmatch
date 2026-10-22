@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .memory import jaccard, words
+from .privacy import contains_secret, redact
 
 SCHEMA = [
     '''CREATE TABLE IF NOT EXISTS experiences (
@@ -142,10 +143,11 @@ class Learning:
         outcome, verified = self.evaluate(actions, finished, cancelled)
         if outcome == 'ohne_aktion':
             return None
+        goal = redact(goal)              # Zugangsdaten landen nie im Erfahrungsspeicher
         tools = [a.tool for a in actions]
-        errors = [{'tool': a.tool, 'class': error_class(a.output), 'text': a.output[:200]}
+        errors = [{'tool': a.tool, 'class': error_class(a.output), 'text': redact(a.output[:200])}
                   for a in actions if not a.ok and not a.declined]
-        lesson = self.reflect(goal, actions, outcome, duration)
+        lesson = redact(self.reflect(goal, actions, outcome, duration))
         with self.connect() as db:
             cursor = db.execute(
                 'INSERT INTO experiences(created_at, goal, task_type, mode, model, tools, outcome, verified, errors, '
@@ -159,8 +161,8 @@ class Learning:
     def learn_correction(self, text: str, max_age_minutes: int = 60) -> dict | None:
         """Verknüpft eine Korrektur mit der letzten Aufgabe und speichert eine Regel."""
         instruction = CORRECTION_PREFIX.sub('', text).strip(' .!')
-        if len(instruction) < 6:
-            instruction = ''
+        if len(instruction) < 6 or contains_secret(instruction):
+            instruction = ''             # keine Regel aus Zugangsdaten
         durable = bool(DURABLE.search(text))
         with self.connect() as db:
             row = db.execute('SELECT id, task_type, created_at, outcome FROM experiences ORDER BY id DESC LIMIT 1').fetchone()

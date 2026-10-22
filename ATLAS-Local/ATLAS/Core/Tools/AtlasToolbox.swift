@@ -568,6 +568,7 @@ final class AtlasToolbox: ToolExecuting {
         guard let content = (input["content"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !content.isEmpty else {
             return ToolResult(content: "Inhalt fehlt.", isError: true)
         }
+        guard !SecretFilter.containsSecret(content) else { return ToolResult(content: SecretFilter.refusal, isError: true) }
         let category = MemoryCategory(rawValue: input["category"] as? String ?? "") ?? .other
         do {
             let existing = try modelContext.fetch(FetchDescriptor<MemoryItem>())

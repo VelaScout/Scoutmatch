@@ -69,7 +69,7 @@ enum MemoryTransfer {
         var added = 0, updated = 0
         for entry in package.entries {
             let content = entry.content.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !content.isEmpty else { continue }
+            guard !content.isEmpty, !SecretFilter.containsSecret(content) else { continue }
             if let item = byContent[content.lowercased()] {
                 if entry.updatedAt > item.updatedAt, item.category != entry.category {
                     item.category = entry.category

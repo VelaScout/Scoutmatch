@@ -16,6 +16,8 @@ import re
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 
+from .privacy import redact
+
 SCHEMA = [
     '''CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY, created_at TEXT NOT NULL, goal TEXT NOT NULL, mode TEXT NOT NULL, status TEXT NOT NULL,
@@ -57,7 +59,7 @@ class TaskJournal:
         steps, artifacts = [], []
         for action in actions:
             state = 'erledigt' if action.ok else 'abgelehnt' if action.declined else 'fehlgeschlagen'
-            steps.append({'tool': action.tool, 'summary': action.summary[:200], 'status': state, 'verified': action.verified})
+            steps.append({'tool': action.tool, 'summary': redact(action.summary[:200]), 'status': state, 'verified': action.verified})
             path = (getattr(action, 'data', None) or {}).get('path')
             if action.ok and path and path not in artifacts:
                 artifacts.append(path)
@@ -78,7 +80,7 @@ class TaskJournal:
         with self.connect() as db:
             return db.execute('INSERT INTO tasks(created_at, goal, mode, status, steps, open_steps, artifacts, reason, resumed_from) '
                               'VALUES (?,?,?,?,?,?,?,?,?)',
-                              (now(), goal[:2000], mode, status, json.dumps(steps, ensure_ascii=False),
+                              (now(), redact(goal[:2000]), mode, status, json.dumps(steps, ensure_ascii=False),
                                json.dumps(open_steps, ensure_ascii=False), json.dumps(artifacts, ensure_ascii=False),
                                reason[:200], resumed_from)).lastrowid
 
@@ -151,4 +153,4 @@ class TaskJournal:
         if tool in SIDE_EFFECTS:
             with self.connect() as db:
                 db.execute('INSERT INTO side_effects(created_at, key, tool, summary, ok) VALUES (?,?,?,?,?)',
-                           (now(), action_key(tool, args), tool, summary[:200], int(ok)))
+                           (now(), action_key(tool, args), tool, redact(summary[:200]), int(ok)))

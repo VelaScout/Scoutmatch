@@ -31,6 +31,7 @@ from . import intents
 from . import llm as llm_mod
 from .llm import ModelError, Ollama, is_correction, language_of, route
 from .memory import MemoryIndex
+from .privacy import REFUSAL, contains_secret
 from .research import check_sources, untrusted
 from .tasks import RESUME
 from .tools import BLOCKED, CONFIRM, Result, Tool, ToolError, select_categories
@@ -350,6 +351,10 @@ class Agent:
         if direct['kind'] == 'tools' and request.native_tools is not None:
             names = {t.get('name') for t in request.native_tools}
             remember = [step for step in direct['steps'] if step['name'] == 'remember']
+            if any(contains_secret(str(step['input'].get('content', ''))) for step in remember):
+                yield {'type': 'delta', 'text': REFUSAL}
+                yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
+                return
             verdict = self.check_memory(remember[0]['input']['content']) if remember else ('new', None)
             if verdict[0] == 'duplicate':
                 yield {'type': 'delta', 'text': f'Das weiß ich schon: {verdict[1]}'}
@@ -609,6 +614,10 @@ class Agent:
             if result.data and name != 'research':
                 output += '\n' + json.dumps(result.data, ensure_ascii=False)[:2_000]
             return Action(name, tool.label, summary, result.ok, result.verified, output, data=result.data or {})
+        if name == 'remember' and contains_secret(str(args.get('content', ''))):
+            yield {'type': 'step', 'tool': name, 'label': 'Merkt sich das', 'status': 'gesperrt', 'detail': 'Zugangsdaten'}
+            return Action(name, 'Merkt sich das', 'Zugangsdaten nicht gespeichert', False, False,
+                          REFUSAL + ' Nichts wurde gespeichert.', declined=True)
         if name == 'remember' and name in native:
             verdict = self.check_memory(str(args.get('content', '')))
             if verdict[0] == 'duplicate':

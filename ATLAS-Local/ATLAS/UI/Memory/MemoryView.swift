@@ -13,6 +13,7 @@ struct MemoryView: View {
     @State private var editing: MemoryItem?
     @State private var confirmDeleteAll = false
     @State private var exportURL: URL?
+    @State private var secretWarning = false
     @State private var showImporter = false
     @State private var transferStatus: String?
 
@@ -34,6 +35,7 @@ struct MemoryView: View {
                 Button("Hinzufügen") {
                     let content = newContent.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !content.isEmpty else { return }
+                    guard !SecretFilter.containsSecret(content) else { secretWarning = true; return }
                     modelContext.insert(MemoryItem(content: content, category: newCategory))
                     try? modelContext.save()
                     newContent = ""
@@ -104,6 +106,11 @@ struct MemoryView: View {
                 transferStatus = "Fehler: " + ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
             }
         }
+        .alert("Nicht gespeichert", isPresented: $secretWarning) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(SecretFilter.refusal)
+        }
         .sheet(item: $editing) { item in
             MemoryEditView(item: item).atlasSheetSize()
         }
@@ -130,6 +137,11 @@ struct MemoryEditView: View {
                 Picker("Kategorie", selection: $category) {
                     ForEach(MemoryCategory.allCases) { Text($0.rawValue).tag($0) }
                 }
+                if SecretFilter.containsSecret(content) {
+                    Text(SecretFilter.refusal).font(.caption).foregroundStyle(.orange)
+                }
+                Text("Herkunft: \(item.learned ? "von Atlas aus Gesprächen gelernt" : "von Ihnen mitgeteilt") · erstellt \(item.createdAt.formatted(date: .abbreviated, time: .shortened)) · geändert \(item.updatedAt.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption).foregroundStyle(.secondary)
                 Button("Eintrag löschen", role: .destructive) {
                     modelContext.delete(item)
                     try? modelContext.save()
@@ -149,7 +161,7 @@ struct MemoryEditView: View {
                         try? modelContext.save()
                         dismiss()
                     }
-                    .disabled(content.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(content.trimmingCharacters(in: .whitespaces).isEmpty || SecretFilter.containsSecret(content))
                 }
             }
             .onAppear {

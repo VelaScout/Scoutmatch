@@ -1067,6 +1067,8 @@ final class ConversationEngine {
         let items = (try? modelContext.fetch(FetchDescriptor<MemoryItem>())) ?? []
         for insight in insights {
             switch insight {
+            case .add(let content, _) where SecretFilter.containsSecret(content): continue
+            case .replace(_, let new, _) where SecretFilter.containsSecret(new): continue
             case .add(let content, let category):
                 guard !items.contains(where: { $0.content.caseInsensitiveCompare(content) == .orderedSame }) else { continue }
                 modelContext.insert(MemoryItem(content: content, category: category, learned: true))
