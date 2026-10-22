@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import html
+import importlib.util
 import json
 import os
 import platform
@@ -211,7 +212,8 @@ def read_pdf(path: Path) -> str:
 
 def read_spreadsheet(path: Path) -> str:
     if path.suffix.lower() == '.csv':
-        return path.read_text(encoding='utf-8', errors='replace')
+        from .documents import read_csv
+        return '\n'.join('\t'.join(row) for row in read_csv(path))
     try:
         from openpyxl import load_workbook
     except ImportError as exc:
@@ -234,6 +236,12 @@ def read_file(env: Environment, path: str, max_chars: int = 20_000) -> Result:
         text = read_pdf(file)
     elif suffix in ('.xlsx', '.xlsm', '.csv'):
         text = read_spreadsheet(file)
+    elif suffix == '.docx' and importlib.util.find_spec('docx'):
+        from .documents import read_docx
+        text = read_docx(file)
+    elif suffix == '.pptx':
+        from .documents import read_pptx
+        text = read_pptx(file)
     elif suffix in ('.docx', '.doc', '.rtf', '.pages', '.odt') and env.is_mac:
         done = env.run(['textutil', '-convert', 'txt', '-stdout', str(file)], timeout=30)
         if done.returncode != 0:
@@ -290,7 +298,13 @@ def write_file(env: Environment, path: str, content: str, overwrite: bool = Fals
         raise ToolError(f'Datei existiert bereits: {file}. Zum Ersetzen overwrite=true setzen (mit Bestätigung).')
     file.parent.mkdir(parents=True, exist_ok=True)
     suffix = file.suffix.lower()
-    if suffix in ('.docx', '.rtf') and env.is_mac:
+    if suffix == '.docx' and importlib.util.find_spec('docx'):
+        from .documents import docx_bytes, read_docx_bytes
+        data = docx_bytes(file.stem.replace('_', ' '), content)
+        file.write_bytes(data)
+        first = next((line.strip().lstrip('#-* ').strip() for line in content.splitlines() if line.strip()), '')
+        ok = first in read_docx_bytes(file.read_bytes())
+    elif suffix in ('.docx', '.rtf') and env.is_mac:
         draft = file.with_suffix('.atlas-tmp.txt')
         draft.write_text(content, encoding='utf-8')
         try:
@@ -935,7 +949,8 @@ def _describe_path(verb: str) -> Callable[[dict], str]:
 
 
 def build_tools(env: Environment) -> dict[str, Tool]:
-    from .documents import create_pdf, create_presentation
+    from .documents import (convert_document, create_document, create_pdf, create_presentation, edit_document,
+                            edit_spreadsheet)
     def bind(func: Callable[..., Result]) -> Callable[..., Result]:
         return lambda **kwargs: func(env, **kwargs)
 
@@ -960,6 +975,27 @@ def build_tools(env: Environment) -> dict[str, Tool]:
         Tool('create_pdf', 'Erstellt eine PDF mit Titel und vollständigem Text. Nutzt automatische Seitenumbrüche. Neuer Dateiname erforderlich.',
              obj({'path': path, 'title': string('Dokumenttitel.'), 'content': string('Vollständiger Text mit Absätzen.')},
                  ['path', 'title', 'content']), bind(create_pdf), category='documents', label='Erstellt die PDF'),
+        Tool('create_document', 'Erstellt ein echtes Word-Dokument (.docx) – für Briefe, Angebote, Berichte, Konzepte, '
+                                'E-Mail-Entwürfe. content: vollständiger Text; "# " Überschrift, "## " Unterüberschrift, "- " Aufzählung.',
+             obj({'path': path, 'title': string('Dokumenttitel.'), 'content': string('Vollständiger Text.')},
+                 ['path', 'title', 'content']), bind(create_document), category='documents', label='Erstellt das Word-Dokument'),
+        Tool('edit_document', 'Ändert ein vorhandenes Dokument (.docx, .txt, .md): Textstellen ersetzen und/oder Text anhängen. '
+                              'Vorher wird automatisch eine Sicherung angelegt.',
+             obj({'path': path, 'replacements': {'type': 'array', 'items': obj({'old': string('Genauer alter Text.'),
+                  'new': string('Neuer Text.')}, ['old', 'new'])}, 'append': string('Text, der ans Ende kommt (optional).')},
+                 ['path']), bind(edit_document), risk=CONFIRM, category='documents', label='Ändert das Dokument',
+             describe=_describe_path('Dokument ändern (mit Sicherung)')),
+        Tool('edit_spreadsheet', 'Ändert eine vorhandene Excel- oder CSV-Tabelle: Zellen setzen (cells, z. B. {"B2": 120, '
+                                 '"B5": "=SUM(B2:B4)"}) und/oder Zeilen anhängen (append_rows). Mit Sicherung.',
+             obj({'path': path, 'cells': {'type': 'object', 'description': 'Zellbezug → Wert oder Formel.'},
+                  'append_rows': {'type': 'array', 'items': {'type': 'array'}}, 'sheet': string('Blattname (optional).')},
+                 ['path']), bind(edit_spreadsheet), risk=CONFIRM, category='documents', label='Ändert die Tabelle',
+             describe=_describe_path('Tabelle ändern (mit Sicherung)')),
+        Tool('convert_document', 'Wandelt eine Datei um, ohne das Original zu ändern: .docx/.txt/.md/.csv/.xlsx/.pptx → PDF, '
+                                 'oder .txt/.md → Word (to="docx"). Für „Speichere es als PDF“.',
+             obj({'path': path, 'to': {'type': 'string', 'enum': ['pdf', 'docx']},
+                  'target': string('Zielpfad (optional, sonst gleicher Name mit neuer Endung).')}, ['path']),
+             bind(convert_document), category='documents', label='Wandelt die Datei um'),
         Tool('create_presentation', 'Erstellt eine PowerPoint-Datei (.pptx), 1 bis 40 Folien, höchstens 6 Stichpunkte pro Folie. Neuer Dateiname erforderlich.',
              obj({'path': path, 'title': string('Gesamttitel.'), 'slides': {'type': 'array', 'items':
                  obj({'title': string('Folientitel, höchstens 100 Zeichen.'), 'bullets': {'type': 'array',
@@ -1045,7 +1081,7 @@ def build_tools(env: Environment) -> dict[str, Tool]:
 # arbeiten zuverlässiger, wenn sie nur die relevanten Werkzeuge sehen – und schneller).
 CATEGORY_HINTS = {
     'files': r'datei|ordner|folder|file|speicher|dokument|pdf|lies|lese|text|schreib|notiz|liste|lösch|verschieb|umbenenn|download|schreibtisch|desktop|projekt|code|sortier|aufräum|gestern|zuletzt',
-    'documents': r'pdf|powerpoint|präsentation|presentation|folien|pptx|excel|tabelle|spreadsheet|xlsx|csv|kalkulation|budget|finanz|übersicht',
+    'documents': r'pdf|word|docx|dokument|brief|angebot|bericht|konzept|entwurf|umwandel|konvertier|als pdf|powerpoint|präsentation|presentation|folien|pptx|excel|tabelle|spreadsheet|xlsx|csv|kalkulation|budget|finanz|übersicht',
     'apps': r'öffne|starte|open|programm|app\b|finder|zeig',
     'web': r'such|recherch|internet|web|google|safari|browser|neueste|aktuell|news|nachrichten|website|seite|link|http',
     'system': r'system|akku|batterie|speicherplatz|festplatte|arbeitsspeicher|ram|cpu|mac\b|version',
