@@ -8,7 +8,8 @@ ATLAS_AGENT_PLIST="$HOME/Library/LaunchAgents/$ATLAS_LABEL.plist"
 ATLAS_VENV="$ATLAS_INSTALL_ROOT/venv"
 
 # Eigene Python-Umgebung für das Backend (Excel, PDF, PowerPoint, Word), unabhängig vom System.
-# Feste Werkzeuge für PDF, PowerPoint, Excel; Word über textutil auf macOS.
+# Feste Werkzeuge für PDF, Word, PowerPoint, Excel. anthropic: nur für das optionale, standardmäßig
+# ausgeschaltete Cloud-Modell (ohne Aktivierung und Schlüssel wird es nie benutzt).
 atlas_setup_venv() {
   mkdir -p "$ATLAS_INSTALL_ROOT"
   if [[ ! -x "$ATLAS_VENV/bin/python3" ]]; then
@@ -16,8 +17,8 @@ atlas_setup_venv() {
     python3 -m venv "$ATLAS_VENV"
   fi
   "$ATLAS_VENV/bin/python3" -m pip install --quiet --disable-pip-version-check \
-    'openpyxl==3.1.5' 'pypdf==6.17.0' 'python-pptx==1.0.2' 'python-docx==1.2.0' 'reportlab>=4.0,<5'
-  "$ATLAS_VENV/bin/python3" -c 'import openpyxl, pypdf, pptx, docx, reportlab, sys; assert sys.version_info >= (3, 10)'
+    'openpyxl==3.1.5' 'pypdf==6.17.0' 'python-pptx==1.0.2' 'python-docx==1.2.0' 'reportlab>=4.0,<5' 'anthropic==1.17.0'
+  "$ATLAS_VENV/bin/python3" -c 'import openpyxl, pypdf, pptx, docx, reportlab, anthropic, sys; assert sys.version_info >= (3, 10)'
   echo 'Python-Umgebung bereit (Excel, PDF, PowerPoint, Word).'
 }
 

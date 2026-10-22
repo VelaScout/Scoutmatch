@@ -49,6 +49,10 @@ struct SettingsView: View {
                 Button("Erinnerungen aus Atlas 0.2 Web übernehmen") { Task { await importMemory() } }.disabled(busy)
                 Text("Führt Erinnerungen zusammen, ohne Web-Daten zu löschen. Gesprächsverläufe bleiben getrennt. Neue Erinnerungen im Bereich Gedächtnis anlegen.").font(.caption)
             }
+            Section("Cloud-Modell (optional, standardmäßig aus)") {
+                NavigationLink("Cloud-Modell einrichten") { CloudSettingsView() }
+                Text("Für schwierige Aufgaben auf ausdrücklichen Wunsch („Cloud: …“). Mit Kostenanzeige, Monatslimit und Rückfrage vor jeder Übertragung.").font(.caption)
+            }
             Section("Lernen und Weiterentwicklung") {
                 NavigationLink("ATLAS – Learning & Evolution") { LearningView() }
                 Text("Was Atlas gelernt hat, selbst entwickelte Fähigkeiten, Wissen mit Quellen, Verbesserungen und alles, was auf Ihre Freigabe wartet.").font(.caption)

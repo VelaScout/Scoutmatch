@@ -6,6 +6,7 @@ from .memory import MemoryIndex
 from .learning import Learning
 from .evolution import Evolution
 from .tasks import TaskJournal
+from .cloud import Cloud
 from .tools import Environment, build_tools, fetch_webpage, search_web
 import contextlib
 import json
@@ -57,6 +58,23 @@ def settings():
     try:return json.loads((DATA/'settings.json').read_text(encoding='utf-8'))
     except (OSError,ValueError):return {}
 
+def save_settings(changes):
+    """Einstellungen ergänzen (atomar), vorhandene Einträge bleiben erhalten."""
+    with LOCK:
+        merged={**settings(),**changes}
+        DATA.mkdir(parents=True,exist_ok=True,mode=0o700)
+        temp=DATA/'settings.json.neu'
+        temp.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding='utf-8')
+        os.replace(temp,DATA/'settings.json')
+
+_CLOUD=None
+def cloud():
+    global _CLOUD
+    with LOCK:
+        if _CLOUD is None:
+            _CLOUD=Cloud(database,lambda:settings().get('cloud') or {},lambda value:save_settings({'cloud':value}))
+        return _CLOUD
+
 def allowed_roots():
     roots=[Path.home()]
     for raw in settings().get('allowed_roots',[]) if isinstance(settings().get('allowed_roots'),list) else []:
@@ -103,6 +121,7 @@ def agent():
             _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(env),BRIDGE,memory,log=log,learning=learning(),
                                    journal=TaskJournal(database))
             _AGENT.evolution=evolution()
+            _AGENT.cloud=cloud()
             _AGENT.dynamic_tools=lambda:evolution().tools(env)
         return _AGENT
 
@@ -124,7 +143,7 @@ def agent_request(obj):
     model=obj.get('model')
     if model is not None and not llm.is_local_model(model):raise ValueError('Nur lokale Modelle sind erlaubt.')
     return agent_mod.Request(system=system,history=[{'role':r['role'],'content':r['content'].strip()} for r in rows],
-                             memories=memories,native_tools=tools,model=model)
+                             memories=memories,native_tools=tools,model=model,cloud=obj.get('cloud') is True)
 
 def agent_events(request,request_id):
     if not CHAT_LOCK.acquire(blocking=False):raise BusyError('Atlas arbeitet noch an einer Anfrage. Bitte kurz warten oder abbrechen.')
@@ -328,6 +347,22 @@ def positive_id(obj,key='id'):
     if type(value)!=int or value<1:raise ValueError('Ungültige ID.')
     return value
 
+def cloud_route(action,obj):
+    """Optionales Cloud-Modell: Status, Einstellungen, Schlüssel (nur in den macOS-Schlüsselbund)."""
+    c=cloud()
+    if action=='status':return c.status()
+    if action=='settings':
+        return c.update(**{k:v for k,v in obj.items() if k in ('enabled','model','monthly_limit_usd','always_allow','effort')})
+    if action=='key':
+        key=obj.get('key')
+        if not isinstance(key,str) or len(key)>400:raise ValueError('Schlüssel fehlt.')
+        try:c.keychain.set(key.strip())
+        except Exception as exc:raise ValueError(str(exc)) from None
+        return c.status()
+    if action=='key/delete':
+        c.keychain.delete();return c.status()
+    raise ValueError('Unbekannte Cloud-Aktion.')
+
 def learning_route(action,obj):
     """Bereich „Learning & Evolution“ der App. Nur mit Sitzungstoken erreichbar – das Sprachmodell
     selbst kann diese Schnittstelle nicht aufrufen (lokale Adressen sind für Werkzeuge gesperrt)."""
@@ -477,6 +512,8 @@ class Handler(BaseHTTPRequestHandler):
             ident=obj.get('request_id',uuid.uuid4().hex)
             if not isinstance(ident,str) or len(ident)>80:raise ValueError('Ungültige Anfrage-ID.')
             return self.stream_events(chat_events(text,model,ident,persist=context is None,native_context=context))
+        if path.startswith('/api/native/cloud/'):
+            return self.send_json(cloud_route(path.removeprefix('/api/native/cloud/'),obj))
         if path.startswith('/api/native/learning/'):
             return self.send_json(learning_route(path.removeprefix('/api/native/learning/'),obj))
         return self.route_rest(path,obj)

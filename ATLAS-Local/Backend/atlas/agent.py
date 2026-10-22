@@ -142,6 +142,7 @@ class Request:
     native_tools: list[dict] = field(default_factory=list)
     model: str | None = None
     language: str = 'de'
+    cloud: bool = False          # Nutzer hat in der App ausdrücklich „Cloud“ gewählt
 
 
 class Bridge:
@@ -250,6 +251,8 @@ class Agent:
         self.learning = learning
         # Aufgabenjournal (atlas.tasks.TaskJournal): Folgeaufträge, Wiederaufnahme, keine Doppelaktionen.
         self.journal = journal
+        # Optionales Cloud-Modell (atlas.cloud.Cloud) – nur bei ausdrücklichem Wunsch und nach Zustimmung.
+        self.cloud = None
         # Zusätzliche Werkzeuge, die sich zur Laufzeit ändern (freigegebene, selbst entwickelte Fähigkeiten).
         self.dynamic_tools: Callable[[], dict[str, Tool]] | None = None
         self.base_tools = tools
@@ -386,6 +389,12 @@ class Agent:
             yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
             return
 
+        if self.cloud:
+            wanted, stripped = self.cloud.requested(text, request.cloud)
+            if wanted:
+                yield from self.cloud_run(request, stripped, stop, started)
+                return
+
         if self.learning and is_correction(text):
             learned = self.learning.learn_correction(text)
             if learned and learned.get('rule'):
@@ -423,6 +432,36 @@ class Agent:
             return
 
         yield from self.agent_loop(request, text, mode, stop, started)
+
+    def cloud_run(self, request: Request, text: str, stop: threading.Event, started: float) -> Iterator[dict]:
+        """Auftrag mit dem Cloud-Modell – nur wenn eingeschaltet, im Limit und ausdrücklich freigegeben.
+        Sonst wird lokal gearbeitet und das gesagt."""
+        request.history = request.history[:-1] + [{'role': 'user', 'content': text}]
+        request.cloud = False
+        status = self.cloud.status()
+        note = ''
+        if not status['ready']:
+            note = f'Cloud nicht verfügbar ({status["problem"]}). Ich antworte lokal.\n\n'
+        elif not status['always_allow']:
+            preview = self.cloud.preview(self.context(request, text))
+            approved = yield from self.confirm('Daten an die Cloud senden?', preview, stop)
+            if not approved:
+                note = 'Nichts wurde in die Cloud gesendet. Ich antworte lokal.\n\n'
+        if note:
+            yield {'type': 'delta', 'text': note}
+            yield from self.run(request, stop)          # ohne Präfix → lokal
+            return
+        local, self.llm = self.llm, self.cloud.llm(self.log)
+        yield {'type': 'status', 'label': f'Cloud: {self.llm.model}', 'mode': 'cloud'}
+        try:
+            for event in self.agent_loop(request, text, 'agent', stop, started):
+                if event['type'] == 'done':
+                    yield {'type': 'delta', 'text': '\n\n' + self.llm.summary()}
+                    event = {**event, 'cloud': {'model': self.llm.model, 'cost_usd': round(self.llm.cost_usd, 5),
+                                                'input_tokens': self.llm.input_tokens, 'output_tokens': self.llm.output_tokens}}
+                yield event
+        finally:
+            self.llm = local
 
     def agent_loop(self, request: Request, text: str, mode: str, stop: threading.Event, started: float) -> Iterator[dict]:
         model = self.llm.agent_model(request.model)
@@ -497,7 +536,8 @@ class Agent:
                     self.log('Agent: Modell hat nur geplant – fordere Werkzeugaufruf an')
                     yield {'type': 'status', 'label': 'Wählt das passende Werkzeug'}
                     if reply.content:
-                        messages.append({'role': 'assistant', 'content': reply.content[:1500]})
+                        messages.append({'role': 'assistant', 'content': reply.content[:1500],
+                                         **({'_raw': reply.raw} if getattr(reply, 'raw', None) else {})})
                     messages.append({'role': 'user', 'content': NUDGE})
                     continue
                 final = reply.content
@@ -507,7 +547,9 @@ class Agent:
                 break
             messages.append({'role': 'assistant', 'content': reply.content,
                              'tool_calls': [{'function': {'name': c['name'], 'arguments': c['arguments']}}
-                                            for c in reply.tool_calls]})
+                                            for c in reply.tool_calls],
+                             # Cloud: Originalblöcke (mit Denkblöcken) für die nächste Anfrage unverändert behalten
+                             **({'_raw': reply.raw} if getattr(reply, 'raw', None) else {})})
             for call_index, call in enumerate(reply.tool_calls):
                 if stop.is_set():
                     break

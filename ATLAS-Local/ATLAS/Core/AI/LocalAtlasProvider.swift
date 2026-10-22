@@ -66,6 +66,12 @@ struct LocalAtlasProvider: AIProvider {
         guard action.allSatisfy({ $0.isLetter || $0 == "/" }) else { throw AIError.invalidResponse }
         return try await localPost("/api/native/learning/" + action, object: object)
     }
+    /// Optionales Cloud-Modell: Status, Einstellungen, Schlüssel (das Backend legt ihn im Schlüsselbund ab).
+    func cloud(_ action: String, _ object: [String: Any] = [:]) async throws -> [String: Any] {
+        guard action.allSatisfy({ $0.isLetter || $0 == "/" }) else { throw AIError.invalidResponse }
+        let data = try await localPost("/api/native/cloud/" + action, object: object)
+        return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+    }
     private func localPost(_ path: String, object: [String: Any]) async throws -> Data {
         let connection = session()
         defer { connection.invalidateAndCancel() }
