@@ -127,7 +127,10 @@ class ReleaseTests(unittest.TestCase):
             self.assertNotIn('(subpath "/private/var/folders")', command[2])
             self.assertEqual(kwargs['env']['TEMP'], str(temp))
             return subprocess.CompletedProcess(command, 0, '{"ok":true}\n', '')
-        with patch('atlas.skills.shutil.which', return_value='/usr/bin/sandbox-exec'), patch('atlas.skills.subprocess.run', side_effect=run):
+        # Geprüfte Profilwahl (atlas.sandbox) überspringen; hier geht es um Temp-Ordner und Profilinhalt.
+        with patch('atlas.sandbox.available', return_value=True), patch('atlas.sandbox._choose', return_value=0), \
+                patch('atlas.sandbox._binary', return_value='/usr/bin/sandbox-exec'), \
+                patch('atlas.skills.subprocess.run', side_effect=run):
             self.assertTrue(run_harness('test', self.home, self.home)['ok'])
         self.assertFalse(Path(captured['env']['TMPDIR']).exists())
 
