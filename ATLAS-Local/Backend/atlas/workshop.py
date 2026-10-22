@@ -22,6 +22,7 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
+from . import sandbox
 from .approvals import Approvals
 from .learning import now
 from .llm import ModelError
@@ -150,13 +151,14 @@ class Workshop:
         env = {'PATH': '/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin', 'HOME': str(private), 'TMPDIR': str(private),
                'ATLAS_DATA_DIR': str(private / 'data'), 'PYTHONPYCACHEPREFIX': str(private / 'pycache'), 'LANG': 'de_DE.UTF-8'}
         command = list(self.test_command)
-        if shutil.which('sandbox-exec'):
+        if sandbox.available():
             # Netzwerk nur zu localhost (die Tests nutzen lokale Testserver), Schreiben nur in Kopie und Temp.
-            profile = ('(version 1)(allow default)(deny network*)(allow network* (local ip "localhost:*"))'
-                       '(allow network* (remote ip "localhost:*"))(allow network* (remote unix-socket))(deny file-write*)'
-                       f'(allow file-write* (subpath "{work.resolve()}") (subpath "{private.resolve()}") '
-                       '(subpath "/private/var/folders") (literal "/dev/null"))')
-            command = ['sandbox-exec', '-p', profile] + command
+            try:
+                command = sandbox.wrap(command, [work, private], network='localhost')
+            except sandbox.SandboxError as exc:
+                shutil.rmtree(private, ignore_errors=True)
+                return False, str(exc)
+            env['ATLAS_IN_SANDBOX'] = '1'
         elif not self.allow_unsandboxed:
             shutil.rmtree(private, ignore_errors=True)
             return False, 'Keine Betriebssystem-Sandbox verfügbar – Tests von Code-Änderungen laufen nur auf dem Mac.'

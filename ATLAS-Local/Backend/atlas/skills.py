@@ -22,6 +22,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import sandbox
 from .approvals import Approvals
 from .llm import ModelError
 from .tools import CONFIRM, Result, Tool, ToolError, obj, string
@@ -105,11 +106,13 @@ def run_harness(mode: str, skill_dir: Path, output_dir: Path, arguments: dict | 
         temp = Path(private).resolve()
         command = [sys.executable, '-I', str(harness), mode, str(skill_dir.resolve()),
                    str(output_dir.resolve()), json.dumps(arguments or {})]
-        if shutil.which('sandbox-exec'):
-            profile = ('(version 1)(allow default)(deny network*)(deny file-write*)'
-                       f'(allow file-write* (subpath {json.dumps(str(output_dir.resolve()))}) '
-                       f'(subpath {json.dumps(str(temp))}) (literal "/dev/null"))')
-            command = ['sandbox-exec', '-p', profile] + command
+        if sandbox.available():
+            # macOS: zusätzlich geprüfte Betriebssystem-Sandbox – kein Netzwerk, Schreiben nur in Ausgabe und Temp.
+            # Funktioniert sie nicht, wird die Fähigkeit NICHT ohne sie ausgeführt.
+            try:
+                command = sandbox.wrap(command, [output_dir, temp], network='none')
+            except sandbox.SandboxError as exc:
+                return {'ok': False, 'error': str(exc)}
         try:
             done = subprocess.run(command, capture_output=True, text=True, timeout=timeout,
                                   env={'PATH': '/usr/bin:/bin', 'HOME': str(output_dir.resolve()),
