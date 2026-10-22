@@ -147,7 +147,7 @@ class Scheduler:
     def used_seconds_today(self) -> float:
         today = datetime.now(timezone.utc).date().isoformat()
         with self.connect() as db:
-            return db.execute("SELECT coalesce(sum(seconds),0) FROM evolution_jobs WHERE origin='zyklus' AND started_at>=?",
+            return db.execute("SELECT coalesce(sum(seconds),0) FROM evolution_jobs WHERE origin!='nutzer' AND started_at>=?",
                               (today,)).fetchone()[0]
 
     def cycle(self) -> bool:
@@ -178,11 +178,12 @@ class Scheduler:
                 self._finish(job_id, 'fehlgeschlagen', {'error': 'Keine Ausführung für diese Art.'}, 0)
                 continue
             if network and not config['allow_network']:
-                self._finish(job_id, 'blockiert', {'error': 'Netzwerk für Lernaufträge ist ausgeschaltet.'}, 0)
-                continue
-            if origin == 'zyklus' and budget <= 0:
-                continue          # Tageslimit erreicht – wartet bis morgen
-            return self._execute(job_id, handler, json.loads(payload), budget if origin == 'zyklus' else None)
+                if origin == 'nutzer':        # direkter Wunsch: sofort ehrlich melden
+                    self._finish(job_id, 'blockiert', {'error': 'Netzwerk für Lernaufträge ist ausgeschaltet.'}, 0)
+                continue                      # Hintergrundaufträge warten, bis Internet wieder erlaubt ist
+            if origin != 'nutzer' and (not config['enabled'] or budget <= 0):
+                continue          # Hintergrundarbeit (Zyklen, Wissenspakete): nur eingeschaltet und im Tageslimit
+            return self._execute(job_id, handler, json.loads(payload), budget if origin != 'nutzer' else None)
         return None
 
     def _execute(self, job_id: int, handler, payload: dict, budget: float | None) -> dict:

@@ -157,6 +157,7 @@ struct LearningView: View {
 
     @ViewBuilder private func knowledge(_ data: LearningOverview) -> some View {
         Section("Wissen (mit Quellen)") {
+            NavigationLink("Wissenspakete (193 Themen aus 15 Fachgebieten)") { KnowledgePackagesView() }
             HStack {
                 TextField("Thema, z. B. Unternehmensbewertung", text: $newTopic)
                 Button("Lernen") { act("job", ["kind": "topic", "text": newTopic]); newTopic = "" }
@@ -379,3 +380,59 @@ struct TopicFactsView: View {
         Task { _ = try? await provider.learning("delete", ["kind": "fact", "id": id]); await load() }
     }
 }
+
+/// Vorbereitete Themenlisten einreihen. Ausgeführt wird erst, wenn die Lernzyklen eingeschaltet sind –
+/// im Tageslimit, mit erlaubtem Internet, pausierbar.
+struct KnowledgePackagesView: View {
+    private struct Package: Decodable, Identifiable { let name: String; let topics: Int; let examples: [String]; var id: String { name } }
+    @State private var packages: [Package] = []
+    @State private var message: String?
+    private let provider = LocalAtlasProvider()
+
+    var body: some View {
+        List {
+            Section {
+                Text("Jedes Thema wird mit Quellen recherchiert, gegen die Quelltexte geprüft und mit Quelle und Datum gespeichert. Das Sprachmodell selbst wird nicht verändert. Kosten: keine API-Gebühren. Ausgeführt wird nur, wenn die Lernzyklen eingeschaltet sind (Tageslimit, pausierbar).")
+                    .font(.footnote).foregroundStyle(.secondary)
+                if let message { Text(message).font(.footnote).foregroundStyle(.cyan) }
+            }
+            ForEach(packages) { package in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(package.name.replacingOccurrences(of: "_", with: " & ").capitalized).font(.subheadline.weight(.medium))
+                        Text("\(package.topics) Themen, z. B. " + package.examples.joined(separator: ", ")).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Einreihen") { queue([package.name]) }.buttonStyle(.bordered)
+                }
+            }
+        }
+        .navigationTitle("Wissenspakete")
+        .task { await load() }
+    }
+
+    private func load() async {
+        struct Reply: Decodable { let packages: [Package] }
+        do {
+            packages = try JSONDecoder().decode(Reply.self, from: try await provider.learning("packages")).packages
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    private func queue(_ names: [String]) {
+        Task {
+            do {
+                let data = try await provider.learning("packages/queue", ["packages": names])
+                let reply = (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+                let added = reply["added"] as? Int ?? 0, existing = reply["existing"] as? Int ?? 0
+                let enabled = reply["enabled"] as? Bool ?? false
+                message = "\(added) Themen eingereiht, \(existing) waren schon vorhanden." +
+                    (enabled ? " Sie werden im Hintergrund im Tageslimit bearbeitet." : " Zum Starten in „Learning & Evolution“ die Lernzyklen einschalten.")
+            } catch {
+                message = error.localizedDescription
+            }
+        }
+    }
+}
+

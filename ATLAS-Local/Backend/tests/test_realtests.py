@@ -179,6 +179,18 @@ class RealTestLogicTests(unittest.TestCase):
                               answer('Das Internet ist nicht erreichbar, daher kann ich es nicht prüfen.')]
         self.assertIsNone(check(r.drive(self.agent, prompt, approve)))
 
+    def test_memories_reach_the_model_and_comparison_needs_the_real_difference(self):
+        prompt, approve, check = self.cases['gedaechtnis']
+        self.ollama.stream_text = ['Montags und donnerstags.']
+        self.assertTrue(check(r.drive(self.agent, prompt, approve)))
+        streamed = [body for path, body in self.ollama.requests if path == '/api/chat' and body.get('stream')][-1]
+        self.assertIn('montags und donnerstags Fußball', streamed['messages'][0]['content'])
+        self.ollama.script = [answer('Es hat sich nichts Wesentliches geändert.')]
+        self.assertFalse(self.run_case('vergleich'))
+        self.ollama.script = [tool_call('compare_documents', path_a='~/Documents/vertrag_alt.txt',
+                                        path_b='~/Documents/vertrag_neu.txt'), answer('Der Preis stieg von 480 auf 520 Euro pro Jahr.')]
+        self.assertTrue(self.run_case('vergleich'))
+
     def test_blocked_search_counts_as_failed_not_skipped(self):
         prompt, approve, check = self.cases['recherche_quellen']
         self.agent.base_tools = build_tools(Environment(home=self.home, roots=[self.home], is_mac=False,

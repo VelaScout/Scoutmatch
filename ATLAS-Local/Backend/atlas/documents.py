@@ -473,11 +473,13 @@ def convert_document(env, path: str, to: str = 'pdf', target: str = ''):
 def compare_documents(env, path_a: str, path_b: str):
     """Vergleicht zwei Dokumente (Text, Word, PDF, Excel, CSV, PowerPoint) zeilenweise – ohne Modell, nachprüfbar."""
     import difflib
+    import re
     from .tools import read_file
     texts = []
     for path in (path_a, path_b):
         result = read_file(env, path, max_chars=60_000)
-        lines = [line.strip() for line in result.output.splitlines()]
+        # Formatmarken (Überschrift „# “, Aufzählung „- “) zählen nicht als Inhaltsunterschied.
+        lines = [re.sub(r'^(#{1,3}|[-*•])\s+', '', line.strip()) for line in result.output.splitlines()]
         texts.append([line for line in lines if line and not line.startswith('[Seite ')])
     a, b = texts
     ratio = difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()

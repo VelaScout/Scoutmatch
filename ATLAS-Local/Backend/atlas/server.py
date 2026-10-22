@@ -408,6 +408,16 @@ def learning_route(action,obj):
     if action=='hint/rollback':evo.improvement.rollback(positive_id(obj));return {'ok':True}
     if action=='code/rollback':return {'message':evo.workshop.rollback(positive_id(obj))}
     if action=='export':return {'examples':evo.learning.export_training_data()}
+    if action=='packages':
+        from . import wissenspakete as wp
+        return {'packages':[{'name':n,'topics':len(t),'examples':t[:3]} for n,t in wp.PACKAGES.items()]}
+    if action=='packages/queue':
+        from . import wissenspakete as wp
+        names=obj.get('packages')
+        if not isinstance(names,list) or not names or not all(isinstance(n,str) and (n in wp.PACKAGES or n=='alle') for n in names):
+            raise ValueError('Unbekanntes Wissenspaket.')
+        added,existing=wp.enqueue(evo.scheduler,names)
+        return {'added':added,'existing':existing,'enabled':evo.scheduler.settings()['enabled']}
     raise ValueError('Unbekannte Lern-Aktion.')
 
 def text_field(obj,key,limit):
