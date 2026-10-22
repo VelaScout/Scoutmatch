@@ -13,12 +13,18 @@ struct CloudSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Text("Lokal bleibt der Standard. Ein Cloud-Modell ist deutlich leistungsfähiger als das lokale Modell, kostet aber Geld und sendet Daten an Anthropic. Nutzen: Satz mit „Cloud:“ oder „Mit Claude:“ beginnen. Vor jeder Übertragung zeigt Atlas, was den Mac verlässt.")
+                Text("Lokal bleibt der Standard. Ein Cloud-Modell ist deutlich leistungsfähiger als das lokale Modell, kostet aber Geld und sendet Daten an Anthropic. Nutzen: Satz mit „Cloud:“ beginnen oder in den Cloud-Modus wechseln. Vor jeder Übertragung zeigt Atlas, was den Mac verlässt.")
                     .font(.footnote).foregroundStyle(.secondary)
                 if let message { Text(message).font(.footnote).foregroundStyle(.orange) }
             }
             Section("Cloud-Modell") {
                 Toggle("Cloud-Modell erlauben", isOn: binding("enabled", false))
+                Picker("Modus", selection: Binding(get: { status["mode"] as? String ?? "lokal" }, set: { update(["mode": $0]) })) {
+                    Text("Lokal (Standard) – Cloud nur mit „Cloud: …“").tag("lokal")
+                    Text("Cloud – alle Anfragen, außer „Lokal: …“").tag("cloud")
+                }
+                .disabled(!(status["enabled"] as? Bool ?? false) || !(status["has_key"] as? Bool ?? false))
+                Text("Auch per Sprache: „Wechsle in den Cloud-Modus“ / „Wechsle in den lokalen Modus“.").font(.caption2).foregroundStyle(.secondary)
                 Picker("Modell", selection: Binding(get: { status["model"] as? String ?? models[0] },
                                                    set: { update(["model": $0]) })) {
                     ForEach(models, id: \.self) { model in Text(label(model)).tag(model) }

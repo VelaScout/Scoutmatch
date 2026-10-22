@@ -352,7 +352,7 @@ def cloud_route(action,obj):
     c=cloud()
     if action=='status':return c.status()
     if action=='settings':
-        return c.update(**{k:v for k,v in obj.items() if k in ('enabled','model','monthly_limit_usd','always_allow','effort')})
+        return c.update(**{k:v for k,v in obj.items() if k in ('enabled','model','monthly_limit_usd','always_allow','effort','mode')})
     if action=='key':
         key=obj.get('key')
         if not isinstance(key,str) or len(key)>400:raise ValueError('Schlüssel fehlt.')

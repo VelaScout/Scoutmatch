@@ -144,8 +144,31 @@ class CloudTests(unittest.TestCase):
         self.assertIn('Monatslimit erreicht', text)
         self.assertEqual(self.api.requests, [])
 
+    def test_mode_switch_by_voice_and_local_override(self):
+        text, _, _ = self.ask('Wechsle in den Cloud-Modus')
+        self.assertIn('noch nicht freigegeben', text)                                  # ohne Aktivierung kein Wechsel
+        self.assertEqual(self.cloud.settings()['mode'], 'lokal')
+        self.cloud.update(enabled=True)
+        text, _, _ = self.ask('Atlas, wechsle in den Cloud-Modus')
+        self.assertIn('Cloud-Modus aktiv', text)
+        self.api.script = [message([{'type': 'text', 'text': 'Antwort aus der Cloud.'}])]
+        text, confirms, _ = self.ask('Wie funktioniert eine Wärmepumpe?')           # ohne Präfix → Cloud, mit Rückfrage
+        self.assertIn('Antwort aus der Cloud.', text)
+        self.assertEqual(len(confirms), 1)
+        text, confirms, _ = self.ask('Lokal: Wie funktioniert eine Wärmepumpe?')    # einzelne Anfrage bleibt lokal
+        self.assertIn('Lokale Antwort.', text)
+        self.assertEqual((len(self.api.requests), confirms), (1, []))
+        last = [body for path, body in self.ollama.requests if path == '/api/chat'][-1]
+        self.assertEqual(last['messages'][-1]['content'], 'Wie funktioniert eine Wärmepumpe?')   # ohne „Lokal:“
+        text, _, _ = self.ask('Wie spät ist es in Tokio?', approve=False)            # abgelehnt → lokal, keine Schleife
+        self.assertIn('Nichts wurde in die Cloud gesendet', text)
+        self.assertIn('Lokale Antwort.', text)
+        self.assertEqual(len(self.api.requests), 1)
+        text, _, _ = self.ask('Wechsle in den lokalen Modus')
+        self.assertEqual(self.cloud.settings()['mode'], 'lokal')
+
     def test_settings_are_validated(self):
-        for bad in [{'model': 'gpt-5'}, {'monthly_limit_usd': -1}, {'enabled': 'ja'}, {'temperature': 1}]:
+        for bad in [{'model': 'gpt-5'}, {'monthly_limit_usd': -1}, {'enabled': 'ja'}, {'temperature': 1}, {'mode': 'immer'}]:
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 self.cloud.update(**bad)
 

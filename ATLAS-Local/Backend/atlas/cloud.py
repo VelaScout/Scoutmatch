@@ -27,7 +27,10 @@ PRICES = {'claude-opus-5-5': (4.00, 20.00), 'claude-sonnet-5-5': (2.00, 10.00), 
           'claude-opus-5': (5.00, 25.00), 'claude-opus-4-8': (5.00, 25.00)}
 MODELS = ('claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5')
 DEFAULTS = {'enabled': False, 'model': 'claude-opus-5-5', 'monthly_limit_usd': 5.0, 'always_allow': False,
-            'effort': 'medium'}
+            'effort': 'medium', 'mode': 'lokal'}
+LOCAL_PREFIX = re.compile(r'^\s*(?:atlas[,!.]?\s*)?(?:lokal|local)\s*[:,]\s*', re.I)
+MODE_SWITCH = re.compile(r'^\s*(?:atlas[,!.]?\s*)?(?:bitte\s+)?(?:wechsle|schalte|geh|gehe|switch)\w*\s+(?:in\s+den\s+|auf\s+(?:den\s+)?|to\s+)?'
+                         r'(?P<mode>cloud|lokalen|lokal|local)[\s-]*(?:modus|mode|betrieb)?\b', re.I)
 PREFIX = re.compile(r'^\s*(?:atlas[,!.]?\s*)?(?:cloud|mit claude|frag claude|claude|mit der cloud)\s*[:,]\s*', re.I)
 SERVICE, ACCOUNT = 'ATLAS Cloud', 'anthropic'
 KEY_FORMAT = re.compile(r'sk-ant-[A-Za-z0-9_-]{20,300}')
@@ -108,6 +111,9 @@ class Cloud:
             elif key == 'monthly_limit_usd':
                 if not isinstance(value, (int, float)) or isinstance(value, bool) or not 0 <= value <= 500:
                     raise ValueError('Monatslimit: 0 bis 500 US-$.')
+            elif key == 'mode':
+                if value not in ('lokal', 'cloud'):
+                    raise ValueError('Modus: lokal oder cloud.')
             elif key == 'effort':
                 if value not in ('low', 'medium', 'high'):
                     raise ValueError('Gründlichkeit: low, medium oder high.')
@@ -134,10 +140,32 @@ class Cloud:
                 'prices': {m: PRICES[m] for m in MODELS}}
 
     def requested(self, text: str, flag: bool = False) -> tuple[bool, str]:
-        """(Cloud gewünscht?, Text ohne Präfix)."""
+        """(Cloud gewünscht?, Text ohne Präfix). Im Cloud-Modus gilt jede Anfrage als Cloud-Anfrage,
+        außer sie beginnt mit „Lokal:“."""
+        if LOCAL_PREFIX.match(text):
+            return False, LOCAL_PREFIX.sub('', text, count=1).strip()
         if PREFIX.match(text):
             return True, PREFIX.sub('', text, count=1).strip()
-        return bool(flag), text
+        return bool(flag) or self.settings()['mode'] == 'cloud', text
+
+    def switch(self, text: str) -> str | None:
+        """Sprachbefehl „Wechsle in den Cloud-Modus / lokalen Modus“. Gibt die Antwort zurück oder None."""
+        match = MODE_SWITCH.match(text)
+        if not match:
+            return None
+        wanted = 'cloud' if match['mode'].lower() == 'cloud' else 'lokal'
+        if wanted == 'cloud':
+            status = self.status()
+            if not status['enabled'] or not status['has_key']:
+                return ('Der Cloud-Modus ist noch nicht freigegeben. Bitte in den Einstellungen unter „Cloud-Modell“ '
+                        'einschalten und einen API-Schlüssel hinterlegen. Bis dahin arbeite ich lokal.')
+            self.update(mode='cloud')
+            note = '' if status['always_allow'] else ' Vor jeder Übertragung frage ich dich und zeige, welche Daten den Mac verlassen.'
+            return (f'Cloud-Modus aktiv ({status["model"]}). Monatslimit {status["monthly_limit_usd"]:.2f} US-$, '
+                    f'bisher {status["spent_usd"]:.2f} US-$.{note} Mit „Lokal: …“ bleibt eine einzelne Anfrage auf dem Mac.')
+        self.update(mode='lokal')
+        return 'Lokaler Modus aktiv. Es verlässt nichts mehr den Mac, solange du nicht „Cloud: …“ sagst.'
+
 
     def preview(self, messages: list[dict]) -> str:
         """Verständliche Beschreibung dessen, was den Mac verlässt."""

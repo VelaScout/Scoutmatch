@@ -148,6 +148,7 @@ class Request:
     model: str | None = None
     language: str = 'de'
     cloud: bool = False          # Nutzer hat in der App ausdrücklich „Cloud“ gewählt
+    local_only: bool = False     # Rückfall auf lokal (Cloud abgelehnt oder nicht verfügbar)
 
 
 class Bridge:
@@ -399,8 +400,16 @@ class Agent:
             yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
             return
 
-        if self.cloud:
+        if self.cloud and not request.local_only:
+            switched = self.cloud.switch(text)
+            if switched:
+                yield {'type': 'delta', 'text': switched}
+                yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
+                return
             wanted, stripped = self.cloud.requested(text, request.cloud)
+            if not wanted and stripped != text:          # „Lokal: …“ – Präfix entfernen, lokal weiter
+                request.history = request.history[:-1] + [{'role': 'user', 'content': stripped}]
+                text = stripped
             if wanted:
                 yield from self.cloud_run(request, stripped, stop, started)
                 return
@@ -448,6 +457,7 @@ class Agent:
         Sonst wird lokal gearbeitet und das gesagt."""
         request.history = request.history[:-1] + [{'role': 'user', 'content': text}]
         request.cloud = False
+        request.local_only = True       # ein eventueller Rückfall bleibt lokal (auch im Cloud-Modus)
         status = self.cloud.status()
         note = ''
         if not status['ready']:
