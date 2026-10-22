@@ -349,7 +349,7 @@ AGENT_STEMS = [
     'nachricht', 'spotify', 'musik', 'spiel ', 'timer', 'wecker', 'kurzbefehl', 'terminal', 'befehl', 'projekt',
     'fehler', 'bug', 'behebe', 'repariere', 'teste', 'build', 'kompilier', 'bildschirm', 'screenshot', 'akku',
     'speicherplatz', 'systeminfo', 'internet', 'webseite', 'website', 'safari', 'browser', 'neueste', 'aktuell',
-    'änder', 'bearbeit', 'überarbeit', 'ergänz', 'korrigier', 'umwandel', 'konvertier', 'als pdf', 'als word',
+    'vergleich', 'änder', 'bearbeit', 'überarbeit', 'ergänz', 'korrigier', 'umwandel', 'konvertier', 'als pdf', 'als word',
     'docx', 'word-', 'worddokument', 'dokument', 'angebot', 'brief an', 'bericht', 'konzept', 'entwurf', 'csv',
     'präsentation', 'powerpoint', 'folien', 'presentation', 'pptx', 'wetter', 'merk dir', 'vergiss', 'open ', 'create', 'search', 'delete', 'file', 'folder', 'calendar', 'email',
 ]

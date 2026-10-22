@@ -7,7 +7,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from atlas.documents import (convert_document, create_document, create_presentation, edit_document, edit_spreadsheet)
+from atlas.documents import (compare_documents, convert_document, create_document, create_presentation, edit_document, edit_spreadsheet)
 from atlas.tools import Environment, ToolError, create_spreadsheet, read_file, write_file
 
 
@@ -118,6 +118,18 @@ class DocumentTests(unittest.TestCase):
         self.assertTrue(again.data['path'].endswith('notiz-2.pdf'))
         word = convert_document(self.env, '~/Documents/notiz.md', to='docx')
         self.assertTrue(office_ok(word.data['path']))
+
+
+    def test_compare_two_documents_across_formats(self):
+        self.offer()
+        (self.docs / 'angebot_alt.txt').write_text('Angebot Webseite\nLeistungen\nGestaltung\nUmsetzung\nPreis\n'
+                                                   'Gesamt: 4.200 € netto, gültig bis 30.11.2026.', encoding='utf-8')
+        result = compare_documents(self.env, '~/Documents/angebot_alt.txt', '~/Documents/Angebot.docx')
+        self.assertIn('Nur in angebot_alt.txt: Gesamt: 4.200 € netto', result.output)
+        self.assertIn('Nur in Angebot.docx: Gesamt: 4.800 € netto', result.output)
+        self.assertGreater(result.data['similarity'], 0.3)
+        same = compare_documents(self.env, '~/Documents/Angebot.docx', '~/Documents/Angebot.docx')
+        self.assertIn('inhaltlich gleich', same.output)
 
 
 if __name__ == '__main__':

@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import re
+import urllib.parse
 from datetime import date
 
 from .memory import words
@@ -21,6 +22,25 @@ INJECTION = re.compile(
     r'forget (all|your)|(send|schick\w*|sende\w*|leite\w*).{0,40}(passw|password|kennwort|token|api.?key|schlüssel)|'
     r'(lösch\w*|delete).{0,30}(alle|all) (dateien|files)|act as|developer mode|jailbreak)', re.I)
 URL = re.compile(r'https?://[^\s<>()\[\]"\'`]+')
+
+
+NEWS = ('tagesschau.de', 'zdf.de', 'zeit.de', 'spiegel.de', 'faz.net', 'sueddeutsche.de', 'handelsblatt.com', 'nzz.ch',
+        'reuters.com', 'apnews.com', 'bbc.co.uk', 'bbc.com', 'theguardian.com', 'nytimes.com', 'dw.com', 'orf.at', 'srf.ch')
+
+
+def rate_source(url: str) -> str:
+    """Grobe, nachvollziehbare Einordnung der Quelle nach Adresse – kein Urteil über den Inhalt."""
+    host = (urllib.parse.urlparse(url).hostname or '').lower()
+    if re.search(r'(\.gov|\.gv\.at|\.admin\.ch|bund\.de|bundesregierung\.de|europa\.eu|\.gov\.uk|destatis\.de)$', host) \
+            or host.endswith(('.bund.de', '.europa.eu')):
+        return 'offizielle Stelle'
+    if re.search(r'(\.edu|\.ac\.\w+|uni-[\w-]+\.de|\.mpg\.de|\.fraunhofer\.de|doi\.org|arxiv\.org|nature\.com|ncbi\.nlm\.nih\.gov)$', host):
+        return 'Wissenschaft'
+    if host.endswith('wikipedia.org'):
+        return 'Enzyklopädie (Wikipedia)'
+    if any(host == n or host.endswith('.' + n) for n in NEWS):
+        return 'Nachrichtenmedium'
+    return 'sonstige Quelle (Herkunft prüfen)'
 
 
 def untrusted(text: str, origin: str) -> str:
@@ -78,9 +98,10 @@ def research(env, question: str, max_sources: int = 4) -> Result:
             failures.append(f'{item["url"]} (kein lesbarer Text)')
             continue
         sources.append({'n': len(sources) + 1, 'title': item['title'][:150], 'url': item['url'], 'date': today,
-                        'excerpt': best_passages(page.output, question)})
+                        'kind': rate_source(item['url']), 'excerpt': best_passages(page.output, question)})
     if not sources:
-        snippets = [{'n': i + 1, 'title': r['title'], 'url': r['url'], 'date': today, 'excerpt': r['snippet']}
+        snippets = [{'n': i + 1, 'title': r['title'], 'url': r['url'], 'date': today, 'kind': rate_source(r['url']),
+                     'excerpt': r['snippet']}
                     for i, r in enumerate(found.data['results'][:4])]
         if not snippets:
             return Result(False, 'Keine lesbaren Quellen gefunden.', data={'sources': []})
@@ -88,14 +109,17 @@ def research(env, question: str, max_sources: int = 4) -> Result:
         note = 'Seiten nicht lesbar – nur Suchtreffer-Ausschnitte (geringere Sicherheit).'
     else:
         note = ''
-    body = '\n\n'.join(f'[{s["n"]}] {s["title"]} – {s["url"]} (abgerufen {s["date"]})\n{s["excerpt"]}' for s in sources)
+    body = '\n\n'.join(f'[{s["n"]}] {s["title"]} – {s["url"]} (abgerufen {s["date"]}; {s["kind"]})\n{s["excerpt"]}'
+                         for s in sources)
     instructions = ('Antworte mit diesen Quellen: Aussagen mit [Nummer] belegen, am Ende „Quellen:“ mit Nummer, Titel und '
-                    'Adresse. Was keine Quelle stützt, als Einschätzung kennzeichnen. Widersprechen sich Quellen, das sagen. '
+                    'Adresse. Was keine Quelle stützt, als Einschätzung kennzeichnen. Offizielle und wissenschaftliche Quellen haben '
+                    'Vorrang vor sonstigen. Widersprechen sich Quellen, nenne beide Angaben mit ihrer Quelle. '
                     'Fehlt etwas, das ehrlich sagen. Keine anderen Adressen nennen.')
     text = untrusted(body, 'Webseiten') + '\n' + instructions + (f'\nHinweis: {note}' if note else '')
     if failures:
         text += '\nNicht lesbar: ' + '; '.join(failures[:4])
-    return Result(True, text, verified=True, data={'sources': [{k: s[k] for k in ('n', 'title', 'url', 'date')} for s in sources]})
+    return Result(True, text, verified=True,
+                  data={'sources': [{k: s[k] for k in ('n', 'title', 'url', 'date', 'kind')} for s in sources]})
 
 
 def known_urls(actions) -> tuple[set[str], list[dict]]:
@@ -123,7 +147,8 @@ def check_sources(answer: str, actions) -> str:
         answer = answer.replace(url, '[Adresse entfernt – nicht abgerufen]')
     if sources and not any(s['url'] in answer for s in sources):
         answer = answer.rstrip() + '\n\nQuellen:\n' + '\n'.join(
-            f'[{s["n"]}] {s["title"]} – {s["url"]} (abgerufen {s["date"]})' for s in sources)
+            f'[{s["n"]}] {s["title"]} – {s["url"]} (abgerufen {s["date"]}{"; " + s["kind"] if s.get("kind") else ""})'
+            for s in sources)
     if invented:
         answer += '\n\nHinweis: Ich habe Quellenangaben entfernt, die ich nicht tatsächlich abgerufen hatte.'
     return answer

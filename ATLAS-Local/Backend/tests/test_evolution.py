@@ -340,13 +340,21 @@ class IntegrationTests(Base):
         self.assertIsNone(learning_intent('Wie geht es dir?'))
         self.assertIsNone(learning_intent('Lerne Spanisch'))
 
-    def test_learning_request_queues_job_and_does_not_claim_the_skill(self):
-        events = self.ask('Lerne, wie man PowerPoint-Präsentationen erstellt')
+    def test_missing_skill_is_queued_and_not_claimed(self):
+        events = self.ask('Lerne, wie man PowerPoint-Präsentationen bearbeitet')     # Erstellen geht, Bearbeiten nicht
         text = ''.join(e.get('text', '') for e in events if e['type'] == 'delta')
-        self.assertIn('Bis dahin beherrsche ich sie noch nicht', text)
+        self.assertIn('Das kann ich noch nicht', text)
+        self.assertIn('beherrsche ich sie noch nicht', text)
         job = self.evolution.scheduler.jobs()[0]
         self.assertEqual((job['kind'], job['status']), ('skill', 'wartet'))
         self.assertEqual(self.ollama.chat_requests(), [])              # kein Modellaufruf nötig
+
+    def test_existing_skill_is_recognised_instead_of_relearned(self):
+        events = self.ask('ATLAS, ich möchte, dass du Excel-Dateien bearbeiten kannst.')
+        text = ''.join(e.get('text', '') for e in events if e['type'] == 'delta')
+        self.assertIn('Das kann ich bereits', text)
+        self.assertIn('Excel-Tabellen erstellen, lesen und ändern', text)
+        self.assertEqual(self.evolution.scheduler.jobs(), [])            # kein überflüssiger Lernauftrag
 
     def test_knowledge_flows_into_answers_with_source(self):
         with self.connect() as db:

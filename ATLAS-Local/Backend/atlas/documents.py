@@ -468,3 +468,27 @@ def convert_document(env, path: str, to: str = 'pdf', target: str = ''):
     result = publish(out, data)
     result.output = f'Umgewandelt: {source.name} → {out}. Original unverändert.'
     return result
+
+
+def compare_documents(env, path_a: str, path_b: str):
+    """Vergleicht zwei Dokumente (Text, Word, PDF, Excel, CSV, PowerPoint) zeilenweise – ohne Modell, nachprüfbar."""
+    import difflib
+    from .tools import read_file
+    texts = []
+    for path in (path_a, path_b):
+        result = read_file(env, path, max_chars=60_000)
+        lines = [line.strip() for line in result.output.splitlines()]
+        texts.append([line for line in lines if line and not line.startswith('[Seite ')])
+    a, b = texts
+    ratio = difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()
+    removed = [line for line in difflib.ndiff(a, b) if line.startswith('- ')]
+    added = [line for line in difflib.ndiff(a, b) if line.startswith('+ ')]
+    if not removed and not added:
+        return Result(True, 'Die beiden Dokumente sind inhaltlich gleich (gleicher Text).', verified=True,
+                      data={'similarity': 1.0, 'added': 0, 'removed': 0})
+    shown = [f'Nur in {Path(path_a).name}: {line[2:]}' for line in removed[:40]] + \
+            [f'Nur in {Path(path_b).name}: {line[2:]}' for line in added[:40]]
+    head = (f'Übereinstimmung {ratio:.0%}. {len(removed)} Zeilen nur im ersten, {len(added)} Zeilen nur im zweiten Dokument'
+            + (' (gekürzt).' if len(removed) > 40 or len(added) > 40 else '.'))
+    return Result(True, head + '\n' + '\n'.join(shown), verified=True,
+                  data={'similarity': round(ratio, 3), 'added': len(added), 'removed': len(removed)})

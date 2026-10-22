@@ -1025,8 +1025,8 @@ def _describe_path(verb: str) -> Callable[[dict], str]:
 
 def build_tools(env: Environment) -> dict[str, Tool]:
     from .research import research
-    from .documents import (convert_document, create_document, create_pdf, create_presentation, edit_document,
-                            edit_spreadsheet)
+    from .documents import (compare_documents, convert_document, create_document, create_pdf, create_presentation,
+                            edit_document, edit_spreadsheet)
     def bind(func: Callable[..., Result]) -> Callable[..., Result]:
         return lambda **kwargs: func(env, **kwargs)
 
@@ -1071,6 +1071,10 @@ def build_tools(env: Environment) -> dict[str, Tool]:
                   'append_rows': {'type': 'array', 'items': {'type': 'array'}}, 'sheet': string('Blattname (optional).')},
                  ['path']), bind(edit_spreadsheet), risk=CONFIRM, category='documents', label='Ändert die Tabelle',
              describe=_describe_path('Tabelle ändern (mit Sicherung)')),
+        Tool('compare_documents', 'Vergleicht zwei Dokumente (Text, Word, PDF, Excel, CSV, PowerPoint) und zeigt, was nur in '
+                                  'dem einen oder dem anderen steht, mit Übereinstimmung in Prozent.',
+             obj({'path_a': string('Erstes Dokument.'), 'path_b': string('Zweites Dokument.')}, ['path_a', 'path_b']),
+             bind(compare_documents), category='documents', label='Vergleicht die Dokumente'),
         Tool('convert_document', 'Wandelt eine Datei um, ohne das Original zu ändern: .docx/.txt/.md/.csv/.xlsx/.pptx → PDF, '
                                  'oder .txt/.md → Word (to="docx"). Für „Speichere es als PDF“.',
              obj({'path': path, 'to': {'type': 'string', 'enum': ['pdf', 'docx']},
@@ -1161,7 +1165,7 @@ def build_tools(env: Environment) -> dict[str, Tool]:
 # arbeiten zuverlässiger, wenn sie nur die relevanten Werkzeuge sehen – und schneller).
 CATEGORY_HINTS = {
     'files': r'datei|ordner|folder|file|speicher|dokument|pdf|lies|lese|text|schreib|notiz|liste|lösch|verschieb|umbenenn|download|schreibtisch|desktop|projekt|code|sortier|aufräum|gestern|zuletzt',
-    'documents': r'pdf|word|docx|dokument|brief|angebot|bericht|konzept|entwurf|umwandel|konvertier|als pdf|powerpoint|präsentation|presentation|folien|pptx|excel|tabelle|spreadsheet|xlsx|csv|kalkulation|budget|finanz|übersicht',
+    'documents': r'vergleich|unterschied|pdf|word|docx|dokument|brief|angebot|bericht|konzept|entwurf|umwandel|konvertier|als pdf|powerpoint|präsentation|presentation|folien|pptx|excel|tabelle|spreadsheet|xlsx|csv|kalkulation|budget|finanz|übersicht',
     'apps': r'öffne|starte|open|programm|app\b|finder|zeig',
     'web': r'such|recherch|internet|web|google|safari|browser|neueste|aktuell|news|nachrichten|website|seite|link|http',
     'system': r'system|akku|batterie|speicherplatz|festplatte|arbeitsspeicher|ram|cpu|mac\b|version',

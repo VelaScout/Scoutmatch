@@ -31,7 +31,8 @@ from .improvement import Improvement
 from .knowledge import Knowledge
 from .learning import Learning, now
 from .skills import SkillLab
-from .tools import SAFE, Result, Tool, ToolError, obj, string
+from .capabilities import existing
+from .tools import SAFE, Result, Tool, ToolError, build_tools, obj, string
 from .workshop import Workshop
 
 SCHEMA = [
@@ -53,9 +54,16 @@ SKILL = re.compile(r'^(?:atlas[,!.]?\s*)?(?:bitte\s+)?(?:lern\w*|bring\s+dir\s+s
 SKILL_HINT = re.compile(r'wie man|fähigkeit|\b\w+en\b\s*$|präsentation|powerpoint|pptx|word|docx|erstell|erzeug|bearbeit|umwandel|konvertier', re.I)
 
 
+WANT = re.compile(r'^(?:atlas[,!.]?\s*)?(?:ich\s+(?:möchte|will|hätte\s+gern|wünsche\s+mir),?\s+dass\s+du|du\s+sollst|'
+                  r'kannst\s+du\s+lernen,?)\s+(?P<what>.+?)\s*(?:kannst|können|lernst|beherrschst)?[\s.!?]*$', re.I)
+
+
 def learning_intent(text: str) -> tuple[str, dict] | None:
     """Erkennt Lernaufträge ohne Modell: ('learn_topic', {...}) oder ('learn_skill', {...})."""
     stripped = text.strip()
+    want = WANT.match(stripped)
+    if want and len(want['what']) > 3:
+        return 'learn_skill', {'description': want['what'][:300]}
     if not LEARN_START.match(stripped):
         return None
     topic = TOPIC.match(stripped)
@@ -278,10 +286,16 @@ class Evolution:
         def learn_skill(description: str) -> Result:
             if not description or len(description) > 300:
                 raise ToolError('Beschreibung der Fähigkeit fehlt.')
+            # 1. Erst prüfen, ob es schon geht – nichts doppelt entwickeln.
+            available = existing(description, {**build_tools(env), **self.skills.tools(env)})
+            if available:
+                return Result(True, available, verified=True, data={'existing': True})
             job = self.scheduler.submit('skill', {'description': description.strip()})
-            return Result(True, f'Lernauftrag {job} angenommen: „{description.strip()}“. Ich entwickle die Fähigkeit jetzt in '
-                                'einer abgeschotteten Testumgebung und teste sie. Aktiv wird sie erst, wenn du sie im '
-                                'Bereich „Learning & Evolution“ freigibst. Bis dahin beherrsche ich sie noch nicht.',
+            return Result(True, f'Das kann ich noch nicht. Lernauftrag {job}: „{description.strip()}“. Mein Vorgehen: '
+                                '1. passende Bibliotheken auswählen (nur geprüfte, Installation nur mit deiner Freigabe), '
+                                '2. die Fähigkeit in einer abgeschotteten Testumgebung umsetzen, 3. mit eigenen Tests an echten '
+                                'Dateien prüfen, 4. dir das Ergebnis im Bereich „Learning & Evolution“ zur Freigabe vorlegen. '
+                                'Bis du sie freigibst, beherrsche ich sie noch nicht.',
                           verified=True, data={'job': job})
 
         def learn_topic(topic: str) -> Result:
@@ -295,8 +309,8 @@ class Evolution:
                                 'ich. Den Stand siehst du unter „Learning & Evolution“.', verified=True, data={'job': job})
 
         result = {
-            'learn_skill': Tool('learn_skill', 'Neue Fähigkeit selbst entwickeln (z. B. PowerPoint-Präsentationen erstellen), '
-                                'die ATLAS noch nicht hat. Läuft im Hintergrund, wird getestet und erst nach Freigabe aktiv.',
+            'learn_skill': Tool('learn_skill', 'Neue Fähigkeit selbst entwickeln, die ATLAS noch nicht hat. Prüft zuerst, '
+                                'ob sie schon vorhanden ist. Läuft im Hintergrund, wird getestet und erst nach Freigabe aktiv.',
                                 obj({'description': string('Was die Fähigkeit können soll')}, ['description']),
                                 learn_skill, SAFE, 'learn', 'Startet Lernauftrag'),
             'learn_topic': Tool('learn_topic', 'Wissen zu einem Thema aus Quellen aufbauen (z. B. „Unternehmensbewertung“). '
