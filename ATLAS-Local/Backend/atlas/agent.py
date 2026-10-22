@@ -31,6 +31,7 @@ from . import intents
 from . import llm as llm_mod
 from .llm import ModelError, Ollama, is_correction, language_of, route
 from .memory import MemoryIndex
+from .tasks import RESUME
 from .tools import BLOCKED, CONFIRM, Result, Tool, ToolError, select_categories
 
 AGENT_RULES = """
@@ -124,6 +125,7 @@ class Action:
     verified: bool
     output: str
     declined: bool = False
+    data: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -231,7 +233,7 @@ def in_background(work, stop: threading.Event, every: float = 8.0) -> Iterator[d
 
 class Agent:
     def __init__(self, llm: Ollama, tools: dict[str, Tool], bridge: Bridge, memory: MemoryIndex | None = None,
-                 limits: Limits | None = None, log=None, learning=None):
+                 limits: Limits | None = None, log=None, learning=None, journal=None):
         self.llm = llm
         self.tools = tools
         self.bridge = bridge
@@ -240,6 +242,8 @@ class Agent:
         self.log = log or (lambda *_: None)
         # Erfahrungsspeicher (atlas.learning.Learning) – optional, damit Tests ohne Datenbank laufen.
         self.learning = learning
+        # Aufgabenjournal (atlas.tasks.TaskJournal): Folgeaufträge, Wiederaufnahme, keine Doppelaktionen.
+        self.journal = journal
         # Zusätzliche Werkzeuge, die sich zur Laufzeit ändern (freigegebene, selbst entwickelte Fähigkeiten).
         self.dynamic_tools: Callable[[], dict[str, Tool]] | None = None
         self.base_tools = tools
@@ -381,6 +385,8 @@ class Agent:
 
         routing_text = task_context(request.history, text)
         mode = route(routing_text, has_tools=True)
+        if mode == 'chat' and self.journal and RESUME.match(text) and self.journal.unfinished():
+            mode = 'agent'          # „Mach weiter“ auch nach einem Neustart, wenn der Gesprächsverlauf fehlt
         if mode == 'chat':
             model = self.llm.fast_model(request.model)
             self.llm.reasoning_only(model)          # einmalige Prüfung, danach zwischengespeichert
@@ -411,7 +417,12 @@ class Agent:
     def agent_loop(self, request: Request, text: str, mode: str, stop: threading.Event, started: float) -> Iterator[dict]:
         model = self.llm.agent_model(request.model)
         self.llm.reasoning_only(model)          # Denk-Modelle erkennen (einmalig), Selbstgespräch wird verborgen
-        schemas, native = self.toolset(task_context(request.history, text), request.native_tools)
+        resumed, followup = None, ''
+        if self.journal:
+            followup, resumed = self.journal.context_for(text)
+        # Werkzeugauswahl: bei Folgeaufträgen auch nach dem Ziel der vorherigen Aufgabe (z. B. „Mach weiter“).
+        schemas, native = self.toolset(task_context(request.history, text) + ('\n' + followup if followup else ''),
+                                       request.native_tools)
         messages = self.context(request, text, budget=6_000)
         messages[0]['content'] += '\n\n' + AGENT_RULES
         if self.learning:
@@ -422,6 +433,10 @@ class Agent:
         knowledge = self.evolution.context_for(text) if self.evolution else ''
         if knowledge:
             messages[0]['content'] += '\n\n' + knowledge
+        if followup:
+            messages[0]['content'] += '\n\nZusammenhang mit der vorherigen Aufgabe:\n' + followup
+            if resumed:
+                yield {'type': 'status', 'label': 'Setzt die unterbrochene Aufgabe fort'}
         plan: list[str] = []
         if mode == 'plan':
             yield {'type': 'status', 'label': 'Plant die Aufgabe', 'mode': 'plan', 'model': model}
@@ -514,6 +529,13 @@ class Agent:
                                      cancelled=stop.is_set())
             except Exception as exc:  # Lernen darf eine Antwort nie verhindern
                 self.log(f'Erfahrung nicht gespeichert: {exc}')
+        report = self.report(actions, plan, finished)
+        if self.journal:
+            try:
+                self.journal.record(text, mode, actions, report['open'], finished, stop.is_set(),
+                                    reason or ('abgebrochen' if stop.is_set() else ''), resumed)
+            except Exception as exc:  # das Journal darf eine Antwort nie verhindern
+                self.log(f'Aufgabe nicht protokolliert: {exc}')
         if stop.is_set():
             yield {'type': 'cancelled'}
             return
@@ -521,7 +543,6 @@ class Agent:
             # Ehrlicher Abschluss, wenn die Schleife nicht fertig wurde.
             final = f'Ich bin nicht ganz fertig geworden ({reason}).'
         answer = self.validate(final, actions)
-        report = self.report(actions, plan, finished)
         if mode == 'plan' or report['failed'] or not finished:
             answer = answer.rstrip() + '\n\n' + self.report_text(report)
         for piece in sentences(answer):
@@ -578,7 +599,7 @@ class Agent:
                    'status': 'erledigt' if result.ok else 'fehlgeschlagen', 'detail': summary,
                    'verified': result.verified}
             output = result.output if not result.data else result.output + '\n' + json.dumps(result.data, ensure_ascii=False)[:2_000]
-            return Action(name, tool.label, summary, result.ok, result.verified, output)
+            return Action(name, tool.label, summary, result.ok, result.verified, output, data=result.data or {})
         if name == 'remember' and name in native:
             verdict = self.check_memory(str(args.get('content', '')))
             if verdict[0] == 'duplicate':
@@ -589,9 +610,21 @@ class Agent:
         if name in native:
             label = STATUS_LABELS.get(name, 'Arbeitet')
             summary = f'{label}: ' + json.dumps(args, ensure_ascii=False)[:160]
+            done_at = self.journal.already_done(name, args) if self.journal else None
+            if done_at:
+                # Gleiche Aktion mit Außenwirkung (Nachricht, Termin …) wurde schon ausgeführt: nie still wiederholen.
+                again = yield from self.confirm('Schon erledigt – wirklich noch einmal?',
+                                                f'{summary} wurde bereits am {done_at} ausgeführt.', stop)
+                if not again:
+                    yield {'type': 'step', 'tool': name, 'label': label, 'status': 'abgelehnt', 'detail': summary}
+                    return Action(name, label, summary, False, False,
+                                  f'Bereits am {done_at} ausgeführt – nicht doppelt ausgeführt. Nicht erneut versuchen.',
+                                  declined=True)
             yield {'type': 'step', 'tool': name, 'label': label, 'status': 'läuft', 'detail': summary}
             result = yield from self.native_call(name, args, stop)
             ok = not result.get('isError')
+            if self.journal:
+                self.journal.note_side_effect(name, args, summary, ok)
             if name == 'remember' and ok:
                 verdict = self.check_memory(str(args.get('content', '')))
                 if verdict[0] == 'similar':

@@ -5,6 +5,7 @@ from . import llm
 from .memory import MemoryIndex
 from .learning import Learning
 from .evolution import Evolution
+from .tasks import TaskJournal
 from .tools import Environment, build_tools, fetch_webpage, search_web
 import contextlib
 import json
@@ -99,7 +100,8 @@ def agent():
         if _AGENT is None:
             memory=MemoryIndex(database,embed=lambda model,texts:OLLAMA_CLIENT.embed(model,texts))
             env=tool_env()
-            _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(env),BRIDGE,memory,log=log,learning=learning())
+            _AGENT=agent_mod.Agent(OLLAMA_CLIENT,build_tools(env),BRIDGE,memory,log=log,learning=learning(),
+                                   journal=TaskJournal(database))
             _AGENT.evolution=evolution()
             _AGENT.dynamic_tools=lambda:evolution().tools(env)
         return _AGENT

@@ -63,7 +63,8 @@ s.OLLAMA_CLIENT = client
 env = t.Environment(home=home, roots=[home], is_mac=False)
 s._ENV = env
 s._AGENT = a.Agent(client, t.build_tools(env), s.BRIDGE, MemoryIndex(s.database, client.embed),
-                   limits=a.Limits(max_rounds=4, seconds=30, native_timeout=20), learning=s.learning())
+                   limits=a.Limits(max_rounds=4, seconds=30, native_timeout=20), learning=s.learning(),
+                   journal=s.TaskJournal(s.database))
 s._AGENT.evolution = s.evolution()
 s._AGENT.dynamic_tools = lambda: s.evolution().tools(env)
 s.TOKEN = 'fixture'
