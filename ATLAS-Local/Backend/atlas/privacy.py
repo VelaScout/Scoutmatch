@@ -10,7 +10,7 @@ import re
 LABELLED = re.compile(
     r'\b(passwort|kennwort|password|passcode|pin|tan|puk|geheimzahl|zugangsdaten|login|api[ -]?key|api[ -]?schlüssel|'
     r'access[ -]?token|token|secret|geheimnis|private[ -]?key|sicherheitscode|cvv|cvc)\b'
-    r'(\s+(für|von|zu|des|der|vom|meines|meiner|for|of)\s+[\w.@-]+)?'
+    r'(\s+(für|von|zu|des|der|vom|meines|meiner|for|of)(\s+[\w.@-]+){1,3}?)?'
     r'\s*(ist|lautet|heißt|=|:|is)\s*["„“\']?(?P<value>[^\s"„“\']{3,})', re.I)
 RAW_KEYS = re.compile(r'\b(sk-[A-Za-z0-9_-]{16,}|sk-ant-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|'
                       r'xox[abpr]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)')

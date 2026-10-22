@@ -125,7 +125,7 @@ class ScriptTests(unittest.TestCase):
         self.assertLessEqual(len(lines), 22)
         self.assertTrue(all(len(line) <= 80 for line in lines), max(lines, key=len))
         text = done.stdout
-        self.assertIn('8/12 bestanden', text)
+        self.assertIn('8 BESTANDEN, 4 FEHLGESCHLAGEN, 0 NICHT AUSGEFÜHRT', text)
         self.assertIn('DENK-MODELL', text)
         self.assertIn('qwen3:4b-instruct fehlt', text)
         self.assertIn('XX anweisung', text)

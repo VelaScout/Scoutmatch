@@ -6,7 +6,7 @@ enum SecretFilter {
     static let refusal = "Passwörter, PINs, Schlüssel sowie Karten- und Kontonummern speichere ich nie im Gedächtnis. Dafür ist der macOS-Schlüsselbund (App „Passwörter“) da."
 
     private static let labelled = try! NSRegularExpression(
-        pattern: #"\b(passwort|kennwort|password|passcode|pin|tan|puk|geheimzahl|zugangsdaten|login|api[ -]?key|api[ -]?schlüssel|access[ -]?token|token|secret|geheimnis|private[ -]?key|sicherheitscode|cvv|cvc)\b(\s+(für|von|zu|des|der|vom|meines|meiner|for|of)\s+[\w.@-]+)?\s*(ist|lautet|heißt|=|:|is)\s*["„“']?[^\s"„“']{3,}"#,
+        pattern: #"\b(passwort|kennwort|password|passcode|pin|tan|puk|geheimzahl|zugangsdaten|login|api[ -]?key|api[ -]?schlüssel|access[ -]?token|token|secret|geheimnis|private[ -]?key|sicherheitscode|cvv|cvc)\b(\s+(für|von|zu|des|der|vom|meines|meiner|for|of)(\s+[\w.@-]+){1,3}?)?\s*(ist|lautet|heißt|=|:|is)\s*["„“']?[^\s"„“']{3,}"#,
         options: [.caseInsensitive])
     private static let rawKeys = try! NSRegularExpression(
         pattern: #"\b(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[abpr]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{30,})|-----BEGIN [A-Z ]*PRIVATE KEY-----"#)

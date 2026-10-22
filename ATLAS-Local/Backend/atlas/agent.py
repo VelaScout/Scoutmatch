@@ -108,6 +108,7 @@ STATUS_LABELS = {
     'list_emails': 'Prüft das Postfach', 'read_email': 'Liest die E-Mail', 'send_email': 'Bereitet die E-Mail vor',
     'spotify_play': 'Startet die Musik', 'remember': 'Merkt sich das', 'search_contacts': 'Sucht im Adressbuch',
 }
+REMEMBER_REQUEST = re.compile(r'\b(merk\w*|speicher\w* dir|notier\w* dir|vergiss nicht|remember|behalte?)\b', re.I)
 # Ergebnisse dieser Werkzeuge sind fremde Inhalte (können eingeschleuste Anweisungen enthalten).
 UNTRUSTED = {'fetch_webpage', 'safari_current_page', 'read_file', 'search_web', 'read_email', 'list_emails'}
 CLAIM_WORDS = re.compile(r'\b(erstellt|angelegt|gespeichert|geöffnet|gelöscht|verschoben|gesendet|geschickt|'
@@ -346,6 +347,11 @@ class Agent:
         if not text:
             raise ValueError('Keine Nutzerfrage gefunden.')
 
+        if REMEMBER_REQUEST.search(text) and contains_secret(text):
+            # Zugangsdaten nie merken – unabhängig davon, welches Werkzeug das Modell wählen würde.
+            yield {'type': 'delta', 'text': REFUSAL}
+            yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
+            return
         direct = intents.plan(text)
         if direct['kind'] == 'answer':
             yield {'type': 'delta', 'text': direct['answer']}

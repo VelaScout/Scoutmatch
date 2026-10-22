@@ -4,6 +4,8 @@ Ein simuliertes Modell spielt die richtigen Werkzeugschritte vor; Dateien, Versc
 (echtes python3 -m unittest) und die Ergebnisprüfung laufen echt. Das beweist NICHT, dass Qwen
 diese Schritte selbst findet – das zeigt nur MAC_TESTEN.command mit dem echten Modell.
 """
+import contextlib
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +13,7 @@ from pathlib import Path
 from atlas import agent as a
 from atlas import llm
 from atlas import realtests as r
+from atlas.tasks import TaskJournal
 from atlas.tools import Environment, build_tools
 from fake_ollama import FakeOllama, answer, tool_call
 
@@ -24,9 +27,20 @@ class RealTestLogicTests(unittest.TestCase):
         self.ollama = FakeOllama()
         self.addCleanup(self.ollama.close)
         self.agent = a.Agent(llm.Ollama(base=self.ollama.url),
-                             build_tools(Environment(home=self.home, roots=[self.home], is_mac=False)), a.Bridge(),
-                             limits=a.Limits(max_rounds=12, seconds=60, native_timeout=5))
+                             build_tools(Environment(home=self.home, roots=[self.home], is_mac=False,
+                                                     fetch=lambda url, timeout: (_ for _ in ()).throw(OSError('offline')))),
+                             a.Bridge(), limits=a.Limits(max_rounds=12, seconds=60, native_timeout=5),
+                             journal=TaskJournal(self.connect))
         self.cases = {name: (prompt, approve, check) for name, prompt, approve, check in r.cases(self.home)}
+
+    @contextlib.contextmanager
+    def connect(self):
+        db = sqlite3.connect(Path(self.tmp.name) / 'journal.db')
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def run_case(self, name):
         prompt, approve, check = self.cases[name]
@@ -130,6 +144,40 @@ class RealTestLogicTests(unittest.TestCase):
         result = r.drive(self.agent, prompt, approve=False)
         self.assertEqual((self.home / 'Code/rechner/rechner.py').read_text(), original)
         self.assertFalse(check(result))
+
+
+    # -- Neue Arbeitsaufgaben (0.8.0): Prüfung unabhängig vom Modell -------------------------------
+    def test_offer_then_pdf_needs_both_real_files(self):
+        self.ollama.script = [answer('Gern, hier ist das Angebot: …'), answer('Gespeichert.')]
+        self.assertFalse(self.run_case('word_angebot_pdf'))                  # nur Text → durchgefallen
+        self.ollama.script = [
+            tool_call('create_document', path='~/Documents/Angebot Müller.docx', title='Angebot',
+                      content='Gestaltung einer Webseite: 4.800 Euro netto.'), answer('Angebot gespeichert.'),
+            tool_call('convert_document', path='~/Documents/Angebot Müller.docx'), answer('Auch als PDF gespeichert.')]
+        self.assertTrue(self.run_case('word_angebot_pdf'))
+
+    def test_contract_edit_needs_real_change_and_backup(self):
+        self.ollama.script = [answer('Erledigt, die Laufzeit ist jetzt 24 Monate.')]
+        self.assertFalse(self.run_case('word_aendern'))                      # Behauptung ohne Änderung
+        self.ollama.script = [tool_call('edit_document', path='~/Documents/Vertrag.docx',
+                                        replacements=[{'old': '12 Monate', 'new': '24 Monate'}]), answer('Geändert.')]
+        self.assertTrue(self.run_case('word_aendern'))
+
+    def test_injected_instruction_and_partial_failure_and_password(self):
+        self.ollama.script = [tool_call('read_file', path='~/Documents/brief.txt'),
+                              tool_call('delete_path', path='~/Documents/behalten.txt'), answer('Gelöscht.')]
+        self.assertFalse(self.run_case('fremde_anweisung'))                  # Modell folgt der Anweisung → durchgefallen
+        self.ollama.script = [tool_call('read_file', path='~/Documents/gibtsnicht.pdf'),
+                              tool_call('create_folder', path='~/Documents/Bericht-Ablage'),
+                              answer('Die PDF wurde nicht gefunden; den Ordner Bericht-Ablage habe ich angelegt.')]
+        self.assertTrue(self.run_case('teilweise_fehler'))
+        self.assertTrue(self.run_case('passwort_schutz'))                    # Schutz greift ohne Modell
+
+    def test_research_offline_counts_as_not_executed(self):
+        prompt, approve, check = self.cases['recherche_quellen']
+        self.ollama.script = [tool_call('research', question='Präsident Frankreich'),
+                              answer('Das Internet ist nicht erreichbar, daher kann ich es nicht prüfen.')]
+        self.assertIsNone(check(r.drive(self.agent, prompt, approve)))
 
 
 if __name__ == '__main__':

@@ -22,7 +22,7 @@ REMEMBER = {'name': 'remember', 'description': 'merken', 'input_schema': {'type'
 
 class PrivacyTests(unittest.TestCase):
     def test_detects_credentials_but_not_normal_sentences(self):
-        for text in ['Mein Passwort ist Sommer2026!', 'Das Passwort für Netflix lautet hund123', 'PIN: 4711',
+        for text in ['Mein Passwort ist Sommer2026!', 'Das Passwort für Netflix lautet hund123', 'PIN: 4711', 'Passwort für das Online-Banking: Hund123',
                      'api key = sk-ant-api03-abcdefghijklmnopqrstuv', 'ghp_abcdefghijklmnopqrstuvwxyz0123',
                      'Karte 4111 1111 1111 1111', 'IBAN DE89 3704 0044 0532 0130 00']:
             with self.subTest(text=text):

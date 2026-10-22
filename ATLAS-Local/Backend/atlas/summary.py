@@ -34,9 +34,20 @@ def main() -> int:
             mark = '  ← gewählt' if model == real.get('best_model') else ''
             lines.append(f"  {model[:30]:<30} {c['passed']}/{c['total']}  Ø {c['avg_s']}s{mark}")
         results = real.get('results') or []
-        passed = sum(1 for r in results if r.get('passed'))
-        lines.append(f'Echte Aufgaben: {passed}/{len(results)} bestanden' if real.get('executed') else 'Echte Aufgaben: NICHT AUSGEFÜHRT (Ollama?)')
-        cells = [f"{'OK' if r.get('passed') else 'XX'} {r['case'][:16]:<16} {str(r.get('total_s', '?')):>5}s" for r in results]
+        status = [r.get('status') or ('BESTANDEN' if r.get('passed') else 'FEHLGESCHLAGEN') for r in results]
+        counts = {k: status.count(k) for k in ('BESTANDEN', 'FEHLGESCHLAGEN', 'NICHT AUSGEFÜHRT')}
+        if real.get('executed'):
+            lines.append(f"Echte Aufgaben: {counts['BESTANDEN']} BESTANDEN, {counts['FEHLGESCHLAGEN']} FEHLGESCHLAGEN, "
+                         f"{counts['NICHT AUSGEFÜHRT']} NICHT AUSGEFÜHRT")
+            feedback = sorted(r['first_feedback_s'] for r in results if r.get('first_feedback_s') is not None)
+            totals = sorted(r['total_s'] for r in results if r.get('total_s') is not None)
+            if feedback and totals:
+                lines.append(f"Zeiten (Median): erste Rückmeldung {feedback[len(feedback) // 2]} s, "
+                             f"vollständiges Ergebnis {totals[len(totals) // 2]} s")
+        else:
+            lines.append('Echte Aufgaben: NICHT AUSGEFÜHRT (Ollama läuft nicht oder kein Modell)')
+        mark = {'BESTANDEN': 'OK', 'FEHLGESCHLAGEN': 'XX', 'NICHT AUSGEFÜHRT': '--'}
+        cells = [f"{mark[st]} {r['case'][:16]:<16} {str(r.get('total_s', '?')):>5}s" for r, st in zip(results, status)]
         for i in range(0, len(cells), 2):
             lines.append('  ' + '   '.join(cells[i:i + 2]))
         if hints:
@@ -55,6 +66,16 @@ def main() -> int:
     if diag and diag.get('audio'):
         audio = diag['audio']
         lines.append('Spracherkennung: ' + ('OK' if audio.get('nonempty') else 'FEHLER ' + str(audio.get('error', ''))[:50]))
+    sandbox = load(build / 'MAC-SANDBOX.json')
+    if sandbox:
+        if not sandbox.get('available'):
+            lines.append('Sandbox: sandbox-exec NICHT vorhanden')
+        else:
+            lines.append(f"Sandbox: Fähigkeiten {sandbox.get('none', '?')[:40]} | Werkstatt {sandbox.get('localhost', '?')[:40]}")
+    restart = load(build / 'MAC-NEUSTART.json')
+    if restart:
+        lines.append(f"Neustart-Datenerhalt: {restart.get('status')}" + (f" (verloren: {restart['lost']})" if restart.get('lost') else ''))
+    lines.append('OK = BESTANDEN · XX = FEHLGESCHLAGEN · -- = NICHT AUSGEFÜHRT')
     lines.append('=============================================================')
     print('\n'.join(lines))
     return 0
