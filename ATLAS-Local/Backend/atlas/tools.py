@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
@@ -138,6 +139,13 @@ class Environment:
         if not path.is_absolute():
             path = self.home / path
         path = Path(os.path.normpath(path))
+        # macOS zeigt „Schreibtisch“/„Dokumente“ nur im Finder an; die echten Ordner heißen Desktop/Documents.
+        if self.home in path.parents:
+            parts = path.relative_to(self.home).parts
+            german = {'schreibtisch': 'Desktop', 'dokumente': 'Documents', 'bilder': 'Pictures', 'musik': 'Music',
+                      'filme': 'Movies', 'öffentlich': 'Public'}
+            if parts and parts[0].lower() in german and not (self.home / parts[0]).exists():
+                path = self.home.joinpath(german[parts[0].lower()], *parts[1:])
         # Symlinks auflösen, damit kein Link aus dem erlaubten Bereich herausführt.
         real = path.resolve() if path.exists() else path.parent.resolve() / path.name
         if not any(real == root or root in real.parents for root in self.roots):
@@ -154,12 +162,23 @@ class Environment:
         return real
 
 
+def _ssl_context():
+    """Zertifikate von certifi, falls vorhanden – Python auf dem Mac findet die Systemzertifikate nicht immer."""
+    import ssl
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
 def http_get(url: str, timeout: float = 15) -> str:
     request = urllib.request.Request(url, headers={
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Apple Silicon) Atlas/0.3', 'Accept-Language': 'de,en;q=0.8'})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+        'Accept-Language': 'de,en;q=0.8'})
+    with urllib.request.urlopen(request, timeout=timeout, context=_ssl_context()) as response:
         kind = response.headers.get('Content-Type', '')
-        if 'html' not in kind and 'text' not in kind and 'json' not in kind:
+        if 'html' not in kind and 'text' not in kind and 'json' not in kind and 'xml' not in kind:
             raise ToolError(f'Kein Textinhalt ({kind or "unbekannt"}).')
         return response.read(2_000_000).decode(response.headers.get_content_charset() or 'utf-8', 'replace')
 
@@ -628,30 +647,86 @@ def open_url(env: Environment, url: str, browser: str = 'Safari') -> Result:
     return Result(True, f'{app} zeigt {target}', verified=True, data={'url': target})
 
 
-def search_web(env: Environment, query: str, open_in_browser: bool = False, max_results: int = 6) -> Result:
-    if not query or len(query) > 300:
-        raise ToolError('Suchbegriff fehlt.')
-    search_url = 'https://duckduckgo.com/?q=' + urllib.parse.quote(query)
-    if open_in_browser:
-        open_url(env, search_url)
-    raw = env.fetch('https://html.duckduckgo.com/html/?q=' + urllib.parse.quote(query), 15)
+def _ddg_html(raw: str) -> list[dict]:
     results = []
     for match in re.finditer(r'(?s)<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>(.*?)'
                              r'(?:<a[^>]+class="result__snippet"[^>]*>(.*?)</a>|</div>)', raw):
         link = html.unescape(match[1])
         if 'uddg=' in link:
             link = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(link).query).get('uddg', [link])[0])
-        title = html_to_text(match[2])
-        snippet = html_to_text(match[4] or '')
-        results.append({'title': title, 'url': link, 'snippet': snippet})
-        if len(results) >= max(1, min(int(max_results or 6), 10)):
-            break
-    if not results:
-        return Result(False, 'Keine Suchergebnisse erhalten (Internet oder Suchdienst nicht erreichbar).',
-                      data={'query': query})
-    text = '\n'.join(f'{i}. {r["title"]} – {r["url"]}\n   {r["snippet"]}' for i, r in enumerate(results, 1))
-    return Result(True, text + ('\n(Auch im Browser geöffnet.)' if open_in_browser else ''), verified=True,
-                  data={'results': results})
+        results.append({'title': html_to_text(match[2]), 'url': link, 'snippet': html_to_text(match[4] or '')})
+    return results
+
+
+def _ddg_lite(raw: str) -> list[dict]:
+    results = []
+    for match in re.finditer(r'(?s)<a([^>]*class=[\'"]result-link[\'"][^>]*)>(.*?)</a>(.*?)(?:result-snippet[\'"][^>]*>(.*?)</td>|$)', raw):
+        href = re.search(r'href=[\'"]([^\'"]+)', match[1])
+        if href:
+            link = html.unescape(href[1])
+            if 'uddg=' in link:
+                link = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(link).query).get('uddg', [link])[0])
+            results.append({'title': html_to_text(match[2]), 'url': link, 'snippet': html_to_text(match[4] or '')})
+    return results
+
+
+def _bing_rss(raw: str) -> list[dict]:
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return []
+    return [{'title': (item.findtext('title') or '').strip(), 'url': (item.findtext('link') or '').strip(),
+             'snippet': html_to_text(item.findtext('description') or '')} for item in root.iter('item')]
+
+
+def _wikipedia(raw: str) -> list[dict]:
+    try:
+        hits = json.loads(raw)['query']['search']
+    except (ValueError, KeyError, TypeError):
+        return []
+    return [{'title': h['title'], 'url': 'https://de.wikipedia.org/wiki/' + urllib.parse.quote(h['title'].replace(' ', '_')),
+             'snippet': html_to_text(h.get('snippet', ''))} for h in hits]
+
+
+SEARCH_PROVIDERS = [
+    ('DuckDuckGo', 'https://html.duckduckgo.com/html/?q={q}', _ddg_html),
+    ('DuckDuckGo Lite', 'https://lite.duckduckgo.com/lite/?q={q}', _ddg_lite),
+    ('Bing', 'https://www.bing.com/search?format=rss&setlang=de&q={q}', _bing_rss),
+    ('Wikipedia', 'https://de.wikipedia.org/w/api.php?action=query&list=search&format=json&srlimit=5&srsearch={q}', _wikipedia),
+]
+
+
+def search_web(env: Environment, query: str, open_in_browser: bool = False, max_results: int = 6) -> Result:
+    """Sucht nacheinander bei mehreren Diensten, bis einer Treffer liefert. Meldet genau, woran es lag."""
+    if not query or len(query) > 300:
+        raise ToolError('Suchbegriff fehlt.')
+    if open_in_browser:
+        open_url(env, 'https://duckduckgo.com/?q=' + urllib.parse.quote(query))
+    limit = max(1, min(int(max_results or 6), 10))
+    attempts, connection_errors = [], 0
+    for name, template, parse in SEARCH_PROVIDERS:
+        try:
+            raw = env.fetch(template.format(q=urllib.parse.quote(query)), 15)
+        except urllib.error.URLError as exc:
+            reason = str(getattr(exc, 'reason', exc))
+            certificate = 'CERTIFICATE' in reason.upper()
+            connection_errors += 0 if certificate else 1
+            attempts.append(f'{name}: {"Zertifikatsfehler" if certificate else "nicht erreichbar"} ({reason[:80]})')
+            continue
+        except (OSError, ToolError, ValueError) as exc:
+            connection_errors += isinstance(exc, OSError)
+            attempts.append(f'{name}: {type(exc).__name__} {str(exc)[:80]}')
+            continue
+        results = [r for r in parse(raw) if r['url'].startswith(('http://', 'https://'))][:limit]
+        if results:
+            text = '\n'.join(f'{i}. {r["title"]} – {r["url"]}\n   {r["snippet"]}' for i, r in enumerate(results, 1))
+            return Result(True, text + ('\n(Auch im Browser geöffnet.)' if open_in_browser else ''), verified=True,
+                          data={'results': results, 'provider': name, 'attempts': attempts})
+        attempts.append(f'{name}: keine Treffer (evtl. Schutzseite gegen automatische Abfragen)')
+    offline = connection_errors == len(SEARCH_PROVIDERS)
+    return Result(False, ('Internet nicht erreichbar. ' if offline else 'Keine Suchergebnisse. ') + '; '.join(attempts),
+                  data={'query': query, 'attempts': attempts, 'offline': offline})
 
 
 def fetch_webpage(env: Environment, url: str, max_chars: int = 12_000) -> Result:

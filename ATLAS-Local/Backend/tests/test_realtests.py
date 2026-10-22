@@ -179,6 +179,15 @@ class RealTestLogicTests(unittest.TestCase):
                               answer('Das Internet ist nicht erreichbar, daher kann ich es nicht prüfen.')]
         self.assertIsNone(check(r.drive(self.agent, prompt, approve)))
 
+    def test_blocked_search_counts_as_failed_not_skipped(self):
+        prompt, approve, check = self.cases['recherche_quellen']
+        self.agent.base_tools = build_tools(Environment(home=self.home, roots=[self.home], is_mac=False,
+                                                        fetch=lambda url, timeout: '<html>Schutzseite</html>'))
+        self.ollama.script = [tool_call('research', question='Präsident Frankreich'), answer('Keine Quellen gefunden.')]
+        result = r.drive(self.agent, prompt, approve)
+        self.assertIs(check(result), False)
+        self.assertIn('keine Treffer', result['failure_notes'][0])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -51,7 +51,7 @@ Ob das echte Qwen-Modell die Aufgaben selbst löst, zeigt erst `MAC_TESTEN.comma
 | Kontrollierte Weiterentwicklung | `test_skills`, `test_evolution`, `test_sandbox`: gefährlicher Code wird nie ausgeführt; Tests dürfen nicht entfernt werden; Sandbox, die nicht schützt, wird nie benutzt; misslungene Änderung wird zurückgesetzt | BESTANDEN |
 | Cloud nur nach Aktivierung | `test_cloud` (7): aus → nichts gesendet; abgelehnt → nichts gesendet; Kosten aus Token; Limit; Schlüssel nur über stdin. **Echtes SDK** gegen eine nachgebaute API. | BESTANDEN |
 | Installation, Update, Rücksetzen, Datenerhalt | `test_scripts`: Rücksetzen in einem temporären Benutzerordner; Update ersetzt erst nach Build und Tests; `~/.atlas-ai` wird nie verschoben oder gelöscht | BESTANDEN |
-| Prüflogik der 24 echten Arbeitsaufgaben | `test_realtests`: Jede Prüfung fällt durch, wenn das Modell nur behauptet statt handelt | BESTANDEN |
+| Prüflogik der 25 echten Arbeitsaufgaben | `test_realtests`: Jede Prüfung fällt durch, wenn das Modell nur behauptet statt handelt | BESTANDEN |
 
 ## 2. Hier NICHT AUSGEFÜHRT – läuft automatisch auf Ihrem Mac
 
@@ -60,7 +60,7 @@ Ob das echte Qwen-Modell die Aufgaben selbst löst, zeigt erst `MAC_TESTEN.comma
 | Xcode-Build der App (neue Ansichten: Cloud-Einstellungen, Gedächtnis-Herkunft, Passwortschutz) | `AKTUALISIEREN.command` | NICHT AUSGEFÜHRT (kein Mac) |
 | Swift ⇄ Dienst (inkl. Learning-Übersicht), Sprachtext, Passwortfilter in Swift | `Tests/test_provider_mac.sh` | NICHT AUSGEFÜHRT |
 | Echte macOS-Sandbox (2 Tests + Selbstprüfung) | Update-Tests, `MAC_TESTEN.command` Schritt 5 | NICHT AUSGEFÜHRT |
-| **24 Arbeitsaufgaben mit dem echten Qwen-Modell**, Ergebnis jeweils unabhängig vom Modell geprüft (Dateien, Inhalte, Tests) | `MAC_TESTEN.command` Schritt 3 | NICHT AUSGEFÜHRT |
+| **25 Arbeitsaufgaben mit dem echten Qwen-Modell**, Ergebnis jeweils unabhängig vom Modell geprüft (Dateien, Inhalte, Tests) | `MAC_TESTEN.command` Schritt 3 | NICHT AUSGEFÜHRT |
 | Antwortzeiten: erste Rückmeldung und vollständiges Ergebnis | ebenda | NICHT AUSGEFÜHRT |
 | Neustart des Dienstes mit Prüfung des Datenerhalts | `MAC_TESTEN.command` Schritt 6 | NICHT AUSGEFÜHRT |
 | Echtes Cloud-Modell | nur von Hand, mit Ihrem Schlüssel; kostet Geld | NICHT AUSGEFÜHRT |

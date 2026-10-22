@@ -3,7 +3,7 @@
 ## Nicht nachgewiesen (läuft erst auf Ihrem Mac)
 
 - **Xcode-Build 0.8.0.** Neu sind die Cloud-Einstellungen, der Passwortfilter in Swift und die Herkunftsanzeige im Gedächtnis. Die Syntax ist geprüft, nicht kompiliert. Schlägt der Build fehl, stoppt das Update, bevor es etwas ersetzt.
-- **Leistung des echten Modells bei den 24 Arbeitsaufgaben.** Zuletzt gemessen: 0.4.0 bestand 6 von 12. Neuere Ergebnisse von Ihrem Mac liegen mir nicht vor.
+- **Leistung des echten Modells bei den 25 Arbeitsaufgaben.** Zuletzt gemessen: 0.4.0 bestand 6 von 12. Neuere Ergebnisse von Ihrem Mac liegen mir nicht vor.
 - **macOS-Sandbox.** Das Profil wird jetzt vor Gebrauch geprüft. Ob eine der Varianten auf Ihrem macOS greift, zeigt `MAC_TESTEN.command` (Schritt 5). Greift keine:
   - Selbst entwickelte Fähigkeiten laufen dann nicht. Das ist absichtlich: ohne Schutz kein Start.
   - Die Code-Werkstatt bleibt dann aus.

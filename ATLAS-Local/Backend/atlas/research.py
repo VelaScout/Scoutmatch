@@ -58,12 +58,12 @@ def research(env, question: str, max_sources: int = 4) -> Result:
     try:
         found = search_web(env, question, max_results=8)
     except (OSError, ValueError) as exc:
-        return Result(False, f'Internet nicht erreichbar ({str(exc)[:80]}). Ohne Recherche kann ich nur aus eigenem, '
-                             'möglicherweise veraltetem Wissen antworten und muss das ausdrücklich so kennzeichnen.',
-                      data={'sources': []})
+        found = Result(False, f'Internet nicht erreichbar ({str(exc)[:80]}).', data={'offline': True})
     if not found.ok:
-        return Result(False, 'Recherche nicht möglich: ' + found.output + ' Ich kann nur ohne aktuelle Quellen antworten '
-                             'und muss das dann ausdrücklich sagen.', data={'sources': []})
+        offline = found.data.get('offline')
+        return Result(False, ('Internet nicht erreichbar' if offline else 'Recherche ohne Ergebnis') + ': ' + found.output +
+                      ' Ohne Quellen kann ich nur aus eigenem, möglicherweise veraltetem Wissen antworten und muss das '
+                      'ausdrücklich so kennzeichnen.', data={'sources': [], 'offline': bool(offline)})
     sources, failures = [], []
     today = date.today().strftime('%d.%m.%Y')
     for item in found.data['results']:

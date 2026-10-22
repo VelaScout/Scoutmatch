@@ -202,8 +202,9 @@ class AgentServerTests(unittest.TestCase):
         self.assertIn('Zahnarzt', self.text(events))
 
     def test_false_success_claim_is_corrected(self):
-        self.ollama.script = [tool_call('read_file', path='~/Documents/fehlt.pdf'),
-                              answer('Ich habe die PDF zusammengefasst und gespeichert.')]
+        # Nach dem Fehlschlag fordert ATLAS einmal die übrigen Teile an; das Modell behauptet erneut Erfolg.
+        claim = answer('Ich habe die PDF zusammengefasst und gespeichert.')
+        self.ollama.script = [tool_call('read_file', path='~/Documents/fehlt.pdf'), claim, claim]
         _, events = self.run_agent(self.body('Lies die PDF fehlt.pdf in Dokumente und fasse sie zusammen'))
         text = self.text(events)
         self.assertIn('Keine der Aktionen wurde bestätigt', text)

@@ -70,6 +70,8 @@ def plan(text):
         return {'kind':'tools','steps':[{'name':'remember','input':{'content':content[:1].upper()+content[1:],'category':'Sonstiges'}}]}
     if t.rstrip('.?!') in ('was weißt du über mich','was hast du dir gemerkt','zeige meine erinnerungen','what do you remember about me'):
         return {'kind':'tools','steps':[{'name':'list_memories','input':{}}]}
+    # Formathinweise hinter der Rechenfrage („Antworte nur mit der Zahl.“, „Kurz bitte.“) ändern das Ergebnis nicht.
+    t=re.sub(r'(?<=[?.!])\s+(?:antworte|antwort|bitte|nur|kurz|answer|just|only|reply)\b[^?]*$','',t).strip()
     question=re.sub(r'^(?:was ist|was sind|was ergibt|wie viel ist|wieviel ist|wie viel sind|wieviel sind|wie viel macht|berechne|rechne|what is|calculate)\s+','',t)
     question=re.sub(r'\s*(?:[?=]|\.(?!\d))$','',question)
     question=normalize_expression(question)

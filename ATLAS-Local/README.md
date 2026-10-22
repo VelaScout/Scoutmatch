@@ -1,4 +1,4 @@
-# ATLAS Local 0.8.0 – persönlicher Arbeitsassistent für den Mac
+# ATLAS Local 0.8.1 – persönlicher Arbeitsassistent für den Mac
 
 ATLAS läuft lokal auf Ihrem MacBook: eine SwiftUI-App, ein Python-Dienst auf Ihrem Mac und ein Open-Weight-Sprachmodell (Qwen3) über Ollama. Ohne Cloud und ohne Konto.
 
@@ -29,7 +29,7 @@ Gleichwertig wird es dadurch nicht.
 4. Danach `MAC_TESTEN.command` öffnen (ca. 10–20 Minuten). Es prüft:
    - App ⇄ Dienst
    - alle Tests
-   - **24 echte Arbeitsaufgaben mit Ihrem Modell**
+   - **25 echte Arbeitsaufgaben mit Ihrem Modell**
    - die macOS-Sandbox
    - einen Neustart mit Prüfung des Datenerhalts
 
@@ -46,6 +46,19 @@ Gleichwertig wird es dadurch nicht.
 **Was ATLAS konkret kann**, mit Beispielaufträgen: `FUNKTIONEN.md`.
 **Was geprüft wurde und was nicht:** `TESTBERICHT.md`.
 **Grenzen und bekannte Fehler:** `OFFENE-PUNKTE.md`.
+
+## Neu in 0.8.1 (nach Ihrem ersten Testlauf mit 0.8.0)
+
+- **ATLAS versteht sich als KI.** Auf „Bist du eine KI?“ antwortet er mit Ja. Früher nannte er sich „lokaler Assistent“, und ein alter Text behauptete fälschlich, er habe kein Internet. Neue Arbeitsaufgabe: identitaet.
+- **„Schreibtisch“ und „Dokumente“ in Pfaden** landen jetzt in den echten Ordnern Desktop und Documents. Vorher entstand ein neuer Ordner „Schreibtisch“ (vermutliche Ursache für markdown_liste).
+- **Teilaufträge nach einem Fehler:** Scheitert ein Schritt, wird das Modell einmal ausdrücklich aufgefordert, die übrigen Teile trotzdem zu erledigen (teilweise_fehler).
+- **Recherche:**
+  - mehrere Suchdienste mit Ausweichen (DuckDuckGo, DuckDuckGo Lite, Bing, Wikipedia)
+  - Zertifikate über certifi
+  - genaue Fehlerursache statt pauschal „nicht erreichbar“
+  - Ein blockierter Suchdienst zählt im Test jetzt als FEHLGESCHLAGEN, nur echtes Offline als NICHT AUSGEFÜHRT.
+- **Rechenfragen mit Formathinweis** („Was ist 17 mal 23? Antworte nur mit der Zahl.“) werden exakt berechnet statt vom Modell geschätzt (Diagnose „rechnung“).
+- **Testbericht nennt den Grund jedes fehlgeschlagenen Schritts**, damit ich Fehler aus Ihrem Testlauf genau zuordnen kann.
 
 ## Neu in 0.8.0
 
@@ -74,7 +87,7 @@ Gleichwertig wird es dadurch nicht.
   - Behoben ist der Mac-Fehler „No usable temporary directory found“ (über 0.7.0).
   - Die macOS-Sandbox wird jetzt vor der Nutzung geprüft. Funktioniert sie nicht, läuft keine selbst entwickelte Fähigkeit ohne sie.
 - **Mac-Testlauf:**
-  - 24 Arbeitsaufgaben mit den Zuständen BESTANDEN / FEHLGESCHLAGEN / NICHT AUSGEFÜHRT.
+  - 25 Arbeitsaufgaben mit den Zuständen BESTANDEN / FEHLGESCHLAGEN / NICHT AUSGEFÜHRT.
   - Zeiten getrennt nach erster Rückmeldung und vollständigem Ergebnis.
   - Neustart- und Sandbox-Prüfung.
 
