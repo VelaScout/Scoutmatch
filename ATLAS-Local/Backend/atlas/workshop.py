@@ -237,11 +237,13 @@ class Workshop:
 
     @staticmethod
     def _import_check(root: Path) -> str:
-        done = subprocess.run([sys.executable, '-c', 'import atlas.server, atlas.agent, atlas.tools'], cwd=root,
-                              capture_output=True, text=True, timeout=60,
-                              env={'PATH': '/usr/bin:/bin', 'PYTHONDONTWRITEBYTECODE': '1',
-                                   'ATLAS_DATA_DIR': tempfile.mkdtemp(prefix='atlas-check-')})
-        return '' if done.returncode == 0 else (done.stderr or done.stdout)[-1500:]
+        with tempfile.TemporaryDirectory(prefix='atlas-check-') as temp:
+            done = subprocess.run([sys.executable, '-c', 'import atlas.server, atlas.agent, atlas.tools'], cwd=root,
+                                  capture_output=True, text=True, timeout=60,
+                                  env={'PATH': '/usr/bin:/bin', 'PYTHONDONTWRITEBYTECODE': '1',
+                                       'TMPDIR': temp, 'ATLAS_DATA_DIR': temp})
+            return '' if done.returncode == 0 else (done.stderr or done.stdout)[-1500:]
+
 
     def list(self) -> list[dict]:
         with self.connect() as db:

@@ -1,3 +1,13 @@
+# Aktueller Prüfstand 0.7.0
+
+Der Temp-Verzeichnisfehler aus dem Screenshot wurde im Code korrigiert. Die Regression prüft die Übergabe an die Sandbox und einen echten isolierten Fähigkeitsprozess unter Linux. Die echte macOS-Sandbox und Python 3.15 sind hier nicht verfügbar.
+
+Neue PDF-/PowerPoint-Werkzeuge sind mit echten Dateiinhalten getestet. Sprachmodell-Auswahl und inhaltliche Qualität bleiben modellabhängig. PDF-Schriften können nicht alle Sprachen abdecken; nicht unterstützte Zeichen werden gemeldet. PowerPoint unterstützt derzeit Textfolien, keine frei gestalteten komplexen Decks.
+
+Browser-Test nicht ausgeführt: Playwright ist vorhanden, aber keine lokale Chromium-Binärdatei. Swift/Xcode, Wake-Word, Stimme, Systemberechtigungen und echte Qwen-Aufgaben bleiben offen. Kein Training der Modellgewichte. Selbstentwickelte Fähigkeiten und Codeänderungen brauchen weiterhin Tests und Freigabe.
+
+Die folgenden Angaben dokumentieren den übernommenen Stand 0.6.0; aktuelle Ergebnisse stehen in TESTBERICHT-0.7.0.md.
+
 # Offene Punkte, Grenzen und nächste Entwicklungsstufe – ATLAS Local 0.6.0
 
 ## Noch nicht auf echter Hardware bewiesen

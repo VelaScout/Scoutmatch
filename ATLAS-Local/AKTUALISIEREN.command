@@ -3,6 +3,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 export OLLAMA_HOST=127.0.0.1:11434
+mkdir -p build
+exec > >(tee build/UPDATE-PROTOKOLL.txt) 2>&1
+trap 'code=$?; if [[ $code -ne 0 ]]; then echo "Update abgebrochen (Fehler $code). Vollständiges Protokoll: $PWD/build/UPDATE-PROTOKOLL.txt"; fi' EXIT
 [[ "$(uname -s)" == Darwin ]] || { echo 'Dieses Update benötigt macOS.'; exit 1; }
 if pgrep -x ATLAS >/dev/null 2>&1; then echo 'Bitte Atlas zuerst über die Menüleiste beenden und Update erneut öffnen.'; exit 1; fi
 source Scripts/backend_common.sh
@@ -32,10 +35,10 @@ atlas_write_agent
 launchctl bootstrap "gui/$(id -u)" "$ATLAS_AGENT_PLIST"
 atlas_verify_service
 open "$destination"
-echo "Atlas 0.6.0 aktualisiert. Gesprächsdaten, Gedächtnis und Modelle bleiben erhalten."
+echo "Atlas 0.7.0 aktualisiert. Gesprächsdaten, Gedächtnis und Modelle bleiben erhalten."
 echo "Sicherungen: $ATLAS_INSTALL_ROOT (Backend-backup-$stamp, Daten-backup-$stamp) und ~/Applications/ATLAS Local-backup-$stamp.app"
 echo 'Kurztest mit dem echten Modell (3 Aufgaben) …'
 mkdir -p build
 (cd Backend && "$ATLAS_VENV/bin/python3" -m atlas.realtests --quick --output ../build/MAC-ECHTE-MODELLTESTS.json) || true
 (cd Backend && "$ATLAS_VENV/bin/python3" -m atlas.summary ../build) || true
-echo 'Ausführlich (12 Aufgaben, ca. 5–10 Minuten): MAC_TESTEN.command'
+echo 'Ausführlich (18 Aufgaben, ca. 5–10 Minuten): MAC_TESTEN.command'

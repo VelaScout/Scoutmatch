@@ -1,3 +1,11 @@
+# Aktuell: ATLAS 0.7.0
+
+Der aktuelle Prüfbericht ist **TESTBERICHT-0.7.0.md**, das neue Laufprotokoll **TESTRESULTS-0.7.0.txt**.
+
+---
+
+Historischer Prüfbericht des gelieferten Stands:
+
 # Testbericht ATLAS Local 0.6.0
 
 Stand: 21.10.2026.

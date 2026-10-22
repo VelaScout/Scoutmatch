@@ -935,6 +935,7 @@ def _describe_path(verb: str) -> Callable[[dict], str]:
 
 
 def build_tools(env: Environment) -> dict[str, Tool]:
+    from .documents import create_pdf, create_presentation
     def bind(func: Callable[..., Result]) -> Callable[..., Result]:
         return lambda **kwargs: func(env, **kwargs)
 
@@ -956,6 +957,14 @@ def build_tools(env: Environment) -> dict[str, Tool]:
                  ['path', 'content']),
              bind(write_file), category='files', label='Speichert die Datei',
              risk_for=lambda a: CONFIRM if a.get('overwrite') else SAFE, describe=_describe_path('Datei ersetzen')),
+        Tool('create_pdf', 'Erstellt eine PDF mit Titel und vollständigem Text. Nutzt automatische Seitenumbrüche. Neuer Dateiname erforderlich.',
+             obj({'path': path, 'title': string('Dokumenttitel.'), 'content': string('Vollständiger Text mit Absätzen.')},
+                 ['path', 'title', 'content']), bind(create_pdf), category='documents', label='Erstellt die PDF'),
+        Tool('create_presentation', 'Erstellt eine PowerPoint-Datei (.pptx), 1 bis 40 Folien, höchstens 6 Stichpunkte pro Folie. Neuer Dateiname erforderlich.',
+             obj({'path': path, 'title': string('Gesamttitel.'), 'slides': {'type': 'array', 'items':
+                 obj({'title': string('Folientitel, höchstens 100 Zeichen.'), 'bullets': {'type': 'array',
+                      'items': {'type': 'string'}, 'description': '1 bis 6 Stichpunkte, je höchstens 180 Zeichen.'}}, ['title', 'bullets'])}},
+                 ['path', 'title', 'slides']), bind(create_presentation), category='documents', label='Erstellt die Präsentation'),
         Tool('create_spreadsheet', 'Erstellt eine Excel-Tabelle (.xlsx) mit Daten. Einfachster Weg: columns (Überschriften) '
                                    'und rows (Zeilen), z. B. columns=["Posten","Betrag"], rows=[["Miete",1200],["Strom",90]]. '
                                    'Formeln wie "=SUM(B2:B3)" sind erlaubt.',
@@ -1036,7 +1045,7 @@ def build_tools(env: Environment) -> dict[str, Tool]:
 # arbeiten zuverlässiger, wenn sie nur die relevanten Werkzeuge sehen – und schneller).
 CATEGORY_HINTS = {
     'files': r'datei|ordner|folder|file|speicher|dokument|pdf|lies|lese|text|schreib|notiz|liste|lösch|verschieb|umbenenn|download|schreibtisch|desktop|projekt|code|sortier|aufräum|gestern|zuletzt',
-    'documents': r'excel|tabelle|spreadsheet|xlsx|csv|kalkulation|budget|finanz|übersicht',
+    'documents': r'pdf|powerpoint|präsentation|presentation|folien|pptx|excel|tabelle|spreadsheet|xlsx|csv|kalkulation|budget|finanz|übersicht',
     'apps': r'öffne|starte|open|programm|app\b|finder|zeig',
     'web': r'such|recherch|internet|web|google|safari|browser|neueste|aktuell|news|nachrichten|website|seite|link|http',
     'system': r'system|akku|batterie|speicherplatz|festplatte|arbeitsspeicher|ram|cpu|mac\b|version',

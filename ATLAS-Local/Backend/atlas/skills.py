@@ -99,24 +99,36 @@ def run_harness(mode: str, skill_dir: Path, output_dir: Path, arguments: dict | 
                 timeout: float = 120) -> dict:
     """Startet die Fähigkeit in einem eigenen, begrenzten Prozess."""
     harness = Path(__file__).with_name('skill_harness.py')
-    command = [sys.executable, '-I', str(harness), mode, str(skill_dir), str(output_dir), json.dumps(arguments or {})]
-    if shutil.which('sandbox-exec'):
-        # macOS: zusätzlich Betriebssystem-Sandbox – kein Netzwerk, Schreiben nur in Ausgabe- und Temp-Ordner.
-        temp = Path(tempfile.gettempdir()).resolve()
-        profile = ('(version 1)(allow default)(deny network*)(deny file-write*)'
-                   f'(allow file-write* (subpath "{output_dir.resolve()}") (subpath "{temp}") (subpath "/private/var/folders")'
-                   ' (literal "/dev/null"))')
-        command = ['sandbox-exec', '-p', profile] + command
-    try:
-        done = subprocess.run(command, capture_output=True, text=True, timeout=timeout,
-                              env={'PATH': '/usr/bin:/bin', 'HOME': str(output_dir), 'PYTHONDONTWRITEBYTECODE': '1',
-                                   'LANG': 'de_DE.UTF-8'})
-    except subprocess.TimeoutExpired:
-        return {'ok': False, 'error': f'Zeitlimit ({timeout:.0f} s) überschritten.'}
-    lines = [line for line in done.stdout.splitlines() if line.startswith('{')]
-    if not lines:
-        return {'ok': False, 'error': (done.stderr or done.stdout or 'Keine Ausgabe')[-3000:]}
-    return json.loads(lines[-1])
+    # The child receives exactly the temp directory allowed by the OS sandbox.
+    # Without TMPDIR, macOS Python falls back to /tmp, which is intentionally denied.
+    with tempfile.TemporaryDirectory(prefix='atlas-skill-private-') as private:
+        temp = Path(private).resolve()
+        command = [sys.executable, '-I', str(harness), mode, str(skill_dir.resolve()),
+                   str(output_dir.resolve()), json.dumps(arguments or {})]
+        if shutil.which('sandbox-exec'):
+            profile = ('(version 1)(allow default)(deny network*)(deny file-write*)'
+                       f'(allow file-write* (subpath {json.dumps(str(output_dir.resolve()))}) '
+                       f'(subpath {json.dumps(str(temp))}) (literal "/dev/null"))')
+            command = ['sandbox-exec', '-p', profile] + command
+        try:
+            done = subprocess.run(command, capture_output=True, text=True, timeout=timeout,
+                                  env={'PATH': '/usr/bin:/bin', 'HOME': str(output_dir.resolve()),
+                                       'TMPDIR': str(temp), 'TMP': str(temp), 'TEMP': str(temp),
+                                       'PYTHONDONTWRITEBYTECODE': '1', 'LANG': 'de_DE.UTF-8'})
+        except subprocess.TimeoutExpired:
+            return {'ok': False, 'error': f'Zeitlimit ({timeout:.0f} s) überschritten.'}
+        lines = [line for line in done.stdout.splitlines() if line.startswith('{')]
+        if not lines:
+            return {'ok': False, 'error': (done.stderr or done.stdout or 'Keine Ausgabe')[-3000:]}
+        try:
+            result = json.loads(lines[-1])
+        except ValueError:
+            return {'ok': False, 'error': 'Fähigkeit lieferte ungültiges JSON.'}
+        if not isinstance(result, dict):
+            return {'ok': False, 'error': 'Fähigkeit lieferte kein Ergebnisobjekt.'}
+        if done.returncode != 0:
+            return {'ok': False, 'error': (done.stderr or 'Fähigkeitsprozess fehlgeschlagen.')[-3000:]}
+        return result
 
 
 class SkillLab:

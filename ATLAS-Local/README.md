@@ -1,8 +1,24 @@
-# ATLAS Local 0.6.0 – lokaler KI-Agent für den Mac
+# ATLAS Local 0.7.0 – lokaler KI-Agent für den Mac
 
 Native SwiftUI-App mit lokalem Python-Backend und Ollama. Gerechnet wird mit Qwen3 auf Ihrem MacBook M4, ohne Cloud-KI und ohne API-Schlüssel.
 
 Seit 0.3 ist ATLAS ein **Agent**. Er versteht Aufgaben, wählt selbst Werkzeuge, arbeitet sie Schritt für Schritt ab, prüft die Ergebnisse und berichtet ehrlich, was geklappt hat.
+
+
+## Neu in 0.7.0 (22.10.2026)
+
+- Korrektur für „No usable temporary directory found“ bei Fähigkeits-Tests: eigener temporärer Ordner wird ausdrücklich an den Kindprozess übergeben und nachher entfernt. Kein Freigeben globaler Temp-Ordner nötig.
+- Update schreibt `build/UPDATE-PROTOKOLL.txt`, auch wenn die Prüfung abbricht.
+- Feste Werkzeuge `create_pdf` und `create_presentation`: echte PDF-/PowerPoint-Dateien, strukturell geprüft, kein stilles Überschreiben. PowerPoint: einfache Textfolien (1–40, maximal 6 Stichpunkte pro Folie). PDF: Text mit Seitenumbrüchen; kein allgemeines Layoutprogramm.
+- Kurze Folgeaufträge wie „Mach das bitte“ berücksichtigen die vorherige Nutzeraufgabe bei der Werkzeugauswahl. Heuristische Zuordnung, kein allgemeines Sprachverständnisversprechen.
+- Werkzeugaufrufe über dem Rundenlimit werden ausdrücklich als nicht ausgeführt zurückgemeldet. Das Modell kann sie in der nächsten Runde wiederholen.
+- Fehlerhafte Modellantworten führen zu verständlichen Modellfehlern.
+- Erfahrungslernen zählt unterschiedliche Ziele und abgelehnte Teilschritte nicht mehr als vollständigen Erfolg.
+- 18 vorbereitete Echtmodell-Aufgaben, einschließlich PDF und PowerPoint.
+
+**Prüfstatus:** Siehe `TESTBERICHT-0.7.0.md`. Hier auf Linux getestet; kein Xcode-Build, Mikrofon- oder Qwen-Qualitätsnachweis auf Ihrem M4. Diese Version ist eine Weiterentwicklung, keine für jede beliebige Aufgabe fertige Universal-KI.
+
+Beispiele: „Erstelle in Dokumente eine PDF Trainingsplan.pdf mit meinem Wochenplan.“ / „Erstelle eine PowerPoint mit drei Folien über mein Unternehmen.“
 
 Neu in 0.6.0: **Learning & Evolution**. ATLAS lernt aus Erfahrung und aus Ihren Korrekturen, entwickelt fehlende Fähigkeiten selbst und baut Wissen mit Quellen auf. Er verändert sich nie still: Dauerhaftes wird erst nach Ihrer Freigabe aktiv. Einzelheiten stehen in `docs/LEARNING-UND-EVOLUTION.md`.
 

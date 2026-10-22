@@ -172,14 +172,25 @@ class Ollama:
         if data.get('error'):
             raise ModelError(str(data['error'])[:300])
         message = data.get('message') or {}
+        if not isinstance(message, dict):
+            raise ModelError('Ollama hat eine ungültige Nachricht geliefert.')
         raw_content = message.get('content') or ''
+        if not isinstance(raw_content, str):
+            raise ModelError('Ollama hat keinen gültigen Antworttext geliefert.')
         thinking = str(message.get('thinking') or '')
         if '</think>' in raw_content:
             thinking += raw_content.split('</think>')[0]
         content = strip_think(raw_content)
         calls = []
-        for call in message.get('tool_calls') or []:
-            function = call.get('function') or {}
+        raw_calls = message.get('tool_calls') or []
+        if not isinstance(raw_calls, list) or len(raw_calls) > 32:
+            raise ModelError('Ollama hat ungültige Werkzeugaufrufe geliefert.')
+        for call in raw_calls:
+            if not isinstance(call, dict) or not isinstance(call.get('function'), dict):
+                raise ModelError('Ollama hat einen ungültigen Werkzeugaufruf geliefert.')
+            function = call['function']
+            if not isinstance(function.get('name'), str) or not function['name']:
+                raise ModelError('Ollama hat einen Werkzeugaufruf ohne Namen geliefert.')
             args = function.get('arguments') or {}
             if isinstance(args, str):
                 try:
@@ -338,7 +349,7 @@ AGENT_STEMS = [
     'nachricht', 'spotify', 'musik', 'spiel ', 'timer', 'wecker', 'kurzbefehl', 'terminal', 'befehl', 'projekt',
     'fehler', 'bug', 'behebe', 'repariere', 'teste', 'build', 'kompilier', 'bildschirm', 'screenshot', 'akku',
     'speicherplatz', 'systeminfo', 'internet', 'webseite', 'website', 'safari', 'browser', 'neueste', 'aktuell',
-    'wetter', 'merk dir', 'vergiss', 'open ', 'create', 'search', 'delete', 'file', 'folder', 'calendar', 'email',
+    'präsentation', 'powerpoint', 'folien', 'presentation', 'pptx', 'wetter', 'merk dir', 'vergiss', 'open ', 'create', 'search', 'delete', 'file', 'folder', 'calendar', 'email',
 ]
 AGENT_HINTS = re.compile(r'\b(' + '|'.join(re.escape(stem) for stem in AGENT_STEMS) + ')', re.I)
 MULTI_STEP = re.compile(r'\b(und dann|danach|anschließend|schritt für schritt|step by step|plane|then|after that)\b', re.I)

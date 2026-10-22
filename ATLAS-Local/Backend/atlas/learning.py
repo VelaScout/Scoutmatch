@@ -37,7 +37,8 @@ SCHEMA = [
 TASK_TYPES = [
     ('code', {'run_tests', 'replace_in_file', 'inspect_project', 'run_command'}, r'code|projekt|fehler|bug|test|python|skript'),
     ('excel', {'create_spreadsheet'}, r'excel|tabelle|xlsx|csv'),
-    ('pdf', set(), r'pdf'),
+    ('pdf', {'create_pdf'}, r'pdf'),
+    ('praesentation', {'create_presentation'}, r'powerpoint|präsentation|pptx'),
     ('sortieren', {'organize_folder', 'move_path'}, r'sortier|aufräum|ordne'),
     ('web', {'search_web', 'fetch_webpage', 'open_url', 'safari_current_page'}, r'such|recherch|internet|safari|web'),
     ('kalender', {'get_calendar_events', 'create_calendar_event'}, r'kalender|termin'),
@@ -99,14 +100,14 @@ class Learning:
         for i, action in enumerate(actions):
             if action.ok or action.declined:
                 continue
-            resolved = any(later.ok and later.tool == action.tool for later in actions[i + 1:])
+            resolved = any(later.ok and later.tool == action.tool and later.summary == action.summary for later in actions[i + 1:])
             if not resolved:
                 open_failures.append(action)
         successes = [a for a in actions if a.ok]
         if not successes:
             return 'fehlgeschlagen', False
         verified = all(a.verified for a in successes)
-        if open_failures or not finished:
+        if open_failures or any(a.declined for a in actions) or not finished:
             return 'teilweise', False
         return 'erfolg', verified
 
@@ -118,7 +119,7 @@ class Learning:
             if action.ok or action.declined:
                 continue
             fix = next((later for later in actions[i + 1:] if later.ok and later.tool != action.tool), None)
-            same_fix = next((later for later in actions[i + 1:] if later.ok and later.tool == action.tool), None)
+            same_fix = next((later for later in actions[i + 1:] if later.ok and later.tool == action.tool and later.summary == action.summary), None)
             if fix:
                 lessons.append(f'Statt {action.tool} ({action.output[:80]}) hat {fix.tool} funktioniert.')
             elif same_fix:

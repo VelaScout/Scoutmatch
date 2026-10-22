@@ -114,6 +114,20 @@ def cases(home: Path):
         values = [str(c.value) for row in load_workbook(files[0]).active.iter_rows() for c in row if c.value is not None]
         return any('Miete' in v for v in values) and any('1200' in v.replace('.0', '') for v in values)
 
+    def pdf_created(r):
+        from pypdf import PdfReader
+        path = home / 'Documents' / 'Atlas-Bericht.pdf'
+        if not path.is_file(): return False
+        return '42000' in ''.join(p.extract_text() for p in PdfReader(path).pages)
+
+    def presentation_created(r):
+        from pptx import Presentation
+        path = home / 'Documents' / 'Atlas-Plan.pptx'
+        if not path.is_file(): return False
+        deck = Presentation(path)
+        text = ' '.join(s.text for slide in deck.slides for s in slide.shapes if s.has_text_frame)
+        return len(deck.slides) == 2 and 'Training' in text and 'Erholung' in text
+
     def sorted_ok(r):
         folder = home / 'Documents' / 'Ablage'
         loose = [p for p in folder.iterdir() if p.is_file()]
@@ -139,6 +153,10 @@ def cases(home: Path):
                   'und den Zeilen Miete 1200 und Strom 90.', False, spreadsheet_ok),
         ('pdf_zusammenfassen', 'Lies die PDF Dokumente/bericht.pdf und sag mir in einem Satz, wie hoch der Umsatz war.', False,
          lambda r: '42' in r['answer'] and 'read_file' in r['tools']),
+        ('pdf_erstellen', 'Erstelle Dokumente/Atlas-Bericht.pdf mit dem Titel Quartalsbericht und dem Text: Umsatz 42000 Euro.',
+         False, pdf_created),
+        ('powerpoint_erstellen', 'Erstelle Dokumente/Atlas-Plan.pptx mit genau zwei Folien: Training (Kraft, Fußball) und Erholung (Schlaf, Pause).',
+         False, presentation_created),
         ('systeminfo', 'Wie viel Speicherplatz ist auf meinem Mac noch frei?', False,
          lambda r: 'system_info' in r['tools'] and 'GB' in r['answer']),
         ('loeschen_abgelehnt', 'Lösche die Datei Dokumente/behalten.txt', False,
