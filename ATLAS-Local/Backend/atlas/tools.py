@@ -949,6 +949,7 @@ def _describe_path(verb: str) -> Callable[[dict], str]:
 
 
 def build_tools(env: Environment) -> dict[str, Tool]:
+    from .research import research
     from .documents import (convert_document, create_document, create_pdf, create_presentation, edit_document,
                             edit_spreadsheet)
     def bind(func: Callable[..., Result]) -> Callable[..., Result]:
@@ -975,6 +976,10 @@ def build_tools(env: Environment) -> dict[str, Tool]:
         Tool('create_pdf', 'Erstellt eine PDF mit Titel und vollständigem Text. Nutzt automatische Seitenumbrüche. Neuer Dateiname erforderlich.',
              obj({'path': path, 'title': string('Dokumenttitel.'), 'content': string('Vollständiger Text mit Absätzen.')},
                  ['path', 'title', 'content']), bind(create_pdf), category='documents', label='Erstellt die PDF'),
+        Tool('research', 'Recherchiert im Internet: sucht, liest mehrere Seiten und liefert nummerierte Quellen mit Adresse '
+                         'und Abrufdatum. Für aktuelle Informationen und Fragen, bei denen Quellen wichtig sind.',
+             obj({'question': string('Suchanfrage bzw. Frage.'), 'max_sources': {'type': 'integer', 'description': '1–6, Standard 4.'}},
+                 ['question']), bind(research), category='web', label='Recherchiert'),
         Tool('create_document', 'Erstellt ein echtes Word-Dokument (.docx) – für Briefe, Angebote, Berichte, Konzepte, '
                                 'E-Mail-Entwürfe. content: vollständiger Text; "# " Überschrift, "## " Unterüberschrift, "- " Aufzählung.',
              obj({'path': path, 'title': string('Dokumenttitel.'), 'content': string('Vollständiger Text.')},

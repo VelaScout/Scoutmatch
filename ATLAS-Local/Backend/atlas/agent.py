@@ -31,6 +31,7 @@ from . import intents
 from . import llm as llm_mod
 from .llm import ModelError, Ollama, is_correction, language_of, route
 from .memory import MemoryIndex
+from .research import check_sources, untrusted
 from .tasks import RESUME
 from .tools import BLOCKED, CONFIRM, Result, Tool, ToolError, select_categories
 
@@ -45,6 +46,8 @@ So arbeitest du mit Werkzeugen:
 - Rechnen immer mit calculate, nie im Kopf.
 - Werkzeugwahl: Ordner sortieren → organize_folder (ein Aufruf). Code-Fehler → run_tests, read_file, replace_in_file,
   dann erneut run_tests. Excel → create_spreadsheet mit columns und rows. „Datei von gestern“ → recent_files.
+  Aktuelle Informationen, Recherche, Fakten mit Quellen → research (liest mehrere Seiten); Aussagen mit [Nummer]
+  belegen, am Ende „Quellen:“. Nichts erfinden: Was keine Quelle stützt, als Einschätzung kennzeichnen; was fehlt, sagen.
   PDF/Word/CSV/PowerPoint lesen → read_file. PDF erstellen → create_pdf; Word (Brief, Angebot, Bericht, Konzept,
   E-Mail-Entwurf) → create_document; PowerPoint → create_presentation. Vorhandenes Dokument ändern → edit_document,
   Tabelle ändern → edit_spreadsheet. „Als PDF speichern“ → convert_document mit der zuletzt erstellten Datei.
@@ -104,6 +107,8 @@ STATUS_LABELS = {
     'list_emails': 'Prüft das Postfach', 'read_email': 'Liest die E-Mail', 'send_email': 'Bereitet die E-Mail vor',
     'spotify_play': 'Startet die Musik', 'remember': 'Merkt sich das', 'search_contacts': 'Sucht im Adressbuch',
 }
+# Ergebnisse dieser Werkzeuge sind fremde Inhalte (können eingeschleuste Anweisungen enthalten).
+UNTRUSTED = {'fetch_webpage', 'safari_current_page', 'read_file', 'search_web', 'read_email', 'list_emails'}
 CLAIM_WORDS = re.compile(r'\b(erstellt|angelegt|gespeichert|geöffnet|gelöscht|verschoben|gesendet|geschickt|'
                          r'eingetragen|ausgeführt|erledigt|created|saved|opened|deleted|sent|done)\b', re.I)
 
@@ -542,7 +547,7 @@ class Agent:
         if not finished and not final:
             # Ehrlicher Abschluss, wenn die Schleife nicht fertig wurde.
             final = f'Ich bin nicht ganz fertig geworden ({reason}).'
-        answer = self.validate(final, actions)
+        answer = check_sources(self.validate(final, actions), actions)
         if mode == 'plan' or report['failed'] or not finished:
             answer = answer.rstrip() + '\n\n' + self.report_text(report)
         for piece in sentences(answer):
@@ -598,7 +603,11 @@ class Agent:
             yield {'type': 'step', 'tool': name, 'label': tool.label,
                    'status': 'erledigt' if result.ok else 'fehlgeschlagen', 'detail': summary,
                    'verified': result.verified}
-            output = result.output if not result.data else result.output + '\n' + json.dumps(result.data, ensure_ascii=False)[:2_000]
+            output = result.output
+            if name in UNTRUSTED and result.ok:
+                output = untrusted(output, {'read_file': 'einer Datei'}.get(name, 'einer Webseite'))
+            if result.data and name != 'research':
+                output += '\n' + json.dumps(result.data, ensure_ascii=False)[:2_000]
             return Action(name, tool.label, summary, result.ok, result.verified, output, data=result.data or {})
         if name == 'remember' and name in native:
             verdict = self.check_memory(str(args.get('content', '')))
@@ -632,7 +641,10 @@ class Agent:
                                          'Wenn sie dadurch veraltet ist, entferne sie mit forget.')
             yield {'type': 'step', 'tool': name, 'label': label, 'status': 'erledigt' if ok else 'fehlgeschlagen',
                    'detail': summary, 'verified': ok}
-            return Action(name, label, summary, ok, ok, str(result.get('content', ''))[:8_000])
+            content = str(result.get('content', ''))[:8_000]
+            if name in UNTRUSTED and ok:
+                content = untrusted(content, 'E-Mails')
+            return Action(name, label, summary, ok, ok, content)
         return Action(name, name, name, False, False, f'Unbekanntes Werkzeug „{name}“. Nur die angebotenen Werkzeuge benutzen.')
 
     def check_memory(self, content: str) -> tuple[str, str | None]:
