@@ -1,143 +1,80 @@
-# Aktuell: ATLAS 0.7.0
+# Testbericht ATLAS Local 0.8.0
 
-Der aktuelle Prüfbericht ist **TESTBERICHT-0.7.0.md**, das neue Laufprotokoll **TESTRESULTS-0.7.0.txt**.
+Stand: 22.10.2026. Rohprotokoll: `TESTRESULTS-0.8.0.txt`.
 
----
+## Wo getestet wurde – und wo nicht
 
-Historischer Prüfbericht des gelieferten Stands:
+Getestet wurde in einem Linux-Container. Dort fehlen:
+- ein Mac, Xcode und ein Swift-Compiler
+- Mikrofon und Lautsprecher
+- Ollama-Modelle (das Laden ist dort gesperrt)
+- ein Anthropic-Schlüssel
 
-# Testbericht ATLAS Local 0.6.0
+**Deshalb gilt:** Alle hier bestandenen Tests laufen mit **simulierten Modellantworten** (vorgegebene Antworten), aber mit echter Datei-, Datenbank-, Prozess- und Netzwerkverarbeitung.
 
-Stand: 21.10.2026.
+Ob das echte Qwen-Modell die Aufgaben selbst löst, zeigt erst `MAC_TESTEN.command` auf Ihrem Mac. Eine große Zahl bestandener Simulationstests beweist **keine** allgemeine Zuverlässigkeit.
 
-Die Entwicklungsumgebung ist ein Linux-Container ohne Mac, ohne Swift-Compiler und ohne Ollama-Modelle. Die Netzwerkregel sperrt `ollama.com`, `registry.ollama.ai` und `huggingface.co`.
-
-Die Tests sind in drei Arten getrennt:
-
-| Art | Bedeutung |
+| Kennzeichnung | Bedeutung |
 |---|---|
-| **Simuliert** | Das Modell ist vorgegeben (FakeOllama). Alles andere läuft echt. |
-| **Echtes Modell** | Qwen über Ollama. Läuft nur auf dem Mac. |
-| **Hardware** | Mikrofon, Lautsprecher, Freigaben. Nur von Hand auf dem Mac. |
+| BESTANDEN | Test ausgeführt, Ergebnis geprüft, in Ordnung |
+| FEHLGESCHLAGEN | Test ausgeführt, Ergebnis falsch |
+| NICHT AUSGEFÜHRT | Test existiert, konnte hier nicht laufen (Grund genannt) |
 
-## 0. Ergebnisse von Ihrem Mac (Version 0.4.0, laut Ihren Angaben und Screenshots)
+## 1. Hier ausgeführt
 
-**Echte Modelltests: 6 von 12 bestanden.** Fehlgeschlagen sind:
-1. Kurze Antwort
-2. Ordner und Datei
-3. Excel
-4. PDF
-5. Sortieren
-6. Fehler beheben
-
-Weitere Beobachtungen:
-- Lange englische Überlegungen statt Werkzeugaufrufen.
-- 30 bis über 100 s pro Aufgabe.
-- **Diagnose:** `qwen3:4b` mit 35 Tokens/s, erste Ausgabe nach 0,07–0,12 s, aber 8,8–14,9 s für Kurzantworten.
-- Spracherkennung (synthetische Stimme): fehlerfrei.
-- **Backend-Tests:** 153 ausgeführt, davon 151 bestanden und 2 übersprungen (fehlendes openpyxl/pypdf in der genutzten Python-Umgebung).
-
-**Ursachenanalyse:**
-1. `qwen3:4b` ist bei Ollama die Denk-Variante (Selbstgespräch vor jeder Antwort, meist auf Englisch).
-2. Weil `qwen3:8b` nicht installiert war, lief auch der Agent mit diesem Modell.
-3. Kleine Modelle beschreiben Werkzeuge oft, statt sie aufzurufen.
-4. Mehrschrittige Aufgaben (Sortieren: ca. 7 Aufrufe; Fehler beheben: ca. 5) überfordern sie leicht.
-
-**Behebung in 0.4.1 und 0.5.0:** siehe Abschnitt 4.
-
-**Ob die 16 echten Aufgaben jetzt bestehen, ist noch nicht gemessen.** Das zeigt erst `MAC_TESTEN.command` auf Ihrem Mac.
-
-## 1. Hier ausgeführt: 210 Python-Tests, alle bestanden, keiner übersprungen
-
-Ausgeführt mit `-W error::ResourceWarning`. Rohprotokoll: `TESTRESULTS-0.6.0.txt`; das alte Protokoll liegt in `docs/`.
-
-| Testdatei | Anzahl | Echt | Simuliert |
-|---|---|---|---|
-| **`test_learning.py`** (neu) | 11 | Erfahrungsspeicher in SQLite, auch über einen simulierten Neustart; Ergebnisbewertung, Reflexion, Korrekturregeln, Kennzahlen, Export | Modell |
-| **`test_skills.py`** (neu) | 8 | Statische Prüfung, Sandbox-Prozesse, Netzwerksperre, Schreibsperre, echte PowerPoint-Datei erzeugt und nachgelesen, Versionen, Rücksetzen, Freigabe, Paketfreigabe | Modell, das den Code schreibt |
-| **`test_evolution.py`** (neu) | 21 | Wissen mit Belegprüfung gegen den Quelltext, Verbesserungsmotor mit automatischem Zurücknehmen, Code-Werkstatt mit echten Testläufen in Kopien und echter Sicherung/Wiederherstellung, Lernplaner (Pause, Limit, Netz, Neustart), Agent und Server-Schnittstelle | Modell, Websuche, Webseiten |
-| `test_tools.py` | 31 | Dateien, PDF, Excel, Sortieren, Ersetzen, Tests ausführen, Terminal-Liste, Pfadregeln | macOS-Programme, Bildmodell, Webseiten |
-| `test_agent.py` | 34 | Server, Streaming, Rundreise zur App, Bestätigungen, Abbruch, Lebenszeichen, Gedächtnis, Router | Modell |
-| `test_robustness.py` | 9 | Ollama aus, kaputtes JSON, abgebrochener Stream, offline, Zeitlimit, Migration, Leistung | Modell, Internet |
-| `test_realtests.py` | 7 | Prüflogik der 16 echten Aufgaben, Modellvergleich | Entscheidungen des Modells |
-| `test_scripts.py` | 7 | Rollback, Autostart, Zusammenfassung, Skriptsyntax | `launchctl` |
-| aus 0.2.3 | 82 | Chat, Daten, Audio mit echtem ffmpeg, Rechnen, Befehle | Modell, Spracherkennung |
-
-### Nachweise für die vier geforderten Punkte
-
-Alle vier sind **simuliert** im Sinne der Tabelle oben: Das Sprachmodell gibt die Antworten fest vor. Datenbank, Dateien, Prozesse, Sandbox und Rücksetzen laufen echt.
-
-1. **Erfahrungen werden gespeichert:** `test_verified_success_is_reused_for_similar_task`.
-   - Die Aufgabe wird gespeichert (Erfolg, bestätigt, Aufgabenart).
-   - Bei einer ähnlichen Aufgabe steht der bewährte Ablauf im Prompt.
-   - `test_failure_becomes_warning_not_proven`: Fehler werden Warnungen, keine „bewährten“ Abläufe.
-2. **Korrekturen werden später angewandt:** `test_correction_is_learned_and_survives_restart`.
-   - Auf „Atlas, das war nicht richtig. Du solltest die Datei in Dokumente speichern.“ legt ATLAS die Datei sofort in Dokumente an.
-   - Nach einem Neustart steht die Regel bei einer neuen Datei-Aufgabe im Prompt, bei einer Plauderfrage nicht.
-   - `test_durable_preference_applies_everywhere`: „ab jetzt immer“ gilt überall.
-3. **Fähigkeiten entstehen in der Sandbox:** `test_new_skill_is_developed_tested_approved_and_used`.
-   - Der erste Code-Entwurf besteht seine Tests nicht.
-   - ATLAS bekommt die Fehlermeldung, der zweite Entwurf besteht.
-   - Ohne Freigabe ist die Fähigkeit nicht aktiv. Nach der Freigabe erzeugt sie eine **echte .pptx**, die mit python-pptx nachgelesen wird.
-   - Gefährlicher Code wird nie ausgeführt.
-   - Netzwerk und Schreiben außerhalb der Sandbox schlagen fehl.
-4. **Fehlgeschlagene Verbesserungen werden zurückgesetzt:**
-   - `test_failed_improvement_is_rolled_back_automatically`: Ein Hinweis, nach dem der Fehler weiter auftritt, wird automatisch abgeschaltet.
-   - `test_change_with_failing_tests_is_discarded`: Eine Code-Änderung mit roten Tests wird verworfen, das Original bleibt unberührt.
-   - `test_failed_check_after_apply_restores_automatically`: Scheitert die Prüfung nach der Übernahme, wird das Original wiederhergestellt.
-   - `test_tested_change_is_applied_only_after_approval_and_can_be_rolled_back`: Eine übernommene Änderung lässt sich zurücksetzen.
-   - `test_versions_and_rollback`: Fähigkeiten gehen zurück auf die vorige Version.
-
-**Weitere Prüfungen:**
-- 9 Chromium-Prüfgruppen der Weboberfläche bestanden.
-- Swift-Syntax aller Swift-Dateien mit tree-sitter geprüft: 0 Fehler. Das ist **kein** Compiler-Lauf.
-- Übersicht „Learning & Evolution“ aus dem echten Server (Fixture mit simuliertem Modell) gegen alle Pflichtfelder der Swift-Strukturen geprüft, auch mit gefüllten Listen.
-
-**Nicht hier geprüft:**
-- Ob das echte `qwen3:4b-instruct` brauchbaren Fähigkeits-Code und brauchbare Wissensauszüge schreibt.
-- Ob das `sandbox-exec`-Profil der Code-Werkstatt auf macOS wie gedacht greift.
-
-## 2. Automatisch auf dem Mac (hier nicht ausführbar)
-
-| Prüfung | Skript | Art |
+| Prüfung | Ergebnis | Art |
 |---|---|---|
-| Xcode-Build und Signatur | `AKTUALISIEREN.command` → `BAUEN.command` | echt |
-| Swift ⇄ Backend (9 Prüfungen + Learning-Übersicht dekodieren, Pause speichern) | `Tests/test_provider_mac.sh` | Backend echt, Modell simuliert |
-| 210 Backend-Tests in der Atlas-Umgebung (mit openpyxl, pypdf, python-pptx) | Update, `MAC_TESTEN.command` | wie oben |
-| Kurztest mit echtem Modell (3 Aufgaben) | Ende von `AKTUALISIEREN.command` | **echtes Modell** |
-| **16 echte Aufgaben**, Ergebnis in Dateien nachgeprüft, Zeiten gemessen; Modellvergleich, wenn mehrere installiert sind | `MAC_TESTEN.command` | **echtes Modell** |
+| 262 Backend-Tests mit Python 3.13 (ResourceWarning = Fehler) | **260 BESTANDEN, 0 FEHLGESCHLAGEN, 2 NICHT AUSGEFÜHRT** (nur Mac: echte Sandbox) | Modell simuliert |
+| Dieselben 262 Tests mit Python 3.15 (Beta 4; Ihr Mac nutzt 3.15) | **260 BESTANDEN, 2 NICHT AUSGEFÜHRT** | Modell simuliert |
+| 9 Prüfgruppen der Weboberfläche in Chromium | **9 BESTANDEN** | Modell, Spracherkennung, macOS simuliert |
+| Swift-Syntax aller Swift-Dateien (tree-sitter) | **BESTANDEN** (0 Fehler). Das ist **kein** Compiler-Lauf. | – |
+| 8 Shell-Skripte (`bash -n`) | **BESTANDEN** | – |
+| Übersicht „Learning & Evolution“ gegen alle Pflichtfelder der Swift-Strukturen | **BESTANDEN** | echter Server, Modell simuliert |
 
-## 3. Nur von Hand (Hardware und echtes Modell)
+### Was die Tests konkret beweisen (Auswahl, nach Ihren Abnahmepunkten)
 
-- **Learning & Evolution mit echtem Modell:**
-  1. „Lerne, wie man PowerPoint-Präsentationen erstellt“ sagen.
-  2. Nach einigen Minuten das Gehirn-Symbol öffnen und die Freigabe prüfen.
-  3. Freigeben, dann „Erstelle eine Präsentation über …“ sagen.
-- **Wissen:** „Lerne alles über Unternehmensbewertung“, danach Quellen und Status der Aussagen ansehen.
-
-- Mikrofon, Wake-Word „Atlas“, Unterbrechen, Gesprächsende.
-- Klang der Stimme.
-- Statuszeile und Aufgabenfeld.
-- macOS-Freigaben.
-- Gedächtnis nach einem Neustart: Die native Datenbank liegt in SwiftData und bleibt bei Updates unverändert. Ein Neustart-Test hat auf dem Mac aber noch nicht stattgefunden.
-
-## 4. Liste aller behobenen Fehler
-
-| Version | Fehler | Gefunden durch |
+| Abnahmepunkt | Test (Datei) | Ergebnis |
 |---|---|---|
-| 0.6.0 | Netzsperre der Sandbox ersetzte `socket.socket` durch eine Funktion; dadurch brach `import ssl` und mit ihm python-pptx | Test (echte PowerPoint-Fähigkeit) |
-| 0.6.0 | Schreibschutz der Sandbox erlaubte ganz `/tmp`; jetzt nur ein eigener, leerer Temp-Ordner | Test |
-| 0.5.0 | Modell beschreibt Werkzeuge bzw. plant auf Englisch, statt sie aufzurufen | Ihre Mac-Ergebnisse |
-| 0.5.0 | Englische Überlegungen erschienen als Schlussantwort | Ihre Mac-Ergebnisse |
-| 0.5.0 | Sortieren und Fehlerbehebung brauchten zu viele Einzelaufrufe für ein 4B-Modell | Ursachenanalyse |
-| 0.5.0 | Excel scheiterte an verschachteltem Eingabeformat | Ursachenanalyse |
-| 0.5.0 | „Das war falsch“ wurde nicht als Korrektur erkannt | Test |
-| 0.4.1 | `qwen3:4b` (Denk-Variante) für alles benutzt; Selbstgespräch sichtbar | Ihr Diagnose-Screenshot |
-| 0.4.1 | Modellnamen mit Großbuchstaben (`q4_K_M`) galten als ungültig | Test |
-| 0.4.0 | Veralteter Python-Bytecode beim Testen nach einer Korrektur | echter Testlauf |
-| 0.4.0 | „Merk dir bitte, dass …“ speicherte „bitte, dass …“ | Test |
-| 0.4.0 | Duplikatprüfung umgangen; Berlin und Hamburg als Duplikat | Test |
-| 0.4.0 | Rollback brach ohne Sicherung stumm ab | Test |
-| 0.4.0 | Irreführende Fehlermeldung bei ausgeschaltetem Ollama | Test |
-| 0.4.0 | Behobener Testlauf stand als Fehler im Bericht | Test |
-| 0.3.x | `~`-Auflösung, unnötiges Planen, Wortgrenzen im Router, abgelehnte Aktionen als Fehler, feste Ollama-Adresse, Prozentfragen, Verbindungsabbruch bei langen Aufgaben | Tests, Durchsicht |
+| Echte Dateien: Format, Inhalt, Öffnen | `test_documents` (7): Word mit Überschrift-/Aufzählungsstilen, echtes ZIP-Office-Format, PDF beginnt mit `%PDF-` und enthält den Text, Excel-Zelle und Formel, CSV, PowerPoint lesen | BESTANDEN |
+| Schutz vor Überschreiben | `test_documents`, `test_release_070`: bestehende Datei bleibt unverändert; Umwandeln wählt `-2` statt zu überschreiben; Änderungen nur mit Sicherung | BESTANDEN |
+| Folgeaufträge, Kontext | `test_tasks`: „Speichere es als PDF“ nach einem **Neustart ohne Gesprächsverlauf** findet die richtige Word-Datei; die PDF enthält den Betrag | BESTANDEN |
+| Abbruch und Wiederaufnahme | `test_tasks`: Abbruch während eines App-Schritts → „Mach weiter“ nach Neustart; erledigter Schritt wird nicht wiederholt | BESTANDEN |
+| Doppelte Aktionen | `test_tasks`: gleiche E-Mail nach Wiederholung → Rückfrage statt zweitem Versand; andere E-Mail → normal | BESTANDEN |
+| Teilweise fehlgeschlagene Schritte | `test_tasks`, `test_learning`: ein anderer späterer Erfolg markiert einen Fehlschlag **nicht** als gelöst | BESTANDEN |
+| Fremde Anweisungen | `test_research`: Anweisung in Webseite und Datei wird entschärft, nicht an das Modell weitergegeben | BESTANDEN |
+| Keine erfundenen Quellen | `test_research`: nicht abgerufene Adresse wird aus der Antwort entfernt, echte Quellen werden angehängt | BESTANDEN |
+| Offline | `test_research`, `test_robustness`: ehrliche Meldung statt erfundener Antwort | BESTANDEN |
+| Zeitüberschreitung, ungültige Modellantworten, Ollama aus | `test_robustness`, `test_release_070` | BESTANDEN |
+| Korrekturen, widersprüchliche Erinnerungen | `test_learning` (Regel überlebt Neustart, gilt nur passend), `test_agent` (ähnliche ältere Erinnerung wird gemeldet) | BESTANDEN |
+| Passwörter nie speichern | `test_privacy`: weder direkt („Merk dir …“) noch über das Modell; Erfahrungen/Journal geschwärzt | BESTANDEN |
+| Fehlende Berechtigungen | `test_tools` (Pfade außerhalb, `~/Library`, Symlink-Ausbruch), `test_agent` (abgelehnte Bestätigung) | BESTANDEN |
+| Kontrollierte Weiterentwicklung | `test_skills`, `test_evolution`, `test_sandbox`: gefährlicher Code wird nie ausgeführt; Tests dürfen nicht entfernt werden; Sandbox, die nicht schützt, wird nie benutzt; misslungene Änderung wird zurückgesetzt | BESTANDEN |
+| Cloud nur nach Aktivierung | `test_cloud` (7): aus → nichts gesendet; abgelehnt → nichts gesendet; Kosten aus Token; Limit; Schlüssel nur über stdin. **Echtes SDK** gegen eine nachgebaute API. | BESTANDEN |
+| Installation, Update, Rücksetzen, Datenerhalt | `test_scripts`: Rücksetzen in einem temporären Benutzerordner; Update ersetzt erst nach Build und Tests; `~/.atlas-ai` wird nie verschoben oder gelöscht | BESTANDEN |
+| Prüflogik der 24 echten Arbeitsaufgaben | `test_realtests`: Jede Prüfung fällt durch, wenn das Modell nur behauptet statt handelt | BESTANDEN |
+
+## 2. Hier NICHT AUSGEFÜHRT – läuft automatisch auf Ihrem Mac
+
+| Prüfung | Wo | Status hier |
+|---|---|---|
+| Xcode-Build der App (neue Ansichten: Cloud-Einstellungen, Gedächtnis-Herkunft, Passwortschutz) | `AKTUALISIEREN.command` | NICHT AUSGEFÜHRT (kein Mac) |
+| Swift ⇄ Dienst (inkl. Learning-Übersicht), Sprachtext, Passwortfilter in Swift | `Tests/test_provider_mac.sh` | NICHT AUSGEFÜHRT |
+| Echte macOS-Sandbox (2 Tests + Selbstprüfung) | Update-Tests, `MAC_TESTEN.command` Schritt 5 | NICHT AUSGEFÜHRT |
+| **24 Arbeitsaufgaben mit dem echten Qwen-Modell**, Ergebnis jeweils unabhängig vom Modell geprüft (Dateien, Inhalte, Tests) | `MAC_TESTEN.command` Schritt 3 | NICHT AUSGEFÜHRT |
+| Antwortzeiten: erste Rückmeldung und vollständiges Ergebnis | ebenda | NICHT AUSGEFÜHRT |
+| Neustart des Dienstes mit Prüfung des Datenerhalts | `MAC_TESTEN.command` Schritt 6 | NICHT AUSGEFÜHRT |
+| Echtes Cloud-Modell | nur von Hand, mit Ihrem Schlüssel; kostet Geld | NICHT AUSGEFÜHRT |
+| Mikrofon, „Atlas“-Aktivierung, Unterbrechen, Stimme, englische Wörter in deutschen Sätzen | von Hand | NICHT AUSGEFÜHRT |
+| Kalender, Erinnerungen, Mail mit echten Konten und macOS-Freigaben | von Hand | NICHT AUSGEFÜHRT |
+
+## 3. Behobene Fehler in 0.8.0
+
+| Fehler | Gefunden durch |
+|---|---|
+| Sandbox-Profil der Code-Werkstatt enthielt eine vermutlich ungültige Regel. Ein defektes Profil hätte unverständliche Testfehler erzeugt. | Durchsicht nach Ihrem Mac-Screenshot |
+| Aufträge wie „Ändere in Vertrag.docx …“ wurden als Plauderei statt als Aufgabe erkannt | neuer Arbeitsaufgaben-Test |
+| „Passwort für das Online-Banking: …“ wurde nicht als Zugangsdaten erkannt | neuer Test |
+| Word-Dateien entstanden nur über macOS-`textutil` und wurden nicht inhaltlich geprüft | Durchsicht |
+| Ein 0.7.0-Test ersetzte alle Systemaufrufe und hätte die neue Sandbox-Prüfung verdeckt (Test angepasst, gleiche Aussage) | Testlauf |
+
+Behoben in 0.7.0 (übernommen, geprüft): fehlender Temp-Ordner im Sandbox-Kindprozess („No usable temporary directory found“).

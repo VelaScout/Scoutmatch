@@ -1,67 +1,50 @@
-# Aktueller Prüfstand 0.7.0
+# Grenzen, bekannte Fehler und nächste Schritte – ATLAS Local 0.8.0
 
-Der Temp-Verzeichnisfehler aus dem Screenshot wurde im Code korrigiert. Die Regression prüft die Übergabe an die Sandbox und einen echten isolierten Fähigkeitsprozess unter Linux. Die echte macOS-Sandbox und Python 3.15 sind hier nicht verfügbar.
+## Nicht nachgewiesen (läuft erst auf Ihrem Mac)
 
-Neue PDF-/PowerPoint-Werkzeuge sind mit echten Dateiinhalten getestet. Sprachmodell-Auswahl und inhaltliche Qualität bleiben modellabhängig. PDF-Schriften können nicht alle Sprachen abdecken; nicht unterstützte Zeichen werden gemeldet. PowerPoint unterstützt derzeit Textfolien, keine frei gestalteten komplexen Decks.
-
-Browser-Test nicht ausgeführt: Playwright ist vorhanden, aber keine lokale Chromium-Binärdatei. Swift/Xcode, Wake-Word, Stimme, Systemberechtigungen und echte Qwen-Aufgaben bleiben offen. Kein Training der Modellgewichte. Selbstentwickelte Fähigkeiten und Codeänderungen brauchen weiterhin Tests und Freigabe.
-
-Die folgenden Angaben dokumentieren den übernommenen Stand 0.6.0; aktuelle Ergebnisse stehen in TESTBERICHT-0.7.0.md.
-
-# Offene Punkte, Grenzen und nächste Entwicklungsstufe – ATLAS Local 0.6.0
-
-## Noch nicht auf echter Hardware bewiesen
-
-| Punkt | Status | Prüfung |
-|---|---|---|
-| Xcode-Build 0.6.0 (neuer Bereich „Learning & Evolution“, Swift Charts) | Syntax geprüft, nicht kompiliert | `AKTUALISIEREN.command` stoppt bei Fehlern, bevor es etwas ersetzt |
-| 16 echte Aufgaben mit `qwen3:4b-instruct` | vorbereitet; 0.4.0 bestand 6/12 | `MAC_TESTEN.command` → Zusammenfassung |
-| Fähigkeit mit dem echten Modell entwickeln (z. B. PowerPoint) | Ablauf mit vorgegebenem Code getestet; ob das 4B-Modell brauchbaren Code schreibt, ist offen | „Lerne, wie man PowerPoint-Präsentationen erstellt“ |
-| Wissen mit dem echten Modell aufbauen | Ablauf getestet; Qualität der Auszüge offen | „Lerne alles über Unternehmensbewertung“ |
-| `sandbox-exec`-Profil der Code-Werkstatt (Netz nur localhost) | nicht ausprobiert; ohne Sandbox laufen keine Werkstatt-Tests | erster Werkstatt-Auftrag auf dem Mac |
-| Ansage beim Start („Ich habe eine bessere Methode gefunden …“) | Code geschrieben, nicht gehört | App starten, wenn eine Freigabe offen ist |
-| Antwortzeit kurzer Fragen | Ziel unter 2 s; gemessen bisher nur mit der Denk-Variante (9–15 s) | `MAC_TESTEN.command` |
-| Mikrofon, Wake-Word, Unterbrechen, Stimme | ungetestet seit 0.5.0 | von Hand |
+- **Xcode-Build 0.8.0.** Neu sind die Cloud-Einstellungen, der Passwortfilter in Swift und die Herkunftsanzeige im Gedächtnis. Die Syntax ist geprüft, nicht kompiliert. Schlägt der Build fehl, stoppt das Update, bevor es etwas ersetzt.
+- **Leistung des echten Modells bei den 24 Arbeitsaufgaben.** Zuletzt gemessen: 0.4.0 bestand 6 von 12. Neuere Ergebnisse von Ihrem Mac liegen mir nicht vor.
+- **macOS-Sandbox.** Das Profil wird jetzt vor Gebrauch geprüft. Ob eine der Varianten auf Ihrem macOS greift, zeigt `MAC_TESTEN.command` (Schritt 5). Greift keine:
+  - Selbst entwickelte Fähigkeiten laufen dann nicht. Das ist absichtlich: ohne Schutz kein Start.
+  - Die Code-Werkstatt bleibt dann aus.
+- **Antwortzeiten.** Es gibt keine gemessenen Werte für 0.8.0. Die Messung trennt jetzt erste Rückmeldung und vollständiges Ergebnis.
+- **Sprache.** Mikrofon, „Atlas“, Unterbrechen und Stimme sind in 0.8.0 unverändert und nicht neu geprüft. Englische Wörter in deutschen Sätzen werden nur korrekt ausgesprochen, wenn das Modell sie als Englisch markiert.
+- **Lernaufträge mit dem echten Modell** („Lerne, wie man …“, „Lerne alles über …“): Der Ablauf ist getestet. Ob das 4B-Modell brauchbaren Code oder brauchbare Auszüge liefert, ist offen.
 
 ## Bekannte Grenzen
 
-1. **Intelligenz:** Ein 4B-Modell ist weit von ChatGPT oder Claude entfernt.
-   - Selbst entwickelte Fähigkeiten gelingen eher bei einfachen Aufgaben.
-   - Scheitert eine Entwicklung, steht das ehrlich in der Liste, und nichts wird aktiv.
-2. **Lernen ist Wissen, kein Training:**
-   - Erfahrungen, Regeln, Fähigkeiten und Wissen werden gespeichert und genutzt.
-   - Die Modellgewichte bleiben gleich. Siehe `docs/FINE-TUNING-STUDIE.md`.
-3. **Belegprüfung des Wissens:**
-   - Sie erkennt erfundene Aussagen, deren Wörter nicht im Quelltext stehen.
-   - Sinnverdrehungen mit denselben Wörtern erkennt sie nicht. Deshalb steht immer die Quelle dabei.
-4. **Code-Werkstatt und Updates:** Übernommene Code-Änderungen gelten für das installierte Backend. `AKTUALISIEREN.command` ersetzt es durch die ausgelieferte Version.
-5. **Rechenzeit-Limit:**
-   - Es gilt für eigenständige Lernzyklen.
-   - Ihre ausdrücklichen Lernaufträge laufen ohne Tageslimit, aber pausierbar und abbrechbar.
-   - Ein einzelner Modellaufruf wird nicht mitten im Satz unterbrochen, sondern nach dem Schritt.
-6. **Speicherlimit:**
-   - Lernaufträge laufen nur, wenn ATLAS gerade nicht antwortet. Fähigkeiten haben feste Grenzen für CPU-Zeit, Dateigröße und offene Dateien.
-   - Ein eigenes Arbeitsspeicher-Limit pro Auftrag gibt es nicht. macOS setzt es für Python nicht zuverlässig durch.
-7. **Stimme, Spracherkennung, Bildschirm, iPhone:** unverändert wie in 0.5.0.
-   - Apple-Stimmen.
-   - Spracherkennung in einer Sprache.
-   - Bildschirm nur mit Bildmodell.
-   - Kein iPhone-Zugriff auf den Mac-Agenten.
+1. **Intelligenz:** Das lokale 4B-Modell ist weit von großen Cloud-Modellen entfernt.
+   - Lange, unklare oder sehr verschachtelte Aufträge können scheitern. ATLAS meldet das dann.
+   - Für schwierige Aufgaben gibt es die optionale Cloud.
+2. **Dokumentlayout:**
+   - Word, PDF und PowerPoint entstehen mit klarem, einfachem Layout: Überschriften, Absätze, Aufzählungen, Tabellen.
+   - Professionelle Gestaltung mit Logos, Spalten oder Vorlagen gibt es nicht.
+   - Beim Ändern von Word ersetzt ATLAS ganze Absätze. Gemischte Formatierung innerhalb eines geänderten Absatzes (z. B. ein fettes Wort) geht dort verloren. Die Sicherung bleibt erhalten.
+3. **Recherche:**
+   - Sie nutzt die DuckDuckGo-HTML-Suche. Ändert DuckDuckGo das Format, findet sie nichts mehr, und ATLAS meldet das.
+   - Die Quellenprüfung erkennt erfundene Adressen, aber keine falsch wiedergegebenen Inhalte. Deshalb stehen die Quellen immer dabei.
+4. **Doppelschutz:**
+   - Er greift bei inhaltlich identischen Aktionen binnen 24 Stunden.
+   - Eine leicht umformulierte zweite Nachricht gilt als neue Nachricht.
+5. **Passworterkennung:**
+   - Sie folgt festen Mustern („Passwort ist …“, „PIN: …“, Schlüssel- und Kartenformate).
+   - Ein Passwort ohne solches Stichwort, z. B. „merk dir: Hund123“, erkennt sie nicht.
+6. **Cloud:**
+   - Die Kosten sind Listenpreise in US-Dollar, berechnet aus den gemeldeten Token. Steuern und Ihre Rechnung können abweichen.
+   - Bei einer Ablehnung durch das Cloud-Modell springt automatisch das von Anthropic empfohlene Ersatzmodell ein. Dessen Abschnitt wird mit seinem eigenen Preis berechnet.
+   - Antworten der Cloud werden nicht gestreamt, sie erscheinen am Stück.
+7. **Code-Werkstatt:** Übernommene Änderungen am eigenen Code ersetzt ein späteres Update wieder durch die ausgelieferte Version. Selbst entwickelte Fähigkeiten bleiben dagegen erhalten.
+8. **Hintergrundarbeit:**
+   - Lernzyklen sind anfangs aus.
+   - Es gibt ein Tageslimit für die Rechenzeit, aber kein eigenes Arbeitsspeicher-Limit pro Auftrag, weil macOS es für Python nicht zuverlässig durchsetzt.
+   - Lernaufträge laufen nur, wenn ATLAS gerade nicht antwortet.
+9. **Kein Modelltraining** (bewusst; siehe `docs/FINE-TUNING-STUDIE.md`).
+10. **iPhone:** Es gibt keinen Zugriff auf den Mac-Agenten. Der Dienst lauscht nur lokal.
 
-## Empfehlung für die nächste Entwicklungsstufe
+## Nächste Schritte (Empfehlung)
 
-1. **Messen:**
-   1. `AKTUALISIEREN.command`
-   2. `MAC_TESTEN.command`
-   3. Screenshot der Zusammenfassung schicken
-2. **Learning & Evolution ausprobieren:**
-   1. Einen Lernauftrag für eine Fähigkeit und einen für ein Thema geben.
-   2. Nach einigen Minuten das Gehirn-Symbol öffnen.
-   3. Screenshot der Liste schicken, auch bei „fehlgeschlagen“: Die Testausgabe zeigt, woran das Modell scheitert.
-3. **Gezielt nachschärfen:**
-   - Scheitert die Fähigkeitsentwicklung, kann `qwen3:8b` als Entwicklungsmodell helfen. Es ist langsamer, schreibt aber besseren Code.
-   - Einschalten mit `"skill_model": "qwen3:8b"` in `~/.atlas-ai/settings.json` (Modell vorher installieren: `ATLAS_WITH_8B=1`).
-   - Ohne diesen Eintrag nutzen Lernaufträge das Aufgabenmodell.
-4. **Vollständige Werkzeugdialoge speichern:** Grundlage für spätere Verbesserungen und ein mögliches Training.
-5. **iPhone:** Zugriff auf den Mac-Agenten über eine gesicherte Verbindung im eigenen WLAN, mit Kopplung per Code.
-6. **Stimme:** Piper als optionale, schnellere Stimme mit Hörtest.
+1. Update installieren, dann `MAC_TESTEN.command` laufen lassen und **einen Screenshot der Zusammenfassung** schicken.
+   - Daran sehe ich, welche Arbeitsaufgaben das echte Modell schafft und wie schnell es ist.
+   - Ich sehe auch, ob Sandbox und Neustart funktionieren.
+2. Für jede FEHLGESCHLAGENE Aufgabe gezielt nachschärfen: Werkzeugbeschreibung, höherwertiges Werkzeug oder anderes Modell. Danach erneut messen.
+3. Optional die Cloud einrichten und mit einem Monatslimit von wenigen Dollar ausprobieren.
