@@ -1,4 +1,19 @@
-# ATLAS 1.0.2 – was neu ist
+# ATLAS 1.0.3 – was neu ist
+
+## 1.0.3: Das Beste aus Ihrem Mac (MacBook Pro M4, 16 GB)
+**`ATLAS_OPTIMIEREN.command`** – nach dem Update einmal starten:
+1. Prüft Arbeitsspeicher, freien Platz, Ollama und die installierten Modelle.
+2. Lädt nach Ihrer Zustimmung die passenden kostenlosen Modelle: qwen3:8b (stärkeres Denken, ca. 5 GB),
+   qwen3:14b (noch stärker, ca. 9 GB) und gemma3:4b (Bilder verstehen, ca. 3 GB).
+3. Misst jedes Denkmodell auf Ihrem Mac mit den schwersten Aufgaben unserer Prüfung – Richtigkeit, Antwortzeit und
+   ob der Arbeitsspeicher reicht.
+4. Stellt das beste Modell ein, das auf Ihrem Mac flüssig läuft (alte Einstellung wird gesichert).
+5. Prüft das Bildverständnis mit einem Testbild und schreibt `Downloads/ATLAS-OPTIMIERUNG/OPTIMIERUNG.md`.
+
+Außerdem: Ohne Messung nimmt ATLAS für Rechen- und Logikaufgaben jetzt qwen3:8b (falls installiert) – 14B nur, wenn
+die Optimierung es auf Ihrem Mac für flüssig befunden hat. Die Gesamtprüfung prüft neu auch das Bildverständnis.
+
+
 
 ## 1.0.2 (nach der Gesamtprüfung mit 1.0.1: 70 von 75)
 | Schwäche | Änderung |

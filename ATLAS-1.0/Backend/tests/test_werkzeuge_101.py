@@ -70,3 +70,19 @@ class SucheTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class DenkmodellTests(unittest.TestCase):
+    def test_reasoning_model_follows_settings_and_prefers_8b(self):
+        from fake_ollama import FakeOllama
+        from atlas import llm
+        fake = FakeOllama(models=('qwen3:4b', 'qwen3:8b', 'qwen3:14b'))
+        try:
+            client = llm.Ollama(base=fake.url)
+            self.assertEqual(client.reasoning_model(), 'qwen3:8b')     # 14B nur nach Messung
+            client.preferred = {'reasoning': 'qwen3:14b'}
+            self.assertEqual(client.reasoning_model(), 'qwen3:14b')
+            client.preferred = {'reasoning': 'qwen3:32b'}               # nicht installiert → Standard
+            self.assertEqual(client.reasoning_model(), 'qwen3:8b')
+        finally:
+            fake.close()

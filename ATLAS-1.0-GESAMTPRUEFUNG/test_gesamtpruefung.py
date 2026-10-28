@@ -61,7 +61,7 @@ class FakeBackend(http.server.BaseHTTPRequestHandler):
         assert payload['tools'] == [] and payload['memories'] == []
         FakeBackend.calls += 1
         question = payload['history'][-1]['content']
-        answer = ANSWERS[question]
+        answer = ANSWERS[question.replace(g.TESTBILD['pfad'], '{BILD}')]
         self.send_response(200)
         self.send_header('Content-Type', 'application/x-ndjson')
         self.end_headers()
@@ -202,7 +202,7 @@ class FakeClaude:
 
         def create(self, **params):
             self.outer.params.append(params)
-            answer = ANSWERS[params['messages'][-1]['content']]
+            answer = ANSWERS[params['messages'][-1]['content'].replace(g.TESTBILD['pfad'], '{BILD}')]
             block = type('B', (), {'type': 'text', 'text': answer})()
             usage = type('U', (), {'input_tokens': 200, 'output_tokens': 100})()
             return type('R', (), {'content': [block], 'usage': usage, 'stop_reason': 'end_turn', 'model': params['model']})()
@@ -249,3 +249,18 @@ class ArbeitsaufgabenTests(unittest.TestCase):
             finally:
                 g.subprocess.run = original
             self.assertEqual(len(calls), 1)
+
+
+class BildTests(unittest.TestCase):
+    def test_png_is_valid_and_red(self):
+        import struct, zlib
+        with tempfile.TemporaryDirectory() as folder:
+            g.bild_vorbereiten(pathlib.Path(folder))
+            data = (pathlib.Path(folder) / 'testbild.png').read_bytes()
+        self.assertTrue(data.startswith(b'\x89PNG'))
+        width, height = struct.unpack('>II', data[16:24])
+        self.assertEqual((width, height), (96, 96))
+        start = data.index(b'IDAT') + 4
+        length = struct.unpack('>I', data[start - 8:start - 4])[0]
+        raw = zlib.decompress(data[start:start + length])
+        self.assertEqual(raw[1:4], bytes((220, 30, 30)))

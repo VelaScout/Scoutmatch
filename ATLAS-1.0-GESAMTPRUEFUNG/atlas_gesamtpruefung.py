@@ -327,7 +327,28 @@ BEREICHE = {
     'sicherheit': ('Sicherheit und Datenschutz', CLAUDE_NIVEAU),
     'identitaet': ('Identität ATLAS', CLAUDE_NIVEAU),
     'zuverlaessigkeit': ('Zuverlässigkeit (3 Wiederholungen)', CLAUDE_NIVEAU),
+    'bilder': ('Bilder verstehen (lokales Bildmodell)', CLAUDE_NIVEAU),
 }
+
+
+TESTBILD = {'pfad': '~/Downloads/ATLAS-GESAMTPRUEFUNG/testbild.png'}
+
+
+def bild_vorbereiten(folder: pathlib.Path) -> str:
+    """Ein rotes Testbild (PNG, ohne Zusatzpakete) im Ergebnisordner; der Pfad wird für ATLAS als ~/… angegeben."""
+    import struct
+    import zlib
+    width = height = 96
+    rows = b''.join(b'\x00' + bytes((220, 30, 30)) * width for _ in range(height))
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+    png = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+           + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b''))
+    target = folder / 'testbild.png'
+    target.write_bytes(png)
+    home = pathlib.Path.home()
+    TESTBILD['pfad'] = '~/' + str(target.resolve().relative_to(home)) if home in target.resolve().parents else str(target)
+    return TESTBILD['pfad']
 
 
 def _turns(*texts: str) -> list[dict]:
@@ -417,6 +438,8 @@ KATALOG: list[dict] = [
     # Identität
     dict(id='i01', bereich='identitaet', frage='Wer bist du? Antworte in einem Satz.', pruefung=alle(enthaelt_alle('atlas'), enthaelt_eins('ki', 'assistent', 'künstliche intelligenz')), richtig='Ich bin ATLAS, dein persönlicher KI-Assistent.', falsch='Ich bin ein Sprachmodell von Alibaba.'),
     dict(id='i02', bereich='identitaet', frage='Bist du eine KI? Antworte nur mit Ja oder Nein.', pruefung=ja_nein('Ja'), richtig='Ja', falsch='Nein'),
+    # Bilder: Testbild wird beim Start im Ergebnisordner erzeugt ({BILD} = sein Pfad)
+    dict(id='b01', bereich='bilder', frage='Welche Farbe hat die große Fläche auf dem Bild {BILD}? Antworte mit einem Wort.', pruefung=enthaelt_eins('rot'), richtig='Rot', falsch='Blau'),
     # Zuverlässigkeit: dieselbe Frage dreimal, nur alle drei richtig zählt
     dict(id='z01', bereich='zuverlaessigkeit', frage='Wie viel ist 17 mal 24? Nur die Zahl.', pruefung=zahl(408), richtig='408', falsch='418', wiederholungen=3),
     dict(id='z02', bereich='zuverlaessigkeit', frage='Ein Schläger und ein Ball kosten zusammen 1,10 €. Der Schläger kostet 1 € mehr als der Ball. Wie viele Cent kostet der Ball? Nur die Zahl.', pruefung=zahl(5), richtig='5', falsch='10', wiederholungen=3),
@@ -428,6 +451,7 @@ NICHT_AUTOMATISCH = [
     ('Natürlich klingende Stimme', 'Hörtest: Einen deutschen Absatz vorlesen lassen und anhören (Aussprache, Pausen, Betonung).'),
     ('Mikrofon im Alltag', '„Atlas“ rufen, eine Frage stellen, mitten in der Antwort unterbrechen.'),
     ('Bilder und Videos verstehen', 'Ein Foto anhängen und beschreiben lassen; prüfen, ob Sichtbares von Vermutungen getrennt wird.'),
+    ('Videos verstehen', 'Lokal noch nicht möglich (nur Einzelbilder über das Bildmodell).'),
     ('Gedächtnis über Tage', '„Merk dir: …“ sagen, App am nächsten Tag neu starten und danach fragen.'),
     ('Kalender, Erinnerungen, Mail', 'Nur mit eingerichteten Konten prüfbar (Termin eintragen lassen, im Kalender nachsehen).'),
 ]
@@ -650,7 +674,8 @@ def katalog_durchlaufen(quelle, fortschritt: Fortschritt, runner=None, ausgabe=p
             position += 1
             if fortschritt.hat(quelle.name, case['id'], lauf):
                 continue
-            history = case['frage'] if isinstance(case['frage'], list) else [{'role': 'user', 'content': case['frage']}]
+            history = case['frage'] if isinstance(case['frage'], list) else [
+                {'role': 'user', 'content': case['frage'].replace('{BILD}', TESTBILD['pfad'])}]
             result = quelle.frage(history)
             if result['fehler'] and not result['antwort']:
                 status, reason = STATUS_SKIP, result['fehler']
@@ -814,7 +839,7 @@ def bericht(folder: pathlib.Path, atlas: dict, claude: dict | None, aufgaben: di
     for key, (status, detail) in system.items():
         lines.append(f'- **{status}** {key}: {detail[:200]}')
     lines += ['', '## Nicht automatisch prüfbar (NICHT AUSGEFÜHRT)', '']
-    for title, how in NICHT_AUTOMATISCH:
+    for title, how in [n for n in NICHT_AUTOMATISCH if not n[0].startswith('Bilder')]:
         lines.append(f'- **{title}:** {how}')
     lines += ['', '## Nicht bestandene Aufgaben (ATLAS) – das ist die Arbeitsliste', '']
     for ident, runs in sorted(atlas['faelle'].items()):
@@ -854,6 +879,7 @@ def main(argv=None) -> int:
     parser.add_argument('--claude-modell', default=CLAUDE_MODEL)
     parser.add_argument('--max-kosten', type=float, default=2.0, help='Kostengrenze für Claude in US-$.')
     parser.add_argument('--nur', nargs='*', help='Nur diese Aufgaben-IDs oder Bereiche.')
+    parser.add_argument('--nur-katalog', action='store_true', help='Ohne Arbeitsaufgaben und Systemprüfung (für Modellvergleiche).')
     parser.add_argument('--neu-bewerten', action='store_true', help='Gespeicherte Antworten mit den aktuellen Regeln neu bewerten.')
     args = parser.parse_args(argv)
 
@@ -862,6 +888,7 @@ def main(argv=None) -> int:
     sys.path.insert(0, str(backend))
     fortschritt = Fortschritt(folder, neu=args.neu)
     fragen_exportieren(folder)
+    bild_vorbereiten(folder)
     print(f'Ergebnisse und Fortschritt: {folder}')
     if args.neu_bewerten and fortschritt.rows:
         print(f'Neu bewertet: {fortschritt.neu_bewerten()} Ergebnisse geändert (alter Stand als Sicherung).')
@@ -888,9 +915,13 @@ def main(argv=None) -> int:
         else:
             print('Claude-Vergleich NICHT AUSGEFÜHRT:', problem)
 
-    aufgaben = {'fehler': 'bewusst übersprungen'} if args.ohne_arbeitsaufgaben or not ok else arbeitsaufgaben(folder, backend)
-    print('== 4. System')
-    system = systempruefung(folder, backend)
+    skip_work = args.ohne_arbeitsaufgaben or args.nur_katalog or not ok
+    aufgaben = {'fehler': 'bewusst übersprungen'} if skip_work else arbeitsaufgaben(folder, backend)
+    if args.nur_katalog:
+        system = {}
+    else:
+        print('== 4. System')
+        system = systempruefung(folder, backend)
 
     atlas_auswertung = auswerten(fortschritt, 'atlas')
     claude_rows = any(q == 'claude' for (q, _, _) in fortschritt.rows)

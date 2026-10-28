@@ -39,7 +39,7 @@ OLLAMA = 'http://127.0.0.1:11434/api/chat'
 PORT = int(os.environ.get('ATLAS_PORT', '8765'))
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 SYSTEM = (ROOT/'personality.txt').read_text(encoding='utf-8')
-VERSION = '1.0.2'
+VERSION = '1.0.3'
 TOKEN = secrets.token_urlsafe(32)
 LOCK = threading.RLock()
 CHAT_LOCK = threading.Lock()
@@ -151,7 +151,8 @@ def agent_events(request,request_id):
     with LOCK:ACTIVE[request_id]=stop
     try:
         config=settings()
-        OLLAMA_CLIENT.preferred={'chat':config.get('chat_model'),'agent':config.get('agent_model')}
+        OLLAMA_CLIENT.preferred={'chat':config.get('chat_model'),'agent':config.get('agent_model'),
+                                  'reasoning':config.get('reasoning_model')}
         yield {'type':'start','request_id':request_id,'protocol':2}
         yield from agent().run(request,stop)
     finally:

@@ -28,7 +28,8 @@ CHAT_PREFERENCE = INSTRUCT_MODELS + ['qwen3:4b', 'qwen3:8b']
 # ruft Werkzeuge zuverlässig auf; der Mac-Test (atlas.realtests --compare) prüft das und kann umstellen.
 AGENT_PREFERENCE = INSTRUCT_MODELS + ['qwen3:8b', 'qwen3:14b', 'qwen3:4b']
 # Denkmodelle (Qwen3 mit Denkschritt) – die Instruct-2507-Varianten können nicht denken.
-REASONING_PREFERENCE = ['qwen3:14b', 'qwen3:8b', 'qwen3:4b']
+# 8B zuerst: läuft auf 16 GB flüssig. 14B nur, wenn die Optimierung es auf diesem Mac gemessen und eingestellt hat.
+REASONING_PREFERENCE = ['qwen3:8b', 'qwen3:4b', 'qwen3:14b']
 VISION_PREFERENCE = ['gemma3:4b', 'qwen2.5vl:7b', 'gemma3:12b', 'llava:7b', 'minicpm-v']
 EMBED_PREFERENCE = ['qwen3-embedding:0.6b', 'nomic-embed-text', 'nomic-embed-text:latest', 'mxbai-embed-large']
 

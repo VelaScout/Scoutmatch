@@ -15,7 +15,7 @@ Abbrechen geht jederzeit (Ctrl+C oder Fenster schließen). Beim nächsten Start 
 ## Was geprüft wird
 | Teil | Inhalt | Bewertung |
 |---|---|---|
-| Fragenkatalog (75 Aufgaben, 83 Antworten) | Rechnen, Logik, Wissen, Deutsch, Englisch, Anweisungen, Gesprächskontext, Programmieren, Ehrlichkeit, Sicherheit, Identität, Zuverlässigkeit (3 Wiederholungen) | automatisch nach festen Regeln; Code wird in der macOS-Sandbox ausgeführt |
+| Fragenkatalog (76 Aufgaben, 84 Antworten) | Rechnen, Logik, Wissen, Deutsch, Englisch, Anweisungen, Gesprächskontext, Programmieren, Ehrlichkeit, Sicherheit, Identität, Zuverlässigkeit (3 Wiederholungen) | automatisch nach festen Regeln; Code wird in der macOS-Sandbox ausgeführt |
 | Arbeitsaufgaben | 24 echte Aufgaben mit Dateien, Word, Excel, PDF, PowerPoint, Code – in einem Test-Benutzerordner | Ergebnis wird in den Dateien nachgeprüft |
 | System | Spracherkennung (synthetische Stimme), Sandbox | automatisch |
 | Antwortzeiten | erste Ausgabe und vollständige Antwort | gemessen |

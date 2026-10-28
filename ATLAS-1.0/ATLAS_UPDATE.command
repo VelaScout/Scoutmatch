@@ -1,5 +1,5 @@
 #!/bin/bash
-# ATLAS 1.0.2 – Update nur des lokalen ATLAS-Dienstes (Backend). Die App bleibt unverändert.
+# ATLAS 1.0.3 – Update nur des lokalen ATLAS-Dienstes (Backend). Die App bleibt unverändert.
 # Neu: Sicherheitsschutz, Formatwächter, Denkmodus für Rechnen/Logik, Pfad-Korrektur, Suche mit mehreren Diensten.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -38,8 +38,8 @@ if ! atlas_verify_service; then
   exit 1
 fi
 echo
-echo 'ATLAS 1.0.2 ist aktiv. Gespräche, Gedächtnis und Modelle bleiben erhalten.'
+echo 'ATLAS 1.0.3 ist aktiv. Gespräche, Gedächtnis und Modelle bleiben erhalten.'
 echo "Sicherung des alten Stands: $ATLAS_INSTALL_ROOT/Backend-backup-$stamp"
-echo 'Jetzt die ATLAS-App wieder starten und danach die Gesamtprüfung laufen lassen.'
+echo 'Jetzt die ATLAS-App wieder starten, dann ATLAS_OPTIMIEREN.command und danach die Gesamtprüfung.'
 trap - EXIT
 read -r -p 'Fertig. Enter zum Schließen …' _
