@@ -1,0 +1,20 @@
+ATLAS 0.8.2 – Automatischer Praxistest
+
+1. Ollama auf dem Mac starten (falls noch nicht gestartet).
+2. Ordner ATLAS-34-TESTS öffnen.
+3. 3_AUTOMATISCHER_PRAXISTEST.command doppelklicken.
+4. Ergebnis liegt in Downloads/ATLAS-Testberichte/atlas-praxistest-auto.json.
+5. Diese JSON-Datei im Chat hochladen.
+
+Der Test startet einen separaten lokalen ATLAS-Backendprozess mit leerer Testdatenbank
+in einem temporären Ordner. Die normalen Erinnerungen und Chats bleiben unberührt.
+Der Test führt KEINE echten Lösch-, Finder- oder App-Steuerungsaktionen aus.
+
+Umfang: 57 bisher manuelle Aufgaben werden im Bericht erfasst.
+10 Aufgaben werden durch echte Chat-Anfragen an ATLAS vorläufig geprüft,
+6 Aufgaben durch technische API-Teilprüfungen untersucht.
+Die übrigen Aufgaben bleiben als manuell erforderlich markiert.
+Heuristisch bewertete Chat-Antworten gelten nicht als unabhängig verifiziert.
+
+Für das Starten sind Python 3 und der im Paket enthaltene Backend-Quellcode erforderlich.
+Eine installierte lokale Ollama-Version ist für die Chat-Tests notwendig.

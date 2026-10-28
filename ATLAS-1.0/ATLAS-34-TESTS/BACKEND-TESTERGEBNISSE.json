@@ -1,0 +1,161 @@
+{
+  "backend_passed": 197,
+  "test_runner_passed": 14,
+  "timeout_modules": 5,
+  "results": [
+    {
+      "module": "test_intelligence_challenges.py",
+      "status": "PASS",
+      "count": 3,
+      "details": "\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK\n",
+      "seconds": 0.98
+    },
+    {
+      "module": "test_intelligence_reliability.py",
+      "status": "PASS",
+      "count": 4,
+      "details": "\n----------------------------------------------------------------------\nRan 4 tests in 0.000s\n\nOK\n",
+      "seconds": 0.9
+    },
+    {
+      "module": "test_intents.py",
+      "status": "PASS",
+      "count": 16,
+      "details": "\n----------------------------------------------------------------------\nRan 16 tests in 0.545s\n\nOK\n",
+      "seconds": 1.49
+    },
+    {
+      "module": "test_knowledge_safety.py",
+      "status": "PASS",
+      "count": 2,
+      "details": "\n----------------------------------------------------------------------\nRan 2 tests in 0.050s\n\nOK\n",
+      "seconds": 1.01
+    },
+    {
+      "module": "test_knowledge_scaling.py",
+      "status": "PASS",
+      "count": 3,
+      "details": "\n----------------------------------------------------------------------\nRan 3 tests in 0.038s\n\nOK\n",
+      "seconds": 0.88
+    },
+    {
+      "module": "test_learning.py",
+      "status": "PASS",
+      "count": 11,
+      "details": "\n----------------------------------------------------------------------\nRan 11 tests in 5.633s\n\nOK\n",
+      "seconds": 6.45
+    },
+    {
+      "module": "test_mac_reports.py",
+      "status": "PASS",
+      "count": 2,
+      "details": "\n----------------------------------------------------------------------\nRan 2 tests in 0.839s\n\nOK\n",
+      "seconds": 1.73
+    },
+    {
+      "module": "test_model_selection.py",
+      "status": "PASS",
+      "count": 1,
+      "details": "Echte Modelltests mit: qwen3:4b-instruct-2507-q4_K_M\n=== Modell qwen3:4b-instruct-2507-q4_K_M ===\nqwen3:4b-instruct-2507-q4_K_M    1/1 bestanden, Ø 1.0 s\nBestes Modell: qwen3:4b-instruct-2507-q4_K_M – eingetragen in /tmp/tmpc68pbnzj/settings.json\nErgebnis echte Modelltests: 1 BESTANDEN, 0 FEHLGESCHLAGEN, 0 NICHT AUSGEFÜHRT (von 1).\n\n----------------------------------------------------------------------\nRan 1 test in 0.004s\n\nOK\n",
+      "seconds": 0.87
+    },
+    {
+      "module": "test_native.py",
+      "status": "PASS",
+      "count": 12,
+      "details": "\n----------------------------------------------------------------------\nRan 12 tests in 0.553s\n\nOK\n",
+      "seconds": 1.52
+    },
+    {
+      "module": "test_oneclick_intelligence.py",
+      "status": "PASS",
+      "count": 4,
+      "details": "\n----------------------------------------------------------------------\nRan 4 tests in 0.000s\n\nOK\n",
+      "seconds": 0.84
+    },
+    {
+      "module": "test_privacy.py",
+      "status": "PASS",
+      "count": 3,
+      "details": "\n----------------------------------------------------------------------\nRan 3 tests in 1.507s\n\nOK\n",
+      "seconds": 2.46
+    },
+    {
+      "module": "test_realtests.py",
+      "status": "TIMEOUT",
+      "count": null,
+      "details": "Command '['python3', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_realtests.py', '-q']' timed out after 12 seconds",
+      "seconds": 12.02
+    },
+    {
+      "module": "test_reasoning_engine.py",
+      "status": "PASS",
+      "count": 5,
+      "details": "\n----------------------------------------------------------------------\nRan 5 tests in 0.000s\n\nOK\n",
+      "seconds": 0.99
+    },
+    {
+      "module": "test_release_070.py",
+      "status": "PASS",
+      "count": 12,
+      "details": "\n----------------------------------------------------------------------\nRan 12 tests in 2.658s\n\nOK\n",
+      "seconds": 3.65
+    },
+    {
+      "module": "test_research.py",
+      "status": "PASS",
+      "count": 6,
+      "details": "\n----------------------------------------------------------------------\nRan 6 tests in 1.019s\n\nOK\n",
+      "seconds": 1.75
+    },
+    {
+      "module": "test_robustness.py",
+      "status": "PASS",
+      "count": 9,
+      "details": "\n[Messung Linux] Erinnerungsauswahl aus 500 Einträgen: 7.0 ms, Speicherspitze 0.0 MB\n\n[Messung Linux, Modell simuliert] Eigenaufwand bis zum ersten Wort: Median 0.6 ms\n\n----------------------------------------------------------------------\nRan 9 tests in 4.718s\n\nOK\n",
+      "seconds": 5.71
+    },
+    {
+      "module": "test_sandbox.py",
+      "status": "PASS",
+      "count": 5,
+      "details": "\n----------------------------------------------------------------------\nRan 5 tests in 0.015s\n\nOK (skipped=2)\n",
+      "seconds": 0.82
+    },
+    {
+      "module": "test_scripts.py",
+      "status": "PASS",
+      "count": 8,
+      "details": "\n----------------------------------------------------------------------\nRan 8 tests in 0.936s\n\nOK\n",
+      "seconds": 1.65
+    },
+    {
+      "module": "test_skills.py",
+      "status": "TIMEOUT",
+      "count": null,
+      "details": "Command '['python3', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_skills.py', '-q']' timed out after 12 seconds",
+      "seconds": 12.02
+    },
+    {
+      "module": "test_tasks.py",
+      "status": "PASS",
+      "count": 5,
+      "details": "\n----------------------------------------------------------------------\nRan 5 tests in 3.282s\n\nOK\n",
+      "seconds": 4.2
+    },
+    {
+      "module": "test_tools.py",
+      "status": "TIMEOUT",
+      "count": null,
+      "details": "Command '['python3', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_tools.py', '-q']' timed out after 12 seconds",
+      "seconds": 12.03
+    },
+    {
+      "module": "test_wissen_export.py",
+      "status": "PASS",
+      "count": 2,
+      "details": "\n----------------------------------------------------------------------\nRan 2 tests in 0.013s\n\nOK\n",
+      "seconds": 1.15
+    }
+  ]
+}
