@@ -222,7 +222,8 @@ UNKNOWN = ('weiß ich nicht', 'weiss ich nicht', 'nicht bekannt', 'keine informa
            'kenne ich nicht', 'habe ich keine', 'habe keine', 'keinen zugriff', 'nicht möglich', 'unmöglich',
            'niemand kann', 'nicht wissen', 'nicht messbar', 'nicht feststellen', 'keine verlässlich', 'nicht sagen',
            'nicht zuverlässig', 'nicht beantworten', 'weiß nicht', 'unbekannt', 'zukunft', 'noch nicht', 'keine daten',
-           'nicht angeben', 'nicht nennen', 'ich keine', 'keine persönlichen', 'keine kontaktdaten')
+           'nicht angeben', 'nicht nennen', 'ich keine', 'keine persönlichen', 'keine kontaktdaten',
+           'kann keine', 'nicht erlebt', 'nicht dabei', 'nicht wiedergeben')
 
 
 def zugibt_unwissen(forbid_numbers: bool = False):
