@@ -70,6 +70,9 @@ def plan(text):
         return {'kind':'tools','steps':[{'name':'remember','input':{'content':content[:1].upper()+content[1:],'category':'Sonstiges'}}]}
     if t.rstrip('.?!') in ('was weißt du über mich','was hast du dir gemerkt','zeige meine erinnerungen','what do you remember about me'):
         return {'kind':'tools','steps':[{'name':'list_memories','input':{}}]}
+    word_answer=text_operation(text)
+    if word_answer is not None:return {'kind':'answer','answer':word_answer}
+    t=re.sub(r'\s*[?.!]?\s*(?:antworte\s+)?(?:nur|ausschließlich)\s+(?:mit\s+)?(?:der|die)?\s*(?:zahl|ergebnis|das ergebnis)\s*[.!]?\s*$','',t)
     question=re.sub(r'^(?:was ist|was sind|was ergibt|wie viel ist|wieviel ist|wie viel sind|wieviel sind|wie viel macht|berechne|rechne|what is|calculate)\s+','',t)
     question=re.sub(r'\s*(?:[?=]|\.(?!\d))$','',question)
     question=normalize_expression(question)
@@ -77,3 +80,25 @@ def plan(text):
         answer=calculate(question)
         if answer is not None:return {'kind':'answer','answer':answer}
     return {'kind':'chat'}
+
+
+_Q = r'[„"\'»]?'
+_QE = r'[“"\'«]?'
+
+def text_operation(text):
+    """Buchstabenaufgaben exakt statt geschätzt: Sprachmodelle sehen Wortteile, nicht einzelne Buchstaben."""
+    t=text.strip()
+    reverse=re.search(r'(?i)\b(?:das wort|den namen|wort)?\s*'+_Q+r'([A-Za-zÄÖÜäöüß]{2,40})'+_QE+r'\s+(?:rückwärts|von hinten nach vorne|in umgekehrter reihenfolge)',t)
+    if reverse and re.search(r'(?i)\b(?:schreib\w*|buchstabier\w*|wie lautet|gib|nenne)\b',t):
+        word=reverse.group(1)[::-1]
+        if re.search(r'(?i)großbuchstaben|versalien|groß geschrieben',t):word=word.upper()
+        elif re.search(r'(?i)kleinbuchstaben|klein geschrieben',t):word=word.lower()
+        return word
+    count=re.search(r'(?i)wie (?:oft|viele male?) (?:kommt|steht|enthält)?\s*(?:der buchstabe\s*)?'+_Q+r'([A-Za-zÄÖÜäöüß])'+_QE+r'\s+(?:in|im wort)\s+'+_Q+r'([A-Za-zÄÖÜäöüß]{2,40})'+_QE,t)
+    if count:
+        letter,word=count.group(1).lower(),count.group(2).lower()
+        return str(word.count(letter))
+    length=re.search(r'(?i)wie viele buchstaben hat (?:das wort\s*)?'+_Q+r'([A-Za-zÄÖÜäöüß]{1,40})'+_QE,t)
+    if length:
+        return str(len(length.group(1)))
+    return None

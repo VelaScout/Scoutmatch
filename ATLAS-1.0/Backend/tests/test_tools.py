@@ -117,7 +117,9 @@ class ToolTests(unittest.TestCase):
         self.assertEqual((self.home / 'Documents' / 'a.txt').read_text(), 'alt')
         tool = self.tools['write_file']
         self.assertEqual(tool.risk_of({'path': 'x', 'content': 'y'}), t.SAFE)
-        self.assertEqual(tool.risk_of({'path': 'x', 'content': 'y', 'overwrite': True}), t.CONFIRM)
+        self.assertEqual(tool.risk_of({'path': '~/Documents/a.txt', 'content': 'y', 'overwrite': True}), t.CONFIRM)
+        # 1.0.1: Eine NEUE Datei ersetzt nichts – auch mit overwrite=true keine Rückfrage (Mac-Lauf: ordner_und_datei).
+        self.assertEqual(tool.risk_of({'path': '~/Documents/neu.txt', 'content': 'y', 'overwrite': True}), t.SAFE)
 
     @unittest.skipUnless(HAS_PYPDF, 'pypdf fehlt (wird vom Installer in die Atlas-Umgebung installiert)')
     def test_read_text_pdf_and_listing(self):

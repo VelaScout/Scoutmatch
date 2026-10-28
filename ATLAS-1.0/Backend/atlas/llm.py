@@ -27,6 +27,8 @@ CHAT_PREFERENCE = INSTRUCT_MODELS + ['qwen3:4b', 'qwen3:8b']
 # Ein schnelles Modell für Gespräch UND Werkzeuge spart auf 16 GB Speicher und Ladezeit. qwen3:4b-instruct-2507
 # ruft Werkzeuge zuverlässig auf; der Mac-Test (atlas.realtests --compare) prüft das und kann umstellen.
 AGENT_PREFERENCE = INSTRUCT_MODELS + ['qwen3:8b', 'qwen3:14b', 'qwen3:4b']
+# Denkmodelle (Qwen3 mit Denkschritt) – die Instruct-2507-Varianten können nicht denken.
+REASONING_PREFERENCE = ['qwen3:14b', 'qwen3:8b', 'qwen3:4b']
 VISION_PREFERENCE = ['gemma3:4b', 'qwen2.5vl:7b', 'gemma3:12b', 'llava:7b', 'minicpm-v']
 EMBED_PREFERENCE = ['qwen3-embedding:0.6b', 'nomic-embed-text', 'nomic-embed-text:latest', 'mxbai-embed-large']
 
@@ -110,6 +112,14 @@ class Ollama:
         if preferred and preferred in names:
             return preferred
         return self.require(AGENT_PREFERENCE)
+
+    def reasoning_model(self) -> str | None:
+        """Modell mit Denkschritt (think=True) für Rechen- und Logikaufgaben, falls installiert."""
+        names = self.installed()
+        preferred = self.preferred.get('reasoning')
+        if preferred and preferred in names:
+            return preferred
+        return next((m for m in REASONING_PREFERENCE if m in names), None)
 
     def reasoning_only(self, model: str) -> bool:
         """Prüft einmal je Modell, ob es trotz think=false ein Selbstgespräch voranstellt."""

@@ -7,6 +7,21 @@ _COMPLEX = re.compile(r'\b(?:analysier\w*|begründe\w*|beweise\w*|widerlege\w*|v
                       r'komplex\w*|mehrstufig\w*|schritt.für.schritt|denk\w*.*gründlich|'
                       r'analyze|prove|critically|step.by.step|reason through)\b', re.I)
 
+_NUMBER = re.compile(r'\d+(?:[.,]\d+)?|\b(?:doppelt|dreimal|viermal|halb|hälfte|drittel|viertel)\b', re.I)
+_ASK = re.compile(r'\b(?:wie viele?|wie hoch|wie alt|wie groß|wie lange?|wie weit|wann|welche zahl|um wie viel|'
+                  r'how many|how much|how old|how long)\b', re.I)
+_LOGIC = re.compile(r'\b(?:folgt daraus|zwingend|widersprüch\w*|wer ist am \w+|kann diese aussage|lüg\w*|'
+                    r'setzt die reihe fort|welcher wochentag|wahr sein|logisch|rätsel)\b', re.I)
+
+
+def is_reasoning_task(text: str) -> bool:
+    """Textaufgaben (mehrere Zahlen + Rechenfrage) und Logikfragen: hier lohnt der Denkschritt."""
+    t = text or ''
+    if _LOGIC.search(t):
+        return True
+    return bool(_ASK.search(t)) and len(_NUMBER.findall(t)) >= 2
+
+
 def should_deliberate(text: str) -> bool:
     return bool(_COMPLEX.search(text or ''))
 

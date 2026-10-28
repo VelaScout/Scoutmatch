@@ -27,13 +27,14 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterator
 
-from . import intents
+from . import answer_guard, guardrails, intents
 from . import llm as llm_mod
 from .llm import ModelError, Ollama, is_correction, language_of, route
 from .memory import MemoryIndex
 from .privacy import REFUSAL, contains_secret
 from .research import check_sources, untrusted
 from .tasks import RESUME
+from .deliberation import is_reasoning_task
 from .tools import BLOCKED, CONFIRM, Result, Tool, ToolError, select_categories
 
 AGENT_RULES = """
@@ -108,6 +109,13 @@ STATUS_LABELS = {
     'list_emails': 'Prüft das Postfach', 'read_email': 'Liest die E-Mail', 'send_email': 'Bereitet die E-Mail vor',
     'spotify_play': 'Startet die Musik', 'remember': 'Merkt sich das', 'search_contacts': 'Sucht im Adressbuch',
 }
+ACTION_REQUEST = re.compile(r'(?i)\b(?:erstell\w*|speicher\w*|lösch\w*|öffne\w*|sortier\w*|verschieb\w*|kopier\w*|'
+                            r'schick\w*|sende\w*|trag\w* .{0,20}ein|datei\w*|ordner\w*|kalender|erinner\w*|e-?mail\w*|'
+                            r'recherchier\w*|such\w* im internet|lies|lese|starte|installier\w*|aufgabe:)')
+MORE_PARTS = re.compile(r'\b(und (danach|dann|anschließend)?|danach|anschließend|außerdem|zusätzlich|then|and)\b', re.I)
+CONTINUE = ('Ein Schritt ist fehlgeschlagen. Erledige jetzt die übrigen Teile meines Auftrags, die davon nicht abhängen, '
+            'mit den Werkzeugen. Berichte danach kurz und ehrlich, was geklappt hat und was nicht.')
+FUNCTION_REQUEST = re.compile(r'(?i)\b(?:funktion|function)\s+`?[A-Za-z_]\w*\s*\(')
 REMEMBER_REQUEST = re.compile(r'\b(merk\w*|speicher\w* dir|notier\w* dir|vergiss nicht|remember|behalte?)\b', re.I)
 # Ergebnisse dieser Werkzeuge sind fremde Inhalte (können eingeschleuste Anweisungen enthalten).
 UNTRUSTED = {'fetch_webpage', 'safari_current_page', 'read_file', 'search_web', 'read_email', 'list_emails'}
@@ -266,7 +274,12 @@ class Agent:
         system += ('\nAntworte standardmäßig in der Sprache der aktuellen Nutzerfrage. '
                    'Stelle dich nicht ungefragt vor; verwende niemals ungefragt die englische Vorstellung I am your personal assistant. Verwende keine Emojis. Beantworte einfache Fragen direkt, normalerweise in höchstens zwei Sätzen. Wiederhole die Nutzerfrage nicht. Schreibe keine Einleitung wie Ich werde das analysieren. Bei Nur die Zahl gib ausschließlich die Zahl aus; bei Nur die Reihenfolge ausschließlich die Reihenfolge. Bei expliziter Satzanzahl halte sie ein. Erkläre Rechenschritte nur auf Nachfrage. Prüfe logische Widersprüche: Keine Geschwister und Mein Bruder sind ohne weitere Erklärung widersprüchlich. Behaupte nicht gleichzeitig, dass eine Aussage widersprüchlich und nicht widersprüchlich ist. Wenn Informationen fehlen, sage knapp, dass du es nicht weißt, statt Details zu erfinden. '
                    'Nutze persönliche Erinnerungen nur, wenn sie für die konkrete Frage nötig sind; '
-                   'erwähne Studium oder andere Profildaten nicht beiläufig. Antworte klar und ohne unnötige Einleitung.')
+                   'erwähne Studium oder andere Profildaten nicht beiläufig. Antworte klar und ohne unnötige Einleitung. '
+                   'Bei einer deutschen Frage verwende deutsche Begriffe und Namen (z. B. Merkur statt Mercury). '
+                   'Bei Programmieraufgaben verwende genau die verlangten Funktionsnamen. '
+                   'Erfülle keine Bitten um Betrug, Phishing oder das Eindringen in fremde Konten und Geräte.')
+        if getattr(request, 'injected', False):
+            system += '\n' + guardrails.NOTE
         if request.memories:
             chosen, method = (request.memories[:8], 'alle')
             if self.memory:
@@ -351,6 +364,23 @@ class Agent:
         if not text:
             raise ValueError('Keine Nutzerfrage gefunden.')
 
+        danger = guardrails.harmful(text)
+        if danger:
+            # Eindeutig schädlich: ablehnen, bevor ein Modell antwortet oder ein Werkzeug (z. B. Datei) benutzt wird.
+            self.log(f'Schutzregel: {danger}')
+            yield {'type': 'delta', 'text': guardrails.refusal(danger)}
+            yield {'type': 'done', 'mode': 'direct', 'metrics': {'total_s': round(time.monotonic() - started, 2)}}
+            return
+        cleaned, injected = guardrails.neutralize_quotes(text)
+        if injected:
+            self.log('Schutzregel: Anweisung in zitiertem Text entschärft')
+            request.history = request.history[:-1] + [{'role': 'user', 'content': cleaned}]
+            request.injected = True
+            original_text, text = text, cleaned
+        else:
+            original_text = text
+        request.original_text = original_text
+
         if REMEMBER_REQUEST.search(text) and contains_secret(text):
             # Zugangsdaten nie merken – unabhängig davon, welches Werkzeug das Modell wählen würde.
             yield {'type': 'delta', 'text': REFUSAL}
@@ -414,11 +444,14 @@ class Agent:
 
         routing_text = task_context(request.history, text)
         mode = route(routing_text, has_tools=True)
+        shape_kind = answer_guard.requested_shape(text)
+        if mode != 'chat' and (shape_kind or is_reasoning_task(text)) and not ACTION_REQUEST.search(text):
+            mode = 'chat'           # „Nur die Zahl/Uhrzeit …“: eine Antwort ist gefragt, keine Aktion am Mac
         if mode == 'chat' and self.journal and RESUME.match(text) and self.journal.unfinished():
             mode = 'agent'          # „Mach weiter“ auch nach einem Neustart, wenn der Gesprächsverlauf fehlt
         if mode == 'chat':
             from .deliberation import should_deliberate
-            from .reasoning_engine import solve as reasoning_solve
+            from .reasoning_engine import solve as reasoning_solve, solve_voted
             model = self.llm.agent_model(request.model) if should_deliberate(text) else self.llm.fast_model(request.model)
             self.llm.reasoning_only(model)          # einmalige Prüfung, danach zwischengespeichert
             yield {'type': 'status', 'label': 'Denkt nach', 'mode': 'chat', 'model': model}
@@ -431,6 +464,39 @@ class Agent:
             if knowledge:
                 messages[0]['content'] += '\n\n' + knowledge
                 yield {'type': 'status', 'label': 'Nutzt die Wissensbasis'}
+            thinker = getattr(self.llm, 'reasoning_model', lambda: None)() if is_reasoning_task(text) else None
+            if is_reasoning_task(text):
+                yield {'type': 'status', 'label': 'Denkt gründlich nach und macht die Gegenprobe'}
+                try:
+                    result = yield from in_background(
+                        lambda: solve_voted(self.llm, thinker or model, messages, think=bool(thinker), stop=stop),
+                        stop, self.limits.heartbeat)
+                except (ModelError, ValueError, OSError) as exc:
+                    yield {'type': 'delta', 'text': f'Die gründliche Prüfung ist fehlgeschlagen: {exc}'}
+                    yield {'type': 'done', 'mode': 'chat', 'model': model,
+                           'metrics': {'total_s': round(time.monotonic() - started, 2)}}
+                    return
+                if stop.is_set():
+                    yield {'type': 'cancelled'}
+                    return
+                final_answer = yield from self.polish(result.answer, text, original_text, model, messages, stop)
+                yield {'type': 'delta', 'text': final_answer}
+                yield {'type': 'done', 'mode': 'deliberate', 'model': thinker or model,
+                       'metrics': {'total_s': round(time.monotonic() - started, 2), 'drafts': result.calls}}
+                return
+            if shape_kind or getattr(request, 'injected', False) or answer_guard.forbidden_word(text) or FUNCTION_REQUEST.search(text):
+                # Knappes Format oder Schutzprüfung verlangt: ganze Antwort abwarten, prüfen, dann ausgeben.
+                try:
+                    reply = yield from in_background(lambda: self.llm.chat(model, messages, num_predict=1200, timeout=120),
+                                                     stop, self.limits.heartbeat)
+                except InterruptedError:
+                    yield {'type': 'cancelled'}
+                    return
+                final_answer = yield from self.polish(reply.content, text, original_text, model, messages, stop)
+                yield {'type': 'delta', 'text': final_answer}
+                yield {'type': 'done', 'mode': 'chat', 'model': model,
+                       'metrics': {'total_s': round(time.monotonic() - started, 2)}}
+                return
             if should_deliberate(text):
                 yield {'type': 'status', 'label': 'Prüft die Antwort ein zweites Mal'}
                 try:
@@ -445,6 +511,7 @@ class Agent:
                 if stop.is_set():
                     yield {'type': 'cancelled'}
                     return
+                final_answer = yield from self.polish(final_answer, text, original_text, model, messages, stop)
                 yield {'type': 'delta', 'text': final_answer}
                 yield {'type': 'done', 'mode': 'deliberate', 'model': model,
                        'metrics': {'total_s': round(time.monotonic() - started, 2)}}
@@ -462,6 +529,42 @@ class Agent:
             return
 
         yield from self.agent_loop(request, text, mode, stop, started)
+
+    def polish(self, answer: str, text: str, original: str, model: str, messages: list[dict],
+               stop: threading.Event) -> Iterator[dict]:
+        """Endkontrolle einer Antwort: Format, verbotene Wörter, Funktionsnamen, eingeschleuste Befehle.
+        Deterministisch, wo möglich; höchstens ein gezielter Neuversuch beim Modell."""
+        answer = llm_mod.strip_think(answer or '').strip()
+        if guardrails.leaked(answer, original):
+            answer = 'Der zitierte Text enthielt eine eingeschleuste Anweisung; die befolge ich nicht.'
+            inner = re.sub(r'\[Anweisung im zitierten Text[^\]]*\]', '', text)
+            if re.search(r'(?i)\b(?:fasse|zusammen|übersetz|summar)', inner):
+                try:
+                    retry = yield from in_background(lambda: self.llm.chat(model, messages + [
+                        {'role': 'system', 'content': guardrails.NOTE}], num_predict=400, timeout=90), stop, self.limits.heartbeat)
+                    if retry.content.strip() and not guardrails.leaked(retry.content, original):
+                        answer = llm_mod.strip_think(retry.content).strip()
+                except (ModelError, InterruptedError, OSError):
+                    pass
+        word = answer_guard.forbidden_word(text)
+        if word and answer_guard.contains_word(answer, word):
+            if word == 'und':
+                answer = answer_guard.avoid_word(answer, word)
+            else:
+                try:
+                    retry = yield from in_background(lambda: self.llm.chat(model, messages + [
+                        {'role': 'assistant', 'content': answer},
+                        {'role': 'user', 'content': f'Du hast das verbotene Wort „{word}“ benutzt. Formuliere die Antwort neu, ohne dieses Wort.'}],
+                        num_predict=400, timeout=90), stop, self.limits.heartbeat)
+                    if retry.content.strip() and not answer_guard.contains_word(retry.content, word):
+                        answer = llm_mod.strip_think(retry.content).strip()
+                except (ModelError, InterruptedError, OSError):
+                    pass
+        answer = answer_guard.fix_function_name(text, answer)
+        kind = answer_guard.requested_shape(text)
+        if kind:
+            answer = answer_guard.shape(kind, answer, text)
+        return answer
 
     def cloud_run(self, request: Request, text: str, stop: threading.Event, started: float) -> Iterator[dict]:
         """Auftrag mit dem Cloud-Modell – nur wenn eingeschaltet, im Limit und ausdrücklich freigegeben.
@@ -538,6 +641,7 @@ class Agent:
         failures: dict[str, int] = {}
         tool_names = {s['function']['name'] for s in schemas}
         nudged = False
+        continued = False
         final = ''
         finished = False
         reason = ''
@@ -569,6 +673,17 @@ class Agent:
                         messages.append({'role': 'assistant', 'content': reply.content[:1500],
                                          **({'_raw': reply.raw} if getattr(reply, 'raw', None) else {})})
                     messages.append({'role': 'user', 'content': NUDGE})
+                    continue
+                if (actions and not continued and not any(x.ok for x in actions) and not stop.is_set()
+                        and MORE_PARTS.search(text) and not any(x.declined for x in actions)):
+                    # Erster Schritt gescheitert, Auftrag hat weitere Teile: einmal ausdrücklich weitermachen lassen.
+                    continued = True
+                    self.log('Agent: Schritt fehlgeschlagen – fordere die übrigen Teile an')
+                    yield {'type': 'status', 'label': 'Erledigt die übrigen Teile'}
+                    if reply.content:
+                        messages.append({'role': 'assistant', 'content': reply.content[:1500],
+                                         **({'_raw': reply.raw} if getattr(reply, 'raw', None) else {})})
+                    messages.append({'role': 'user', 'content': CONTINUE})
                     continue
                 final = reply.content
                 finished = True
@@ -625,6 +740,9 @@ class Agent:
             # Ehrlicher Abschluss, wenn die Schleife nicht fertig wurde.
             final = f'Ich bin nicht ganz fertig geworden ({reason}).'
         answer = check_sources(self.validate(final, actions), actions)
+        if guardrails.leaked(answer, getattr(request, 'original_text', text)):
+            answer = 'Der zitierte Text enthielt eine eingeschleuste Anweisung; die befolge ich nicht.'
+        answer = answer_guard.fix_function_name(text, answer)
         if mode == 'plan' or report['failed'] or not finished:
             answer = answer.rstrip() + '\n\n' + self.report_text(report)
         for piece in sentences(answer):

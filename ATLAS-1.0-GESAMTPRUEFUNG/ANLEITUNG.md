@@ -15,12 +15,16 @@ Abbrechen geht jederzeit (Ctrl+C oder Fenster schließen). Beim nächsten Start 
 ## Was geprüft wird
 | Teil | Inhalt | Bewertung |
 |---|---|---|
-| Fragenkatalog (73 Aufgaben, 81 Antworten) | Rechnen, Logik, Wissen, Deutsch, Englisch, Anweisungen, Gesprächskontext, Programmieren, Ehrlichkeit, Sicherheit, Identität, Zuverlässigkeit (3 Wiederholungen) | automatisch nach festen Regeln; Code wird in der macOS-Sandbox ausgeführt |
+| Fragenkatalog (75 Aufgaben, 83 Antworten) | Rechnen, Logik, Wissen, Deutsch, Englisch, Anweisungen, Gesprächskontext, Programmieren, Ehrlichkeit, Sicherheit, Identität, Zuverlässigkeit (3 Wiederholungen) | automatisch nach festen Regeln; Code wird in der macOS-Sandbox ausgeführt |
 | Arbeitsaufgaben | 24 echte Aufgaben mit Dateien, Word, Excel, PDF, PowerPoint, Code – in einem Test-Benutzerordner | Ergebnis wird in den Dateien nachgeprüft |
 | System | Spracherkennung (synthetische Stimme), Sandbox | automatisch |
 | Antwortzeiten | erste Ausgabe und vollständige Antwort | gemessen |
 | Claude (optional) | dieselben Fragen, derselbe Rahmen | Spalte „Claude“ im Bericht |
 | Nicht automatisch | Stimme klingt natürlich, Mikrofon im Alltag, Bilder/Video, Gedächtnis über Tage, Kalender/Mail | als NICHT AUSGEFÜHRT mit Anleitung |
+
+## Ziel: mindestens Claude-Niveau
+In jedem Bereich ist das Ziel 100 % – so viel schafft ein Spitzenmodell wie Claude oder ChatGPT bei diesen klar
+lösbaren Aufgaben. Mit Claude-Vergleich zeigt die Spalte „ATLAS ≥ Claude“, ob ATLAS im selben Lauf mithält.
 
 ## Ehrlich
 - Drei Zustände: BESTANDEN, FEHLGESCHLAGEN, NICHT AUSGEFÜHRT. Nichts gilt ohne Prüfung als bestanden.

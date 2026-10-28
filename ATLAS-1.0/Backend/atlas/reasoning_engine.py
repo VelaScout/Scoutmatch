@@ -4,8 +4,11 @@ No hidden chain of thought requested; never treats self-judgment as external evi
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
-from .answer_guard import requested_format, conforms
+
+from .llm import strip_think
+from .answer_guard import requested_format, conforms, requested_shape, shape
 
 
 @dataclass(frozen=True)
@@ -84,3 +87,48 @@ def solve(llm, model: str, messages: list[dict], *, stop=None) -> ReasoningResul
             final = corrected
         # Never pretend the formatting was repaired when it was not.
     return ReasoningResult(final, (drafts[0], drafts[1]), drafts[0] != drafts[1], calls)
+
+
+VOTE_PROMPT = ('Löse die Aufgabe sorgfältig und Schritt für Schritt im Kopf. Prüfe dein Ergebnis mit einer Gegenprobe '
+               '(z. B. durch Einsetzen). Achte auf typische Denkfallen. Gib danach NUR die Endantwort aus, genau im '
+               'verlangten Format und in der Sprache der Frage – ohne Rechenweg.')
+
+
+def _key(kind: str | None, answer: str) -> str:
+    text = answer.strip().lower().rstrip('.')
+    if kind == 'number':
+        return text.replace(',', '.')
+    return re.sub(r'\s+', ' ', text)
+
+
+def solve_voted(llm, model: str, messages: list[dict], *, think: bool = True, stop=None, max_drafts: int = 3) -> ReasoningResult:
+    """Unabhängige Lösungen (mit Denkschritt), bis zwei übereinstimmen – Mehrheitsentscheid statt Selbstbewertung.
+    Höchstens drei Modellaufrufe. Stimmen keine zwei überein, wird das offen gesagt."""
+    question = next((m.get('content', '') for m in reversed(messages) if m.get('role') == 'user'), '')
+    kind = requested_shape(question)
+    answers: list[str] = []
+    counts: dict[str, int] = {}
+    for _ in range(max_drafts):
+        if stop is not None and stop.is_set():
+            break
+        reply = llm.chat(model, messages + [{'role': 'system', 'content': VOTE_PROMPT}], think=think,
+                         num_predict=6000 if think else 900, timeout=300, temperature=0.6 if think else 0.3)
+        content = strip_think(reply.content).strip()
+        if not content:
+            continue
+        final = shape(kind, content, question) if kind else content
+        answers.append(final)
+        key = _key(kind, final)
+        counts[key] = counts.get(key, 0) + 1
+        if counts[key] >= 2:
+            return ReasoningResult(final, (answers[0], answers[-1]), len(counts) > 1, len(answers))
+        if kind is None and len(answers) == 1 and max_drafts >= 1:
+            # Freitext lässt sich nicht abstimmen: eine sorgfältige Antwort genügt.
+            return ReasoningResult(final, (final, final), False, 1)
+    if not answers:
+        raise ValueError('Leere Antwort im Denkmodus')
+    if len(answers) >= 2 and kind is not None:
+        note = ' (Unsicher: Meine Lösungswege kamen zu unterschiedlichen Ergebnissen.)'
+        return ReasoningResult(answers[-1] + ('' if kind in ('number', 'yesno', 'time', 'word') else note),
+                               (answers[0], answers[-1]), True, len(answers))
+    return ReasoningResult(answers[-1], (answers[0], answers[-1]), False, len(answers))

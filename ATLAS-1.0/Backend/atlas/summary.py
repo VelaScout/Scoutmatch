@@ -39,6 +39,8 @@ def main() -> int:
         if real.get('executed'):
             lines.append(f"Echte Aufgaben: {counts['BESTANDEN']} BESTANDEN, {counts['FEHLGESCHLAGEN']} FEHLGESCHLAGEN, "
                          f"{counts['NICHT AUSGEFÜHRT']} NICHT AUSGEFÜHRT")
+            reached = counts['BESTANDEN'] == len(results) and results
+            lines.append(f"Ziel Claude-Niveau: alle {len(results)} bestanden – {'erreicht' if reached else 'noch nicht erreicht'}")
             feedback = sorted(r['first_feedback_s'] for r in results if r.get('first_feedback_s') is not None)
             totals = sorted(r['total_s'] for r in results if r.get('total_s') is not None)
             if feedback and totals:
