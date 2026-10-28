@@ -1,4 +1,14 @@
-# ATLAS 1.0.1 – was neu ist
+# ATLAS 1.0.2 – was neu ist
+
+## 1.0.2 (nach der Gesamtprüfung mit 1.0.1: 70 von 75)
+| Schwäche | Änderung |
+|---|---|
+| Synonym für „schnell“ → „schnell“ | Nennt ATLAS das Wort selbst, wird gezielt nach einem echten Synonym gefragt. |
+| Zusammenfassung ohne die wichtige Zahl (12 %) | Fehlen die Zahlen des Ausgangstexts, wird einmal neu zusammengefasst. |
+| „Die Rechnung fällt … aus“ (falsche Übersetzung) | Übersetzungen macht das Denkmodell. |
+| Gesamtprüfung hatte alte Arbeitsaufgaben übernommen | Werden nur noch bei gleicher ATLAS-Version übernommen; „neu beginnen“ misst alles neu. |
+
+## 1.0.1
 
 Grundlage: die Gesamtprüfung vom 28.10.2026 (55–57 von 73). Ziel in jedem Bereich: mindestens Claude-/ChatGPT-Niveau.
 
@@ -18,7 +28,7 @@ Grundlage: die Gesamtprüfung vom 28.10.2026 (55–57 von 73). Ziel in jedem Ber
 
 ## Installieren
 1. ATLAS-App beenden (Menüleiste → Beenden).
-2. `ATLAS_1_0_1_UPDATE.command` doppelklicken. Erst laufen alle Tests; nur wenn sie bestehen, wird der Dienst ausgetauscht
+2. `ATLAS_UPDATE.command` doppelklicken. Erst laufen alle Tests; nur wenn sie bestehen, wird der Dienst ausgetauscht
    (mit Sicherung; startet der neue Dienst nicht, wird automatisch der alte wiederhergestellt).
 3. ATLAS-App starten, dann `ATLAS-1.0-GESAMTPRUEFUNG/ATLAS_GESAMTPRUEFUNG.command` – am besten mit Claude-Vergleich.
 

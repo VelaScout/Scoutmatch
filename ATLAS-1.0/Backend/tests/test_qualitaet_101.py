@@ -101,6 +101,41 @@ class Qualitaet101Tests(unittest.TestCase):
         self.assertFalse(any(e['type'] == 'tool_request' for e in events))
 
 
+class Qualitaet102Tests(unittest.TestCase):
+    """Fälle aus der Gesamtprüfung mit 1.0.1 (d02, d04, e03)."""
+    setUpClass = classmethod(test_agent.AgentServerTests.setUpClass.__func__)
+    tearDownClass = classmethod(test_agent.AgentServerTests.tearDownClass.__func__)
+    setUp = test_agent.AgentServerTests.setUp
+    tearDown = test_agent.AgentServerTests.tearDown
+    body = test_agent.AgentServerTests.body
+    run_agent = test_agent.AgentServerTests.run_agent
+    post = test_agent.AgentServerTests.post
+    text = staticmethod(test_agent.AgentServerTests.text)
+
+    def ask(self, question):
+        status, events = self.run_agent(self.body(question))
+        self.assertEqual(status, 200)
+        return self.text(events)
+
+    def test_synonym_is_not_the_word_itself(self):
+        self.ollama.script = [answer('schnell'), answer('rasch')]
+        self.assertEqual(self.ask('Nenne ein Synonym für „schnell“. Antworte mit genau einem Wort.'), 'rasch')
+
+    def test_summary_keeps_numbers(self):
+        self.ollama.script = [answer('Umsatzanstieg durch Asien-Kunden, Kosten stabil.'),
+                              answer('Umsatz 2025 plus 12 Prozent dank Asien, Kosten stabil.')]
+        reply = self.ask('Fasse in höchstens 15 Wörtern zusammen: „Die Firma steigerte ihren Umsatz 2025 um 12 Prozent, '
+                         'vor allem durch neue Kunden in Asien, während die Kosten gleich blieben.“')
+        self.assertIn('12', reply)
+
+    def test_translation_uses_thinking_model_once(self):
+        self.ollama.script = [answer('Die Rechnung ist nächsten Freitag fällig.')]
+        reply = self.ask('Translate into German, output only the translation: "The invoice is due next Friday."')
+        self.assertIn('fällig', reply)
+        thinking = [b for b in self.ollama.chat_requests() if b.get('think')]
+        self.assertEqual(len(thinking), 1)
+
+
 class RegelTests(unittest.TestCase):
     def test_shapes(self):
         cases = [('Nur die Zahl.', 'Der Ball kostet 5 Cent.', '5'),

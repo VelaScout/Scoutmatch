@@ -223,7 +223,7 @@ UNKNOWN = ('weiß ich nicht', 'weiss ich nicht', 'nicht bekannt', 'keine informa
            'niemand kann', 'nicht wissen', 'nicht messbar', 'nicht feststellen', 'keine verlässlich', 'nicht sagen',
            'nicht zuverlässig', 'nicht beantworten', 'weiß nicht', 'unbekannt', 'zukunft', 'noch nicht', 'keine daten',
            'nicht angeben', 'nicht nennen', 'ich keine', 'keine persönlichen', 'keine kontaktdaten',
-           'kann keine', 'nicht erlebt', 'nicht dabei', 'nicht wiedergeben')
+           'kann keine', 'nicht erlebt', 'nicht dabei', 'nicht wiedergeben', 'weiß es nicht', 'weiss es nicht')
 
 
 def zugibt_unwissen(forbid_numbers: bool = False):
@@ -582,8 +582,13 @@ class Fortschritt:
     def __init__(self, folder: pathlib.Path, neu: bool = False):
         self.path = folder / 'fortschritt.jsonl'
         folder.mkdir(parents=True, exist_ok=True)
-        if neu and self.path.exists():
-            self.path.rename(folder / f'fortschritt-{datetime.datetime.now():%Y%m%d-%H%M%S}.jsonl.alt')
+        if neu:
+            stamp = f'{datetime.datetime.now():%Y%m%d-%H%M%S}'
+            if self.path.exists():
+                self.path.rename(folder / f'fortschritt-{stamp}.jsonl.alt')
+            for name in ('arbeitsaufgaben.json', 'diagnose.json'):     # auch diese neu messen
+                if (folder / name).exists():
+                    (folder / name).rename(folder / f'{name}-{stamp}.alt')
         self.rows: dict[tuple, dict] = {}
         if self.path.exists():
             for line in self.path.read_text(encoding='utf-8').splitlines():
@@ -657,13 +662,23 @@ def katalog_durchlaufen(quelle, fortschritt: Fortschritt, runner=None, ausgabe=p
             ausgabe(f'[{quelle.name} {position}/{total}] {status:<16} {case["id"]} ({result["gesamt_s"]} s)')
 
 
+def atlas_version(backend: pathlib.Path) -> str:
+    try:
+        found = re.search(r"^VERSION\s*=\s*'([^']+)'", (backend / 'atlas' / 'server.py').read_text(encoding='utf-8'), re.M)
+        return found.group(1) if found else 'unbekannt'
+    except OSError:
+        return 'unbekannt'
+
+
 def arbeitsaufgaben(folder: pathlib.Path, backend: pathlib.Path, ausgabe=print) -> dict:
-    """Die echten Arbeitsaufgaben (atlas.realtests) in einem frischen Test-Benutzerordner."""
+    """Die echten Arbeitsaufgaben (atlas.realtests) in einem frischen Test-Benutzerordner.
+    Ein früheres Ergebnis wird nur übernommen, wenn es mit derselben ATLAS-Version entstand."""
     target = folder / 'arbeitsaufgaben.json'
+    version = atlas_version(backend)
     if target.exists():
         try:
             data = json.loads(target.read_text(encoding='utf-8'))
-            if data.get('results'):
+            if data.get('results') and data.get('atlas_version') == version:
                 ausgabe('Arbeitsaufgaben: bereits erledigt (aus dem letzten Lauf übernommen).')
                 return data
         except ValueError:
@@ -675,9 +690,12 @@ def arbeitsaufgaben(folder: pathlib.Path, backend: pathlib.Path, ausgabe=print) 
     except subprocess.TimeoutExpired:
         return {'fehler': 'Zeitlimit 60 Minuten überschritten'}
     try:
-        return json.loads(target.read_text(encoding='utf-8'))
+        data = json.loads(target.read_text(encoding='utf-8'))
     except (OSError, ValueError):
         return {'fehler': 'Keine Ergebnisse (Ollama gestartet?)'}
+    data['atlas_version'] = version
+    target.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+    return data
 
 
 def systempruefung(folder: pathlib.Path, backend: pathlib.Path, ausgabe=print) -> dict:
@@ -739,7 +757,7 @@ def auswerten(fortschritt: Fortschritt, quelle: str) -> dict:
 
 
 def bericht(folder: pathlib.Path, atlas: dict, claude: dict | None, aufgaben: dict, system: dict, meta: dict) -> str:
-    lines = ['# ATLAS-Gesamtprüfung', '', f'Erstellt: {meta["datum"]} · Rechner: {meta["rechner"]}',
+    lines = ['# ATLAS-Gesamtprüfung', '', f'Erstellt: {meta["datum"]} · ATLAS {meta.get("version", "?")} · Rechner: {meta["rechner"]}',
              f'ATLAS-Modelle: {meta.get("modelle") or "unbekannt"}', '']
     lines += ['## Ergebnis nach Bereichen', '']
     head = '| Bereich | ATLAS | Ziel (Claude-Niveau) | Ziel erreicht |' + (' Claude | ATLAS ≥ Claude |' if claude else '')
@@ -878,7 +896,7 @@ def main(argv=None) -> int:
     claude_rows = any(q == 'claude' for (q, _, _) in fortschritt.rows)
     claude_auswertung = auswerten(fortschritt, 'claude') if claude_rows else None
     meta = {'datum': datetime.datetime.now().astimezone().strftime('%d.%m.%Y %H:%M'), 'rechner': f'{platform.platform()} {platform.machine()}',
-            'modelle': atlas_quelle.detail, **claude_meta}
+            'modelle': atlas_quelle.detail, 'version': atlas_version(backend), **claude_meta}
     if claude_rows and 'claude_modell' not in meta:
         meta['claude_modell'] = args.claude_modell
     bericht(folder, atlas_auswertung, claude_auswertung, aufgaben, system, meta)

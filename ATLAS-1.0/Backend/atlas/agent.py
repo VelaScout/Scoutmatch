@@ -115,6 +115,9 @@ ACTION_REQUEST = re.compile(r'(?i)\b(?:erstell\w*|speicher\w*|lösch\w*|öffne\w
 MORE_PARTS = re.compile(r'\b(und (danach|dann|anschließend)?|danach|anschließend|außerdem|zusätzlich|then|and)\b', re.I)
 CONTINUE = ('Ein Schritt ist fehlgeschlagen. Erledige jetzt die übrigen Teile meines Auftrags, die davon nicht abhängen, '
             'mit den Werkzeugen. Berichte danach kurz und ehrlich, was geklappt hat und was nicht.')
+TRANSLATION = re.compile(r'(?i)\b(?:übersetz\w*|translate\w*)\b')
+SYNONYM = re.compile(r'(?i)\bsynonym\w* (?:für|zu|von|for) [„"\']?([A-Za-zÄÖÜäöüß-]+)')
+SUMMARY = re.compile(r'(?i)\b(?:fasse|zusammenfass\w*|summari[sz]e)\b')
 FUNCTION_REQUEST = re.compile(r'(?i)\b(?:funktion|function)\s+`?[A-Za-z_]\w*\s*\(')
 REMEMBER_REQUEST = re.compile(r'\b(merk\w*|speicher\w* dir|notier\w* dir|vergiss nicht|remember|behalte?)\b', re.I)
 # Ergebnisse dieser Werkzeuge sind fremde Inhalte (können eingeschleuste Anweisungen enthalten).
@@ -277,6 +280,7 @@ class Agent:
                    'erwähne Studium oder andere Profildaten nicht beiläufig. Antworte klar und ohne unnötige Einleitung. '
                    'Bei einer deutschen Frage verwende deutsche Begriffe und Namen (z. B. Merkur statt Mercury). '
                    'Bei Programmieraufgaben verwende genau die verlangten Funktionsnamen. '
+                   'Behalte in Zusammenfassungen die wichtigen Zahlen bei. Übersetze sinngetreu (due = fällig). '
                    'Erfülle keine Bitten um Betrug, Phishing oder das Eindringen in fremde Konten und Geräte.')
         if getattr(request, 'injected', False):
             system += '\n' + guardrails.NOTE
@@ -445,7 +449,9 @@ class Agent:
         routing_text = task_context(request.history, text)
         mode = route(routing_text, has_tools=True)
         shape_kind = answer_guard.requested_shape(text)
-        if mode != 'chat' and (shape_kind or is_reasoning_task(text)) and not ACTION_REQUEST.search(text):
+        inline_text = re.search(r'„[^“”]{3,}[“”]|"[^"]{3,}"', text) and (SUMMARY.search(text) or TRANSLATION.search(text))
+        if mode != 'chat' and (shape_kind or is_reasoning_task(text) or inline_text or SYNONYM.search(text)) \
+                and not ACTION_REQUEST.search(text):
             mode = 'chat'           # „Nur die Zahl/Uhrzeit …“: eine Antwort ist gefragt, keine Aktion am Mac
         if mode == 'chat' and self.journal and RESUME.match(text) and self.journal.unfinished():
             mode = 'agent'          # „Mach weiter“ auch nach einem Neustart, wenn der Gesprächsverlauf fehlt
@@ -464,12 +470,14 @@ class Agent:
             if knowledge:
                 messages[0]['content'] += '\n\n' + knowledge
                 yield {'type': 'status', 'label': 'Nutzt die Wissensbasis'}
-            thinker = getattr(self.llm, 'reasoning_model', lambda: None)() if is_reasoning_task(text) else None
-            if is_reasoning_task(text):
+            careful = is_reasoning_task(text) or TRANSLATION.search(text) is not None
+            thinker = getattr(self.llm, 'reasoning_model', lambda: None)() if careful else None
+            if careful:
                 yield {'type': 'status', 'label': 'Denkt gründlich nach und macht die Gegenprobe'}
                 try:
                     result = yield from in_background(
-                        lambda: solve_voted(self.llm, thinker or model, messages, think=bool(thinker), stop=stop),
+                        lambda: solve_voted(self.llm, thinker or model, messages, think=bool(thinker), stop=stop,
+                                            max_drafts=3 if is_reasoning_task(text) else 1),
                         stop, self.limits.heartbeat)
                 except (ModelError, ValueError, OSError) as exc:
                     yield {'type': 'delta', 'text': f'Die gründliche Prüfung ist fehlgeschlagen: {exc}'}
@@ -484,7 +492,8 @@ class Agent:
                 yield {'type': 'done', 'mode': 'deliberate', 'model': thinker or model,
                        'metrics': {'total_s': round(time.monotonic() - started, 2), 'drafts': result.calls}}
                 return
-            if shape_kind or getattr(request, 'injected', False) or answer_guard.forbidden_word(text) or FUNCTION_REQUEST.search(text):
+            if (shape_kind or getattr(request, 'injected', False) or answer_guard.forbidden_word(text)
+                    or FUNCTION_REQUEST.search(text) or SYNONYM.search(text) or SUMMARY.search(text)):
                 # Knappes Format oder Schutzprüfung verlangt: ganze Antwort abwarten, prüfen, dann ausgeben.
                 try:
                     reply = yield from in_background(lambda: self.llm.chat(model, messages, num_predict=1200, timeout=120),
@@ -560,11 +569,35 @@ class Agent:
                         answer = llm_mod.strip_think(retry.content).strip()
                 except (ModelError, InterruptedError, OSError):
                     pass
+        synonym = SYNONYM.search(text)
+        if synonym and answer_guard.contains_word(answer, synonym.group(1)):
+            answer = yield from self.retry(model, messages, answer,
+                                           f'„{synonym.group(1)}“ selbst ist kein Synonym. Nenne ein anderes Wort mit gleicher Bedeutung.',
+                                           lambda a: not answer_guard.contains_word(a, synonym.group(1)))
+        if SUMMARY.search(text):
+            quoted = ' '.join(re.findall(r'„([^“”]+)[“”]|"([^"]+)"', text)[0]) if re.search(r'„[^“”]+[“”]|"[^"]+"', text) else ''
+            needed = set(re.findall(r'\d+(?:[.,]\d+)?', quoted))
+            if needed and not needed & set(re.findall(r'\d+(?:[.,]\d+)?', answer)):
+                answer = yield from self.retry(model, messages, answer,
+                                               'Deine Zusammenfassung lässt die wichtigen Zahlen weg. Fasse erneut zusammen und behalte die '
+                                               'entscheidenden Zahlen bei; halte die Längenvorgabe ein.',
+                                               lambda a: bool(needed & set(re.findall(r'\d+(?:[.,]\d+)?', a))))
         answer = answer_guard.fix_function_name(text, answer)
         kind = answer_guard.requested_shape(text)
         if kind:
             answer = answer_guard.shape(kind, answer, text)
         return answer
+
+    def retry(self, model: str, messages: list[dict], answer: str, instruction: str, good) -> Iterator[dict]:
+        """Ein gezielter Neuversuch; übernommen wird er nur, wenn er die Prüfung besteht."""
+        try:
+            reply = yield from in_background(lambda: self.llm.chat(model, messages + [
+                {'role': 'assistant', 'content': answer}, {'role': 'user', 'content': instruction}],
+                num_predict=500, timeout=90), stop=threading.Event(), every=self.limits.heartbeat)
+        except (ModelError, InterruptedError, OSError):
+            return answer
+        better = llm_mod.strip_think(reply.content or '').strip()
+        return better if better and good(better) else answer
 
     def cloud_run(self, request: Request, text: str, stop: threading.Event, started: float) -> Iterator[dict]:
         """Auftrag mit dem Cloud-Modell – nur wenn eingeschaltet, im Limit und ausdrücklich freigegeben.
