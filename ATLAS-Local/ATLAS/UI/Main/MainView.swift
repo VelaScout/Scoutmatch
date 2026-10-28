@@ -3,16 +3,14 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Startbildschirm: nur ATLAS. Der Kern füllt den ganzen Bildschirm, unten liegt eine
-/// schlanke Leiste zum Tippen oder Sprechen. Alles andere – Einstellungen, Verlauf,
-/// Aufgaben, Fotos – öffnet ATLAS auf Zuruf („Öffne die Einstellungen“).
-/// Notausgang: langes Drücken auf den Kern öffnet die Einstellungen.
+/// Startbildschirm im Stil von ChatGPT/Claude: oben ATLAS mit seiner Kugel, in der Mitte
+/// der Gesprächsverlauf, unten die Leiste zum Tippen oder Sprechen. Ein neuer Chat zeigt die
+/// große Kugel mit Vorschlägen. Langes Drücken auf die Kugel öffnet die Einstellungen.
 struct MainView: View {
     @Environment(ConversationEngine.self) private var engine
     @Environment(AppSettings.self) private var settings
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var router = IntentRouter.shared
     @State private var sheet: AppScreen?
@@ -23,8 +21,6 @@ struct MainView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var attachmentError: String?
     @State private var typedText = ""
-    @State private var captionVisible = false
-    @State private var captionHideTask: Task<Void, Never>?
     @State private var systemStatus = SystemStatus()
     @State private var learningNotice: String?
     @FocusState private var textFieldFocused: Bool
@@ -34,16 +30,7 @@ struct MainView: View {
             background
 
             VStack(spacing: 0) {
-                HStack {
-                    Text("ATLAS Local").font(.headline)
-                    Spacer()
-                    Button { sheet = .learning } label: { Image(systemName: "brain") }
-                        .accessibilityLabel("Learning & Evolution")
-                    Button { sheet = .history } label: { Image(systemName: "clock") }
-                        .accessibilityLabel("Verlauf")
-                    Button { sheet = .settings } label: { Image(systemName: "gearshape") }
-                        .accessibilityLabel("Einstellungen")
-                }.padding().foregroundStyle(.white)
+                header
                 StatusBar(status: systemStatus)
                 if let learningNotice {
                     Button { sheet = .learning; self.learningNotice = nil } label: {
@@ -53,13 +40,8 @@ struct MainView: View {
                     }
                     .buttonStyle(.plain).foregroundStyle(.cyan).padding(.top, 6).padding(.horizontal)
                 }
-                Text(engine.state.label).font(.caption).foregroundStyle(.secondary).padding(.top, 6)
-                atlasVisual
+                chat
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .onTapGesture { engine.primaryAction() }
-                    .onLongPressGesture(minimumDuration: 0.6) { sheet = .settings }
-                    .overlay(alignment: .bottom) { caption }
                 if !engine.activity.isEmpty {
                     ActivityPanel(items: engine.activity)
                         .padding(.bottom, 6)
@@ -77,6 +59,7 @@ struct MainView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: engine.pendingConfirmation)
+        .animation(.easeInOut(duration: 0.35), value: chatIsEmpty)
         .preferredColorScheme(.dark)
         .sheet(item: $sheet) { screen in
             sheetContent(for: screen).atlasSheetSize()
@@ -123,9 +106,7 @@ struct MainView: View {
             processPendingRequest()
         }
         .task {
-            // Begrüßung genau dann, wenn der Kern am Ende der Start-Sequenz zündet.
-            let withIntro = settings.appearance == .hologram && !reduceMotion
-            try? await Task.sleep(for: .seconds(withIntro ? 8.9 : 1.2))
+            try? await Task.sleep(for: .seconds(1.2))
             engine.greetOnLaunch()
             await announceLearning()
         }
@@ -145,7 +126,6 @@ struct MainView: View {
         .onChange(of: engine.screenRequestSequence) { _, _ in
             if let screen = engine.screenRequest { open(screen) }
         }
-        .onChange(of: engine.state) { _, newState in updateCaption(for: newState) }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
@@ -163,66 +143,81 @@ struct MainView: View {
         .onDisappear { if PlatformBridge.isMac { engine.setSceneActive(false) } }
     }
 
-    // MARK: - ATLAS
+    // MARK: - Kopfzeile und Chat
+
+    private var lively: Bool { settings.appearance == .hologram }
+
+    private var chatIsEmpty: Bool {
+        engine.transcript.isEmpty && engine.streamingText == nil && engine.liveTranscript.isEmpty
+    }
+
+    /// Kopfzeile: kleine Kugel (antippen = sprechen, lange drücken = Einstellungen), Zustand und Knöpfe.
+    private var header: some View {
+        HStack(spacing: 12) {
+            OrbView(state: engine.state, inputLevel: engine.inputLevel, lively: lively)
+                .frame(width: 38, height: 38)
+                .opacity(chatIsEmpty ? 0 : 1)
+                .contentShape(Circle())
+                .onTapGesture { engine.primaryAction() }
+                .onLongPressGesture(minimumDuration: 0.6) { sheet = .settings }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Tippen zum Sprechen, lange drücken für die Einstellungen")
+            VStack(alignment: .leading, spacing: 1) {
+                Text("ATLAS").font(.headline)
+                Text(stateLine)
+                    .font(.caption)
+                    .foregroundStyle(engine.state.isError ? Color.orange : Color.secondary)
+                    .lineLimit(1)
+                    .contentTransition(.opacity)
+                    .animation(.easeInOut(duration: 0.25), value: stateLine)
+            }
+            Spacer()
+            Button { engine.startNewConversation() } label: { Image(systemName: "square.and.pencil") }
+                .accessibilityLabel("Neuer Chat")
+                .disabled(chatIsEmpty)
+            Button { sheet = .learning } label: { Image(systemName: "brain") }
+                .accessibilityLabel("Learning & Evolution")
+            Button { sheet = .history } label: { Image(systemName: "clock") }
+                .accessibilityLabel("Verlauf")
+            Button { sheet = .settings } label: { Image(systemName: "gearshape") }
+                .accessibilityLabel("Einstellungen")
+        }
+        .buttonStyle(.plain)
+        .font(.system(size: 17))
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .foregroundStyle(.white)
+    }
+
+    private var stateLine: String {
+        switch engine.state {
+        case .listening: return engine.listeningHint ?? "Hört zu …"
+        case .thinking: return engine.statusDetail ?? "Denkt nach …"
+        case .error(let message): return message
+        default: return engine.state.label
+        }
+    }
 
     @ViewBuilder
-    private var atlasVisual: some View {
-        switch settings.appearance {
-        case .hologram:
-            AtlasHologramView(state: engine.state,
-                              inputLevel: engine.inputLevel,
-                              spokenWordCount: engine.spokenWordCount,
-                              spokenWordLength: engine.spokenWordLength,
-                              speechRate: settings.speechRate, showsIntro: false)
-        case .core:
-            AtlasCoreView(state: engine.state,
-                          inputLevel: engine.inputLevel,
-                          spokenWordCount: engine.spokenWordCount)
-                .aspectRatio(1, contentMode: .fit)
-                .padding(24)
+    private var chat: some View {
+        if chatIsEmpty {
+            EmptyChatView(state: engine.state, inputLevel: engine.inputLevel,
+                          greeting: engine.responseText, lively: lively,
+                          onOrbTap: { engine.primaryAction() },
+                          onSuggestion: { engine.send(text: $0) })
+                .transition(.opacity)
+        } else {
+            ChatTranscriptView(bubbles: engine.transcript, streamingText: engine.streamingText,
+                               state: engine.state, liveTranscript: engine.liveTranscript,
+                               statusDetail: engine.statusDetail, lively: lively)
+                .transition(.opacity)
         }
     }
 
     private var background: some View {
-        RadialGradient(colors: [Color(red: 0.02, green: 0.1, blue: 0.25), Color(red: 0.008, green: 0.03, blue: 0.09), .black],
-                       center: UnitPoint(x: 0.5, y: 0.42), startRadius: 10, endRadius: 700)
+        RadialGradient(colors: [Color(red: 0.02, green: 0.07, blue: 0.18), Color(red: 0.008, green: 0.025, blue: 0.07), .black],
+                       center: UnitPoint(x: 0.5, y: 0.0), startRadius: 10, endRadius: 900)
             .ignoresSafeArea()
-    }
-
-    /// Dezenter Untertitel: was Sie sagen bzw. was ATLAS antwortet – blendet sich von selbst aus.
-    private var caption: some View {
-        let text: String
-        switch engine.state {
-        case .listening, .confirming:
-            text = engine.liveTranscript.isEmpty ? (engine.listeningHint ?? "") : engine.liveTranscript
-        case .error(let message): text = message
-        // Beim Nachdenken keine Statusanzeige – Ihre Frage bleibt einfach stehen.
-        case .thinking: text = engine.liveTranscript
-        // Wenn A.T.L.A.S. spricht (und danach), kein Untertitel – nur die Stimme.
-        // Die Antworten stehen weiterhin im Gesprächsverlauf.
-        default: text = engine.responseText
-        }
-        return Text(text)
-            .font(.callout)
-            .foregroundStyle(.white.opacity(0.82))
-            .multilineTextAlignment(.center)
-            .lineLimit(8)
-            .shadow(color: .black, radius: 8)
-            .padding(.horizontal, 28)
-            .padding(.bottom, 10)
-            .opacity(captionVisible && !text.isEmpty ? 1 : 0)
-            .animation(.easeInOut(duration: 0.5), value: captionVisible)
-            .allowsHitTesting(false)
-    }
-
-    private func updateCaption(for state: ConversationEngine.State) {
-        captionHideTask?.cancel()
-        switch state {
-        case .idle, .standby:
-            captionVisible = !engine.responseText.isEmpty
-        default:
-            captionVisible = true
-        }
     }
 
     // MARK: - Eingabeleiste
@@ -254,7 +249,7 @@ struct MainView: View {
 
     private var inputBar: some View {
         HStack(spacing: 8) {
-            TextField("Mit A.T.L.A.S. sprechen …", text: $typedText)
+            TextField("Nachricht an ATLAS …", text: $typedText)
                 .textFieldStyle(.plain)
                 .focused($textFieldFocused)
                 .submitLabel(.send)
