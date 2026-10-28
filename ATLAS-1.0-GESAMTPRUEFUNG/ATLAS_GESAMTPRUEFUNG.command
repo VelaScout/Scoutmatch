@@ -3,7 +3,9 @@
 cd "$(dirname "$0")" || exit 1
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 # ATLAS-Ordner finden: zuerst eine Ebene höher, sonst die neueste Atlas-1.0-Version in Downloads oder Schreibtisch.
+HERE="$PWD"
 ATLAS_DIR="$(cd .. && pwd)"
+[ -d "$HERE/Backend/atlas" ] && ATLAS_DIR="$HERE"     # Startdatei liegt direkt im ATLAS-Ordner
 if [ ! -d "$ATLAS_DIR/Backend/atlas" ]; then
   ATLAS_DIR=""
   FOUND="$(ls -dt "$HOME"/Downloads/*/Backend/atlas/full_mac_audit.py "$HOME"/Desktop/*/Backend/atlas/full_mac_audit.py 2>/dev/null | head -1)"
@@ -17,7 +19,17 @@ echo "Geprüft wird: $ATLAS_DIR"
 PY="$HOME/Library/Application Support/AtlasLocal/venv/bin/python3"
 [ -x "$PY" ] || PY="$(command -v python3 || true)"
 if [ -z "$PY" ]; then echo 'Python 3 fehlt. Bitte ATLAS zuerst installieren.'; read -r -p 'Enter …' _; exit 2; fi
-export PYTHONPATH="$ATLAS_DIR/Backend:$PWD"
+# Das Prüfprogramm suchen: neben dieser Datei, im Unterordner oder in Downloads.
+PRUEF=""
+for candidate in "$HERE" "$HERE/ATLAS-1.0-GESAMTPRUEFUNG" "$ATLAS_DIR/ATLAS-1.0-GESAMTPRUEFUNG" "$HOME/Downloads/ATLAS-1.0-GESAMTPRUEFUNG"; do
+  if [ -f "$candidate/atlas_gesamtpruefung.py" ]; then PRUEF="$candidate"; break; fi
+done
+if [ -z "$PRUEF" ]; then
+  echo 'Die Datei atlas_gesamtpruefung.py fehlt. Bitte den ganzen Ordner „ATLAS-1.0-GESAMTPRUEFUNG“ in den ATLAS-Ordner legen.'
+  read -r -p 'Enter zum Schließen …' _; exit 2
+fi
+cd "$PRUEF" || exit 1
+export PYTHONPATH="$ATLAS_DIR/Backend:$PRUEF"
 OUT="$HOME/Downloads/ATLAS-GESAMTPRUEFUNG"
 
 echo '=== ATLAS-Gesamtprüfung ==='
