@@ -2,11 +2,18 @@
 # ATLAS-Gesamtprüfung – diesen Ordner in den ATLAS-Ordner legen (neben „Backend“) und doppelklicken.
 cd "$(dirname "$0")" || exit 1
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+# ATLAS-Ordner finden: zuerst eine Ebene höher, sonst die neueste Atlas-1.0-Version in Downloads oder Schreibtisch.
 ATLAS_DIR="$(cd .. && pwd)"
 if [ ! -d "$ATLAS_DIR/Backend/atlas" ]; then
-  echo "Den Ordner „ATLAS-1.0-GESAMTPRUEFUNG“ bitte in den ATLAS-Ordner legen (dorthin, wo „Backend“ liegt)."
+  ATLAS_DIR=""
+  FOUND="$(ls -dt "$HOME"/Downloads/*/Backend/atlas/full_mac_audit.py "$HOME"/Desktop/*/Backend/atlas/full_mac_audit.py 2>/dev/null | head -1)"
+  [ -n "$FOUND" ] && ATLAS_DIR="$(cd "$(dirname "$FOUND")/../.." && pwd)"
+fi
+if [ -z "$ATLAS_DIR" ]; then
+  echo "Keinen ATLAS-1.0-Ordner gefunden. Bitte den Ordner „ATLAS-1.0-GESAMTPRUEFUNG“ in den ATLAS-Ordner legen (neben „Backend“)."
   read -r -p 'Enter zum Schließen …' _; exit 2
 fi
+echo "Geprüft wird: $ATLAS_DIR"
 PY="$HOME/Library/Application Support/AtlasLocal/venv/bin/python3"
 [ -x "$PY" ] || PY="$(command -v python3 || true)"
 if [ -z "$PY" ]; then echo 'Python 3 fehlt. Bitte ATLAS zuerst installieren.'; read -r -p 'Enter …' _; exit 2; fi
