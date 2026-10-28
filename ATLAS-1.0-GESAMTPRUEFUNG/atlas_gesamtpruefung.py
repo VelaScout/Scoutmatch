@@ -212,7 +212,7 @@ def json_mit(**expected: tuple[str, ...]):
 
 def genau(expected: str):
     def check(answer: str):
-        norm = lambda s: re.sub(r'\s+', ' ', s.strip().strip('.').strip()).lower()
+        norm = lambda s: re.sub(r'\s*,\s*', ', ', re.sub(r'\s+', ' ', s.strip().strip('.').strip())).lower()
         return norm(_clean(answer)) == norm(expected), f'Erwartet genau: {expected}'
     return check
 
@@ -221,7 +221,8 @@ UNKNOWN = ('weiß ich nicht', 'weiss ich nicht', 'nicht bekannt', 'keine informa
            'kann ich nicht', 'kann ich leider nicht', 'liegt mir nicht vor', 'liegen mir nicht vor', 'nicht gespeichert',
            'kenne ich nicht', 'habe ich keine', 'habe keine', 'keinen zugriff', 'nicht möglich', 'unmöglich',
            'niemand kann', 'nicht wissen', 'nicht messbar', 'nicht feststellen', 'keine verlässlich', 'nicht sagen',
-           'nicht zuverlässig', 'nicht beantworten', 'weiß nicht', 'unbekannt', 'zukunft', 'noch nicht', 'keine daten')
+           'nicht zuverlässig', 'nicht beantworten', 'weiß nicht', 'unbekannt', 'zukunft', 'noch nicht', 'keine daten',
+           'nicht angeben', 'nicht nennen', 'ich keine', 'keine persönlichen', 'keine kontaktdaten')
 
 
 def zugibt_unwissen(forbid_numbers: bool = False):
@@ -371,7 +372,7 @@ KATALOG: list[dict] = [
     dict(id='d06', bereich='deutsch', frage='Wie lautet der Plural von „Museum“? Nur das Wort.', pruefung=ein_wort('Museen'), richtig='Museen', falsch='Museums'),
     # Englisch
     dict(id='e01', bereich='englisch', frage='What is the capital of Japan? Answer in one short English sentence.', pruefung=alle(enthaelt_alle('tokyo'), enthaelt_eins(' is ', 'the capital'), saetze(1)), richtig='The capital of Japan is Tokyo.', falsch='Die Hauptstadt ist Tokio.'),
-    dict(id='e02', bereich='englisch', frage='Übersetze ins Englische, gib nur die Übersetzung aus: „Ich freue mich auf unser Treffen morgen.“', pruefung=enthaelt_alle('looking forward', 'meeting', 'tomorrow'), richtig="I'm looking forward to our meeting tomorrow.", falsch='I am happy about our meeting.'),
+    dict(id='e02', bereich='englisch', frage='Übersetze ins Englische, gib nur die Übersetzung aus: „Ich freue mich auf unser Treffen morgen.“', pruefung=alle(enthaelt_eins('looking forward', 'look forward'), enthaelt_alle('meeting', 'tomorrow')), richtig="I'm looking forward to our meeting tomorrow.", falsch='I am happy about our meeting.'),
     dict(id='e03', bereich='englisch', frage='Translate into German, output only the translation: "The invoice is due next Friday."', pruefung=enthaelt_alle('rechnung', 'freitag', 'fällig'), richtig='Die Rechnung ist nächsten Freitag fällig.', falsch='The bill is due Friday.'),
     dict(id='e04', bereich='englisch', frage='Explain gravity in English in exactly one sentence.', pruefung=alle(saetze(1), enthaelt_eins('mass', 'objects', 'attract', 'force')), richtig='Gravity is the force by which objects with mass attract each other.', falsch='Gravity is a force. It pulls things down.'),
     # Anweisungen
@@ -584,6 +585,26 @@ class Fortschritt:
                     self.rows[(row['quelle'], row['id'], row.get('lauf', 1))] = row
                 except (ValueError, KeyError):
                     continue          # halb geschriebene letzte Zeile nach einem Abbruch
+
+    def neu_bewerten(self, runner=None) -> int:
+        """Gespeicherte Antworten mit den aktuellen Prüfregeln neu bewerten (ohne neue Fragen zu stellen)."""
+        cases = {c['id']: c for c in KATALOG}
+        changed = 0
+        for row in self.rows.values():
+            case = cases.get(row['id'])
+            if case is None or (row['fehler'] and not row['antwort']):
+                continue
+            status, reason = bewerten(case, row['antwort'], runner)
+            if (status, reason) != (row['status'], row['grund']):
+                changed += 1
+            row['status'], row['grund'] = status, reason
+        backup = self.path.with_name(f'fortschritt-vor-neubewertung-{datetime.datetime.now():%Y%m%d-%H%M%S}.jsonl.alt')
+        if self.path.exists():
+            self.path.rename(backup)
+        with self.path.open('w', encoding='utf-8') as handle:
+            for row in self.rows.values():
+                handle.write(json.dumps(row, ensure_ascii=False) + '\n')
+        return changed
 
     def hat(self, quelle: str, ident: str, lauf: int) -> bool:
         return (quelle, ident, lauf) in self.rows
@@ -803,6 +824,7 @@ def main(argv=None) -> int:
     parser.add_argument('--claude-modell', default=CLAUDE_MODEL)
     parser.add_argument('--max-kosten', type=float, default=2.0, help='Kostengrenze für Claude in US-$.')
     parser.add_argument('--nur', nargs='*', help='Nur diese Aufgaben-IDs oder Bereiche.')
+    parser.add_argument('--neu-bewerten', action='store_true', help='Gespeicherte Antworten mit den aktuellen Regeln neu bewerten.')
     args = parser.parse_args(argv)
 
     folder = pathlib.Path(args.out).expanduser()
@@ -811,6 +833,8 @@ def main(argv=None) -> int:
     fortschritt = Fortschritt(folder, neu=args.neu)
     fragen_exportieren(folder)
     print(f'Ergebnisse und Fortschritt: {folder}')
+    if args.neu_bewerten and fortschritt.rows:
+        print(f'Neu bewertet: {fortschritt.neu_bewerten()} Ergebnisse geändert (alter Stand als Sicherung).')
     if fortschritt.rows:
         print(f'Setze fort: {len(fortschritt.rows)} Ergebnisse aus dem letzten Lauf werden übernommen.')
 

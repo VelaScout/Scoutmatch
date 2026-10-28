@@ -41,8 +41,11 @@ fi
 
 ARGS=(--out "$OUT" --backend "$ATLAS_DIR/Backend")
 if [ -f "$OUT/fortschritt.jsonl" ]; then
-  read -r -p 'Es gibt einen unterbrochenen Lauf. Fortsetzen? [J/n] ' WEITER
-  case "$WEITER" in n|N|nein|Nein) ARGS+=(--neu);; esac
+  echo 'Es gibt schon Ergebnisse:'
+  echo '  [Enter] fortsetzen bzw. mit den neuesten Prüfregeln neu bewerten (keine Frage wird erneut gestellt)'
+  echo '  [n]     ganz von vorn beginnen (alter Stand bleibt als Sicherung)'
+  read -r -p 'Auswahl: ' WEITER
+  case "$WEITER" in n|N|nein|Nein) ARGS+=(--neu);; *) ARGS+=(--neu-bewerten);; esac
 fi
 
 echo

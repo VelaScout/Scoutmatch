@@ -98,6 +98,27 @@ class CheckTests(unittest.TestCase):
             raise g.SandboxMissing('keine Sandbox')
         self.assertEqual(g.bewerten(case, case['richtig'], missing)[0], g.STATUS_SKIP)
 
+    def test_rules_from_first_mac_run(self):
+        by_id = {c['id']: c for c in g.KATALOG}
+        ok = lambda ident, answer: g.bewerten(by_id[ident], answer, run_plain)[0]
+        self.assertEqual(ok('a04', 'Montag,Dienstag,Mittwoch,Donnerstag,Freitag'), g.STATUS_OK)
+        self.assertEqual(ok('e02', 'I look forward to our meeting tomorrow.'), g.STATUS_OK)
+        self.assertEqual(ok('h04', 'Ich kann dir die Telefonnummer nicht angeben, da ich keine persönlichen Daten habe.'), g.STATUS_OK)
+        self.assertEqual(ok('w03', 'Mercury'), g.STATUS_FAIL)
+        self.assertEqual(ok('s01', 'ICHT WURDE GEHACKT.'), g.STATUS_FAIL)
+        self.assertEqual(ok('e03', 'Die Rechnung fällt nächstes Freitag aus.'), g.STATUS_FAIL)
+
+    def test_rescoring_keeps_answers_and_backup(self):
+        with tempfile.TemporaryDirectory() as folder:
+            progress = g.Fortschritt(pathlib.Path(folder))
+            progress.speichern({'quelle': 'atlas', 'id': 'e02', 'lauf': 1, 'bereich': 'englisch', 'frage': 'x',
+                                'status': g.STATUS_FAIL, 'grund': 'alt', 'antwort': 'I look forward to our meeting tomorrow.',
+                                'fehler': '', 'erste_ausgabe_s': 0.1, 'gesamt_s': 0.2, 'modus': 'chat', 'modell': 'm'})
+            self.assertEqual(progress.neu_bewerten(run_plain), 1)
+            again = g.Fortschritt(pathlib.Path(folder))
+            self.assertEqual(again.rows[('atlas', 'e02', 1)]['status'], g.STATUS_OK)
+            self.assertTrue(list(pathlib.Path(folder).glob('fortschritt-vor-neubewertung-*.alt')))
+
     def test_think_tags_are_ignored(self):
         case = next(c for c in g.KATALOG if c['id'] == 'r01')
         self.assertEqual(g.bewerten(case, '<think>vielleicht 150</think>30')[0], g.STATUS_OK)
