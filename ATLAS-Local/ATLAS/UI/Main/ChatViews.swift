@@ -2,21 +2,27 @@ import SwiftUI
 
 // MARK: - Kugel
 
-/// Die lebendige ATLAS-Kugel: atmet in Ruhe, reagiert beim Zuhören auf Ihre Stimme,
-/// wirbelt beim Nachdenken und pulsiert beim Sprechen.
+/// Die ATLAS-Kugel als 3D-Teilchenkugel: Hunderte leuchtende Punkte und kleine Quadrate bilden eine
+/// drehende Kugel, umkreist von Hologramm-Ringen. In Ruhe atmet sie, beim Zuhören schlagen Wellen
+/// mit Ihrer Stimme, beim Nachdenken verdreht sie sich, beim Sprechen laufen Impulse über sie.
 struct OrbView: View {
     var state: ConversationEngine.State
     var inputLevel: Float = 0
-    /// false = ruhige, sparsame Darstellung (weniger Bilder pro Sekunde, keine Weichzeichnung).
+    /// false = ruhige, sparsame Darstellung (weniger Teilchen, weniger Bilder pro Sekunde).
     var lively = true
+    /// false = ein ruhendes Standbild (z. B. als Absender-Zeichen neben älteren Antworten).
+    var animated = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: lively ? 1.0 / 60 : 1.0 / 15, paused: reduceMotion)) { timeline in
-            let time = timeline.date.timeIntervalSinceReferenceDate
-            Canvas { context, size in
-                draw(in: &context, size: size, time: time)
+        Group {
+            if animated {
+                TimelineView(.animation(minimumInterval: lively ? 1.0 / 60 : 1.0 / 20, paused: reduceMotion)) { timeline in
+                    canvas(time: timeline.date.timeIntervalSinceReferenceDate)
+                }
+            } else {
+                canvas(time: 2)
             }
         }
         .aspectRatio(1, contentMode: .fit)
@@ -24,90 +30,173 @@ struct OrbView: View {
         .accessibilityLabel("ATLAS – \(state.label)")
     }
 
-    private struct Look {
-        let colors: [Color]
-        let speed: Double
-        let glow: Double
+    private func canvas(time: Double) -> some View {
+        let renderer = OrbRenderer(look: look, state: state, level: Double(min(max(inputLevel, 0), 1)), lively: lively)
+        return Canvas { context, size in
+            renderer.draw(in: &context, size: size, time: time)
+        }
     }
 
-    private var look: Look {
+    private var look: OrbLook {
         switch state {
         case .listening:
-            return Look(colors: [Color(red: 0.2, green: 0.9, blue: 1.0), Color(red: 0.1, green: 0.55, blue: 1.0), Color(red: 0.35, green: 1.0, blue: 0.85)], speed: 0.8, glow: 0.55)
+            return OrbLook(colors: [Color(red: 0.25, green: 0.92, blue: 1.0), Color(red: 0.1, green: 0.5, blue: 1.0), Color(red: 0.6, green: 1.0, blue: 0.9)], speed: 0.9, glow: 0.45)
         case .thinking:
-            return Look(colors: [Color(red: 0.55, green: 0.35, blue: 1.0), Color(red: 0.2, green: 0.45, blue: 1.0), Color(red: 0.85, green: 0.4, blue: 1.0)], speed: 1.9, glow: 0.5)
+            return OrbLook(colors: [Color(red: 0.6, green: 0.45, blue: 1.0), Color(red: 0.25, green: 0.4, blue: 1.0), Color(red: 0.95, green: 0.55, blue: 1.0)], speed: 2.2, glow: 0.4)
         case .speaking:
-            return Look(colors: [Color(red: 0.43, green: 0.82, blue: 1.0), Color(red: 0.3, green: 0.5, blue: 1.0), Color(red: 0.9, green: 0.95, blue: 1.0)], speed: 1.1, glow: 0.6)
+            return OrbLook(colors: [Color(red: 0.43, green: 0.82, blue: 1.0), Color(red: 0.3, green: 0.45, blue: 1.0), Color(red: 0.95, green: 0.98, blue: 1.0)], speed: 1.2, glow: 0.5)
         case .confirming:
-            return Look(colors: [Color(red: 1.0, green: 0.75, blue: 0.3), Color(red: 1.0, green: 0.5, blue: 0.2), Color(red: 1.0, green: 0.9, blue: 0.6)], speed: 0.6, glow: 0.5)
+            return OrbLook(colors: [Color(red: 1.0, green: 0.75, blue: 0.3), Color(red: 1.0, green: 0.5, blue: 0.2), Color(red: 1.0, green: 0.92, blue: 0.65)], speed: 0.6, glow: 0.4)
         case .error:
-            return Look(colors: [Color(red: 1.0, green: 0.45, blue: 0.3), Color(red: 0.85, green: 0.25, blue: 0.35), Color(red: 1.0, green: 0.7, blue: 0.4)], speed: 0.4, glow: 0.35)
+            return OrbLook(colors: [Color(red: 1.0, green: 0.45, blue: 0.3), Color(red: 0.85, green: 0.25, blue: 0.35), Color(red: 1.0, green: 0.75, blue: 0.45)], speed: 0.4, glow: 0.3)
         case .idle, .standby:
-            return Look(colors: [Color(red: 0.3, green: 0.6, blue: 1.0), Color(red: 0.45, green: 0.3, blue: 0.95), Color(red: 0.25, green: 0.85, blue: 1.0)], speed: 0.35, glow: 0.35)
+            return OrbLook(colors: [Color(red: 0.35, green: 0.75, blue: 1.0), Color(red: 0.4, green: 0.35, blue: 1.0), Color(red: 0.75, green: 0.95, blue: 1.0)], speed: 0.45, glow: 0.3)
         }
-    }
-
-    private func scale(at time: Double) -> Double {
-        switch state {
-        case .listening: return 1 + 0.14 * Double(min(max(inputLevel, 0), 1)) + 0.02 * sin(time * 2)
-        case .speaking: return 1 + 0.05 * abs(sin(time * 5.5)) + 0.02 * sin(time * 1.7)
-        case .thinking: return 1 + 0.03 * sin(time * 3)
-        default: return 1 + 0.03 * sin(time * 1.2)
-        }
-    }
-
-    private func draw(in context: inout GraphicsContext, size: CGSize, time: Double) {
-        let look = look
-        let side = min(size.width, size.height)
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let radius = side / 2 * 0.78 * scale(at: time)
-
-        // Leuchten um die Kugel
-        let glowRect = CGRect(x: center.x - radius * 1.28, y: center.y - radius * 1.28, width: radius * 2.56, height: radius * 2.56)
-        context.fill(Path(ellipseIn: glowRect),
-                     with: .radialGradient(Gradient(colors: [look.colors[0].opacity(look.glow), .clear]),
-                                           center: center, startRadius: radius * 0.6, endRadius: radius * 1.28))
-
-        let orbRect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
-        let orb = Path(ellipseIn: orbRect)
-
-        context.drawLayer { layer in
-            layer.clip(to: orb)
-            layer.fill(orb, with: .radialGradient(Gradient(colors: [Color(red: 0.06, green: 0.1, blue: 0.25), Color(red: 0.01, green: 0.02, blue: 0.08)]),
-                                                  center: center, startRadius: 0, endRadius: radius))
-            // Farbwolken, die im Inneren kreisen
-            layer.drawLayer { clouds in
-                if lively { clouds.addFilter(.blur(radius: radius * 0.22)) }
-                for index in 0..<3 {
-                    let i = Double(index)
-                    let angle = time * look.speed * (1 + 0.35 * i) + i * 2.1
-                    let wobble = 0.3 + 0.12 * sin(time * 0.7 + i)
-                    let point = CGPoint(x: center.x + cos(angle) * radius * wobble,
-                                        y: center.y + sin(angle * 0.9) * radius * wobble)
-                    let blob = radius * (0.85 + 0.1 * sin(time + i))
-                    let rect = CGRect(x: point.x - blob, y: point.y - blob, width: blob * 2, height: blob * 2)
-                    clouds.fill(Path(ellipseIn: rect),
-                                with: .radialGradient(Gradient(colors: [look.colors[index].opacity(0.95), look.colors[index].opacity(0)]),
-                                                      center: point, startRadius: 0, endRadius: blob))
-                }
-            }
-            // Glanzlicht oben links
-            let shine = CGRect(x: center.x - radius * 0.62, y: center.y - radius * 0.78, width: radius * 0.8, height: radius * 0.5)
-            layer.fill(Path(ellipseIn: shine),
-                       with: .radialGradient(Gradient(colors: [.white.opacity(0.35), .clear]),
-                                             center: CGPoint(x: shine.midX, y: shine.midY), startRadius: 0, endRadius: radius * 0.4))
-        }
-        context.stroke(orb, with: .color(.white.opacity(0.18)), lineWidth: max(0.5, radius * 0.02))
     }
 }
 
-/// Kleine, ruhende Kugel als Absender-Zeichen neben älteren Antworten (ohne Animation).
+struct OrbLook {
+    /// Vorderseite, Rückseite, Akzent.
+    let colors: [Color]
+    let speed: Double
+    let glow: Double
+}
+
+/// Zeichnet die Teilchenkugel: Punkte auf einer Fibonacci-Kugel, gedreht, perspektivisch projiziert,
+/// hinten blass und klein, vorne hell und groß.
+private struct OrbRenderer {
+    let look: OrbLook
+    let state: ConversationEngine.State
+    let level: Double
+    let lively: Bool
+
+    private static let dense = sphere(count: 650)
+    private static let light = sphere(count: 170)
+
+    private static func sphere(count: Int) -> [SIMD3<Double>] {
+        let golden = Double.pi * (3 - 5.0.squareRoot())
+        return (0..<count).map { index in
+            let y = 1 - 2 * (Double(index) + 0.5) / Double(count)
+            let ring = (1 - y * y).squareRoot()
+            let phi = Double(index) * golden
+            return SIMD3(cos(phi) * ring, y, sin(phi) * ring)
+        }
+    }
+
+    /// Wie stark die Kugel gerade „lebt“ (0…1).
+    private func pulse(_ t: Double) -> Double {
+        switch state {
+        case .listening: return 0.3 + 0.7 * level
+        case .speaking: return 0.4 + 0.6 * abs(sin(t * 5.5))
+        case .thinking: return 0.5 + 0.3 * sin(t * 3)
+        default: return 0.25 + 0.15 * sin(t * 1.2)
+        }
+    }
+
+    /// Verformung je Zustand: Wellen beim Zuhören, Impulse beim Sprechen, Verdrehung beim Nachdenken.
+    private func displaced(_ point: SIMD3<Double>, index: Int, t: Double) -> SIMD3<Double> {
+        var p = point
+        var radius = 1.0
+        switch state {
+        case .listening:
+            radius += (0.03 + 0.22 * level) * sin(p.y * 9 + t * 6) * (0.6 + 0.4 * sin(p.x * 7 - t * 3))
+        case .speaking:
+            radius += 0.1 * max(0, sin(p.y * 6 - t * 9))
+        case .thinking:
+            let twist = p.y * 1.6 * sin(t * 1.3)
+            p = SIMD3(p.x * cos(twist) - p.z * sin(twist), p.y, p.x * sin(twist) + p.z * cos(twist))
+            radius += 0.03 * sin(Double(index) + t * 4)
+        case .confirming, .error:
+            radius += 0.02 * sin(Double(index) + t * 2)
+        case .idle, .standby:
+            radius += 0.025 * sin(p.y * 4 + t * 1.5)
+        }
+        return p * radius
+    }
+
+    func draw(in context: inout GraphicsContext, size: CGSize, time t: Double) {
+        let side = min(size.width, size.height)
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let radius = side / 2 * 0.62
+        let small = side < 60
+        let points = small || !lively ? Self.light : Self.dense
+        let strength = pulse(t)
+
+        // Leuchten hinter der Kugel
+        let glow = radius * (1.5 + 0.12 * strength)
+        context.fill(Path(ellipseIn: CGRect(x: center.x - glow, y: center.y - glow, width: glow * 2, height: glow * 2)),
+                     with: .radialGradient(Gradient(colors: [look.colors[0].opacity(look.glow), look.colors[1].opacity(look.glow * 0.25), .clear]),
+                                           center: center, startRadius: 0, endRadius: glow))
+        context.blendMode = .plusLighter
+
+        let spin = t * look.speed * 0.5
+        let tilt = 0.38 + 0.08 * sin(t * 0.3)
+        let sinS = sin(spin), cosS = cos(spin), sinT = sin(tilt), cosT = cos(tilt)
+
+        /// 3D-Punkt → Bildschirm (Drehung um die Hochachse, Neigung, Perspektive).
+        func project(_ p: SIMD3<Double>) -> (point: CGPoint, z: Double, scale: Double) {
+            let x1 = p.x * cosS + p.z * sinS
+            let z1 = -p.x * sinS + p.z * cosS
+            let y2 = p.y * cosT - z1 * sinT
+            let z2 = p.y * sinT + z1 * cosT
+            let f = 3.0 / (3.0 - z2)
+            return (CGPoint(x: center.x + x1 * radius * f, y: center.y + y2 * radius * f), z2, f)
+        }
+
+        // Hologramm-Ringe
+        if !small {
+            let rings: [(size: Double, tiltZ: Double, speed: Double)] = [(1.32, 0.0, -0.6), (1.18, 1.15, 0.9)]
+            for ring in rings {
+                var path = Path()
+                for step in 0...72 {
+                    let a = Double(step) / 72 * 2 * .pi + t * ring.speed
+                    let flat = SIMD3(cos(a) * ring.size, 0, sin(a) * ring.size)
+                    let p = SIMD3(flat.x * cos(ring.tiltZ) - flat.y * sin(ring.tiltZ), flat.x * sin(ring.tiltZ) + flat.y * cos(ring.tiltZ), flat.z)
+                    let projected = project(p).point
+                    if step == 0 { path.move(to: projected) } else { path.addLine(to: projected) }
+                }
+                context.stroke(path, with: .color(look.colors[0].opacity(0.22 + 0.2 * strength)),
+                               style: StrokeStyle(lineWidth: max(0.6, side * 0.004), dash: [side * 0.01, side * 0.025]))
+                // Kleine Satelliten auf dem Ring
+                for satellite in 0..<3 {
+                    let a = Double(satellite) * 2.1 + t * ring.speed * 1.6
+                    let flat = SIMD3(cos(a) * ring.size, 0, sin(a) * ring.size)
+                    let p = SIMD3(flat.x * cos(ring.tiltZ), flat.x * sin(ring.tiltZ), flat.z)
+                    let projected = project(p)
+                    let s = side * 0.018 * projected.scale
+                    let rect = CGRect(x: projected.point.x - s / 2, y: projected.point.y - s / 2, width: s, height: s)
+                    context.fill(Path(rect), with: .color(look.colors[2].opacity(0.35 + 0.5 * (projected.z + 1) / 2)))
+                }
+            }
+        }
+
+        // Teilchen: erst die Rückseite, dann die Vorderseite
+        for pass in 0..<2 {
+            for (index, base) in points.enumerated() {
+                let projected = project(displaced(base, index: index, t: t))
+                if (pass == 0) != (projected.z < 0) { continue }
+                let depth = (projected.z + 1) / 2
+                let dot = side * (small ? 0.05 : 0.0095) * (0.5 + 0.9 * depth) * projected.scale
+                let opacity = 0.1 + 0.9 * depth * depth
+                let color = index % 7 == 0 ? look.colors[2] : (base.y > 0 ? look.colors[0] : look.colors[1])
+                let rect = CGRect(x: projected.point.x - dot / 2, y: projected.point.y - dot / 2, width: dot, height: dot)
+                let shape = index % 3 == 0 ? Path(ellipseIn: rect) : Path(roundedRect: rect, cornerRadius: dot * 0.2)
+                context.fill(shape, with: .color(color.opacity(opacity)))
+            }
+        }
+
+        // Leuchtender Kern
+        let core = radius * (0.42 + 0.12 * strength)
+        context.fill(Path(ellipseIn: CGRect(x: center.x - core, y: center.y - core, width: core * 2, height: core * 2)),
+                     with: .radialGradient(Gradient(colors: [.white.opacity(0.25 + 0.35 * strength), look.colors[0].opacity(0.25), .clear]),
+                                           center: center, startRadius: 0, endRadius: core))
+    }
+}
+
+/// Kleine, ruhende Kugel als Absender-Zeichen neben älteren Antworten.
 struct MiniOrb: View {
     var body: some View {
-        Circle()
-            .fill(RadialGradient(colors: [Color(red: 0.45, green: 0.8, blue: 1.0), Color(red: 0.35, green: 0.3, blue: 0.95), Color(red: 0.03, green: 0.06, blue: 0.18)],
-                                 center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 16))
-            .overlay(Circle().stroke(.white.opacity(0.2), lineWidth: 0.5))
+        OrbView(state: .idle, lively: false, animated: false)
             .accessibilityHidden(true)
     }
 }
@@ -307,7 +396,7 @@ struct EmptyChatView: View {
         VStack(spacing: 22) {
             Spacer(minLength: 12)
             OrbView(state: state, inputLevel: inputLevel, lively: lively)
-                .frame(width: 170, height: 170)
+                .frame(width: 220, height: 220)
                 .contentShape(Circle())
                 .onTapGesture(perform: onOrbTap)
                 .accessibilityAddTraits(.isButton)

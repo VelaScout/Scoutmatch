@@ -1,4 +1,4 @@
-# ATLAS 0.9.1 – dein persönlicher KI-Assistent auf dem Mac
+# ATLAS 0.9.2 – dein persönlicher KI-Assistent auf dem Mac
 
 ATLAS läuft lokal auf Ihrem MacBook: eine SwiftUI-App, ein Python-Dienst auf Ihrem Mac und ein Open-Weight-Sprachmodell (Qwen3) über Ollama. Ohne Cloud und ohne Konto.
 
@@ -48,6 +48,10 @@ Gleichwertig wird es dadurch nicht.
 **Was ATLAS konkret kann**, mit Beispielaufträgen: `FUNKTIONEN.md`.
 **Was geprüft wurde und was nicht:** `TESTBERICHT.md`.
 **Grenzen und bekannte Fehler:** `OFFENE-PUNKTE.md`.
+
+## Neu in 0.9.2
+
+- **Neue 3D-Kugel:** Hunderte leuchtende Punkte und kleine Quadrate bilden eine drehende Kugel mit Hologramm-Ringen. Beim Zuhören schlagen Wellen, beim Nachdenken verdreht sie sich, beim Sprechen laufen Impulse über sie.
 
 ## Neu in 0.9.1
 

@@ -1,4 +1,4 @@
-# Grenzen, bekannte Fehler und nächste Schritte – ATLAS 0.9.1
+# Grenzen, bekannte Fehler und nächste Schritte – ATLAS 0.9.2
 
 ## Ehrlich vorweg: ATLAS und ChatGPT/Claude
 
@@ -16,7 +16,7 @@ Größere lokale Modelle (14B, 30B) sind deutlich besser, brauchen aber mehr Arb
 
 ## Nicht nachgewiesen (läuft erst auf Ihrem Mac)
 
-- **Neue Chat-Oberfläche (0.9.1).** Die Syntax ist geprüft, aber nicht kompiliert und nicht angesehen: Wie die Kugel und der Chat auf Ihrem Bildschirm wirken, sehen wir erst auf Ihrem Mac. Gespeicherte Gespräche und das Datenformat sind unverändert.
+- **Neue Chat-Oberfläche und 3D-Kugel (0.9.1/0.9.2).** Die Syntax ist geprüft, aber nicht kompiliert und nicht angesehen: Wie die Kugel und der Chat auf Ihrem Bildschirm wirken, sehen wir erst auf Ihrem Mac. Gespeicherte Gespräche und das Datenformat sind unverändert.
 - **Xcode-Build 0.9.0.** Neu sind die Wissenspakete, der Cloud-Modus und die neue Persona. Die Syntax ist geprüft, nicht kompiliert. Schlägt der Build fehl, stoppt das Update, bevor es etwas ersetzt.
 - **Ihr letzter Testlauf (0.8.0)** zeigte:
   - Sandbox und Neustart: in Ordnung.

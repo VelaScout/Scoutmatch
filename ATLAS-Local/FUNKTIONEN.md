@@ -1,4 +1,4 @@
-# Was ATLAS 0.9.1 kann – mit Beispielaufträgen
+# Was ATLAS 0.9.2 kann – mit Beispielaufträgen
 
 **Geprüft heißt:** Die Werkzeuge und Abläufe sind mit echten Dateien und Prozessen getestet, die Modellentscheidungen dabei simuliert.
 
@@ -81,7 +81,7 @@ Fehlt eine Kontoverbindung oder Berechtigung, sagt ATLAS das, statt eine Ausfüh
 ## Bedienung
 
 - **Chat wie bei ChatGPT/Claude (neu in 0.9.1):** Ihre Nachrichten stehen rechts, die Antworten von ATLAS links. Die Antwort erscheint Wort für Wort, während sie entsteht; Fettschrift, Listen und Links werden formatiert.
-- **Die Kugel:** atmet in Ruhe, reagiert beim Zuhören auf Ihre Stimme, wirbelt beim Nachdenken und pulsiert beim Sprechen. Antippen = sprechen, lange drücken = Einstellungen.
+- **Die Kugel (3D aus leuchtenden Punkten und Quadraten, mit Hologramm-Ringen):** dreht sich ruhig, schlägt beim Zuhören Wellen mit Ihrer Stimme, verdreht sich beim Nachdenken und sendet beim Sprechen Impulse. Antippen = sprechen, lange drücken = Einstellungen.
 - **Neuer Chat:** Stift-Knopf oben rechts. Ein leerer Chat zeigt die große Kugel und Vorschläge zum Antippen. Alte Gespräche bleiben im Verlauf (Uhr-Knopf).
 - „Atlas …“ sprechen oder ins Textfeld schreiben.
 - Die Statuszeile zeigt Dienst, Modell und Mikrofon. Das Aufgabenfeld zeigt jede Aktion.
