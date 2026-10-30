@@ -1,4 +1,16 @@
-# ATLAS 1.0.3 – was neu ist
+# ATLAS Core 2.0.2 – was neu ist
+
+## 2.0.2: beide Entwicklungslinien zusammengeführt
+Dieser Stand vereint **ATLAS Core 2.0.1** (Ihr Paket vom 30.10.2026) mit den Verbesserungen aus 1.0.1–1.0.3:
+- aus Core 2.0.1: Ollama nur lokal (127.0.0.1/localhost/::1 mit Port – nie ein entfernter Rechner), lokale
+  Benchmarks ebenso; Unterbrechen per Stimme: „Atlas“ allein stoppt nicht mehr, Stoppwörter nur als kurzer Befehl,
+  die ganze Anschlussfrage bleibt erhalten; Persona ohne falsche „vollständig lokal“-Aussage; Offline-Prüfung
+  (`PYTHONPATH=Backend python3 -m atlas.offline_audit --root .`).
+- aus 1.0.1–1.0.3: Sicherheitsschutz, Formatwächter, Denkmodus, Pfad-Korrektur, Suche, Optimierung für Ihren Mac,
+  Gesamtprüfung mit Claude-Niveau als Ziel.
+- Vollständige Testsuite hier durchgelaufen: 394 Tests BESTANDEN (Python 3.13 und 3.15).
+
+
 
 ## 1.0.3: Das Beste aus Ihrem Mac (MacBook Pro M4, 16 GB)
 **`ATLAS_OPTIMIEREN.command`** – nach dem Update einmal starten:

@@ -4,6 +4,7 @@ import json
 import re
 import time
 import urllib.request
+from urllib.parse import urlsplit
 from pathlib import Path
 from .intelligence_challenges import CHALLENGES
 
@@ -35,8 +36,16 @@ def normalize(answer):
     answer = re.sub(r'\s+', '', answer)
     return answer
 
+def safe_local_url(url):
+    """Benchmarks are local-only: never send questions to a remote endpoint."""
+    parsed = urlsplit(url)
+    if parsed.scheme != 'http' or parsed.hostname not in ('127.0.0.1', 'localhost', '::1') or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ('', '/'):
+        raise ValueError('Nur lokale Ollama-Adressen sind erlaubt (http://127.0.0.1:11434).')
+    return url.rstrip('/')
+
+
 def ollama_models(url, timeout=10):
-    with urllib.request.urlopen(url.rstrip('/') + '/api/tags', timeout=timeout) as response:
+    with urllib.request.urlopen(safe_local_url(url) + '/api/tags', timeout=timeout) as response:
         return [m['name'] for m in json.load(response).get('models', []) if m.get('name')]
 
 def assess(model, url='http://127.0.0.1:11434', timeout=90):
@@ -47,7 +56,7 @@ def assess(model, url='http://127.0.0.1:11434', timeout=90):
             {'role': 'user', 'content': question}], 'options': {'temperature': 0}}).encode()
         started = time.monotonic()
         try:
-            request = urllib.request.Request(url.rstrip('/')+'/api/chat', data=payload,
+            request = urllib.request.Request(safe_local_url(url)+'/api/chat', data=payload,
                                              headers={'Content-Type': 'application/json'})
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 data = json.load(response)

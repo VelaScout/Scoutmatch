@@ -13,6 +13,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 from dataclasses import dataclass, field
 
 BASE = os.environ.get('ATLAS_OLLAMA_URL', 'http://127.0.0.1:11434')
@@ -38,6 +39,25 @@ class ModelError(Exception):
     pass
 
 
+def require_loopback_ollama(url: str) -> str:
+    """Reject remote endpoints, credentials, URL paths and ambiguous hosts.
+
+    Ollama has no authentication by default; allowing a remote base could leak
+    prompts, memory and tool results. No DNS lookup is needed for this check.
+    """
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except (TypeError, ValueError) as exc:
+        raise ModelError('Ungültige lokale Ollama-Adresse.') from exc
+    if (parsed.scheme != 'http' or parsed.hostname not in ('127.0.0.1', '::1', 'localhost')
+            or parsed.username is not None or parsed.password is not None
+            or parsed.path not in ('', '/') or parsed.query or parsed.fragment
+            or port is None or not 1 <= port <= 65535):
+        raise ModelError('Ollama darf nur über http://127.0.0.1:11434 (oder anderen lokalen Port) laufen.')
+    return url.rstrip('/')
+
+
 def is_local_model(name: str) -> bool:
     return bool(isinstance(name, str) and MODEL_PATTERN.match(name) and 'cloud' not in name)
 
@@ -53,7 +73,7 @@ class Reply:
 
 class Ollama:
     def __init__(self, base: str = BASE, opener=None):
-        self.base = base.rstrip('/')
+        self.base = require_loopback_ollama(base)
         self.opener = opener or HTTP
         self._tags: tuple[float, list[str]] = (0.0, [])
         self.reachable = True

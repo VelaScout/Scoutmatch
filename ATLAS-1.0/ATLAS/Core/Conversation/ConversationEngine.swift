@@ -517,7 +517,7 @@ final class ConversationEngine {
     // MARK: - Unterbrechen per Stimme
 
     private static let stopWords: Set<String> = [
-        "stopp", "stop", "halt", "warte", "ruhe", "still", "pause", "atlas", "moment", "aufhören", "hör",
+        "stopp", "stop", "halt", "warte", "ruhe", "still", "pause", "moment", "aufhören",
     ]
     private static let fillerWords: Set<String> = ["bitte", "mal", "doch", "jetzt", "kurz", "ok", "okay", "auf", "ja", "nein"]
 
@@ -535,14 +535,20 @@ final class ConversationEngine {
         // Nur die letzten Wörter zählen – und nichts, was A.T.L.A.S. selbst gerade gesagt hat.
         let echo = Set(normalize(synthesizer.spokenLog).split(separator: " ").map(String.init))
         let recent = words.suffix(6).filter { !echo.contains($0) }
-        let hasStop = recent.contains { Self.stopWords.contains($0) }
+        // Explicit stop commands require an actual short command, not a common
+        // word embedded in the assistant's own output.
+        let hasStop = recent.count <= 3 && recent.contains { Self.stopWords.contains($0) }
         let userIsTalking = recent.count >= 3 && AudioMeter.shared.input > 0.3
         guard hasStop || userIsTalking else { return }
 
         let onlyStop = recent.allSatisfy { Self.stopWords.contains($0) || Self.fillerWords.contains($0) }
+        // End the previous speech-recognition session before creating a new one.
+        // Otherwise SpeechRecognizer.start() can return early while still running.
+        recognizer.stop()
         interrupt()
         Haptics.soft()
-        let prefix = onlyStop ? "" : recent.joined(separator: " ")
+        // Preserve the complete follow-up instead of discarding all but six words.
+        let prefix = onlyStop ? "" : text.trimmingCharacters(in: .whitespacesAndNewlines)
         Task { await self.startListening(prefix: prefix) }
     }
 
