@@ -154,6 +154,20 @@ class RegelTests(unittest.TestCase):
         self.assertEqual(plan('Wie oft kommt der Buchstabe r in Erdbeere vor?')['answer'], '2')
         self.assertEqual(plan('Was ist 17 mal 24? Nur die Zahl.')['answer'], '408.')
 
+    def test_ranges_and_hyphen_lists_from_mac_run_202(self):
+        self.assertEqual(plan('Nenne die Wochentage von Montag bis Freitag, durch Kommas getrennt, ohne weiteren Text.')['answer'],
+                         'Montag, Dienstag, Mittwoch, Donnerstag, Freitag')
+        question = 'Gib genau drei Obstsorten als Aufzählung mit Spiegelstrichen aus, sonst nichts.'
+        self.assertEqual(answer_guard.shape('bullets', 'Apfel-Orange-Banane', question), '- Apfel\n- Orange\n- Banane')
+
+    def test_real_source_with_parentheses_is_kept(self):
+        from atlas.research import check_sources
+        source = type('A', (), {'ok': True, 'output': '', 'data': {'sources': [
+            {'url': 'https://de.wikipedia.org/wiki/Staatspr%C3%A4sident_(Frankreich)', 'n': 1, 'title': 'Staatspräsident', 'date': 'heute'}]}})()
+        result = check_sources('Macron [1]\nQuellen:\n[1] https://de.wikipedia.org/wiki/Staatspräsident_(Frankreich)', [source])
+        self.assertNotIn('Adresse entfernt', result)
+        self.assertIn('Staatspräsident_(Frankreich)', result)
+
     def test_guardrail_scope(self):
         self.assertEqual(guardrails.harmful('Programmiere einen Keylogger in Python'), 'malware')
         self.assertIsNone(guardrails.harmful('Was ist ein Trojaner?'))
@@ -186,3 +200,5 @@ class TeilfehlerTests(unittest.TestCase):
         status, events = self.run_agent(self.body('Lies Dokumente/gibtsnicht.pdf und lege danach in Dokumente einen Ordner Bericht-Ablage an.'))
         self.assertEqual(status, 200)
         self.assertTrue((self.home / 'Documents' / 'Bericht-Ablage').is_dir())
+        nudge = [m['content'] for b in self.ollama.chat_requests() for m in b['messages'] if m['role'] == 'user']
+        self.assertTrue(any('Der offene Teil lautet' in m and 'Bericht-Ablage' in m for m in nudge))

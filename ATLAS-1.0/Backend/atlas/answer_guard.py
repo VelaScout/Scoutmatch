@@ -130,7 +130,9 @@ def shape(kind: str | None, answer: str, question: str = '') -> str:
         lines = [line.strip() for line in text.splitlines() if line.strip()]
         bullets = [re.sub(r'^([-*•–]|\d+[.)])\s+', '', line) for line in lines if re.match(r'^([-*•–]|\d+[.)])\s+', line)]
         if not bullets and len(lines) == 1:
-            bullets = [part.strip() for part in re.split(r'[;,]|\bund\b', lines[0]) if part.strip()]
+            bullets = [part.strip() for part in re.split(r'\s*[;,/·|]\s*|\s+[-–]\s+|\bund\b', lines[0]) if part.strip()]
+            if count and len(bullets) != count and re.fullmatch(r'[\wÄÖÜäöüß]+(?:-[\wÄÖÜäöüß]+)+', lines[0].strip()):
+                bullets = lines[0].strip().split('-')         # „Apfel-Orange-Banane“
         if bullets and (count is None or len(bullets) == count):
             return '\n'.join(f'- {item.rstrip(".")}' for item in bullets)
         return answer

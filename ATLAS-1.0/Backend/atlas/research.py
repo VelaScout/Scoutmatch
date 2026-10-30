@@ -158,9 +158,21 @@ def known_urls(actions) -> tuple[set[str], list[dict]]:
 
 def check_sources(answer: str, actions) -> str:
     urls, sources = known_urls(actions)
+    # Echte Adressen zuerst schützen – auch mit Klammern (Wikipedia: …_(Frankreich)) und in lesbarer Schreibweise
+    # (ä statt %C3%A4). Sonst würde ein Teil einer echten Adresse fälschlich als erfunden entfernt.
+    import urllib.parse
+    variants = sorted({v for u in urls for v in (u, urllib.parse.unquote(u))}, key=len, reverse=True)
+    kept: dict[str, str] = {}
+    for index, url in enumerate(variants):
+        if url in answer:
+            token = f'\x00{index}\x00'
+            kept[token] = url
+            answer = answer.replace(url, token)
     invented = [u for u in {m.rstrip('.,;:') for m in URL.findall(answer)} if u not in urls]
     for url in invented:
         answer = answer.replace(url, '[Adresse entfernt – nicht abgerufen]')
+    for token, url in kept.items():
+        answer = answer.replace(token, url)
     if sources and not any(s['url'] in answer for s in sources):
         answer = answer.rstrip() + '\n\nQuellen:\n' + '\n'.join(
             f'[{s["n"]}] {s["title"]} – {s["url"]} (abgerufen {s["date"]})' for s in sources)

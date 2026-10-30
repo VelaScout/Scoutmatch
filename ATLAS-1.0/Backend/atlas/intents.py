@@ -98,6 +98,15 @@ def text_operation(text):
     if count:
         letter,word=count.group(1).lower(),count.group(2).lower()
         return str(word.count(letter))
+    days=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag']
+    months=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+    span=re.search(r'(?i)\b(?:nenne|zähle|liste|schreib\w*|gib)\b.{0,30}\b(wochentage|monate)\b.{0,15}\bvon\s+(\w+)\s+bis\s+(\w+)',t)
+    if span:
+        names=days if span.group(1).lower()=='wochentage' else months
+        lower=[n.lower() for n in names]
+        a,b=span.group(2).lower(),span.group(3).lower()
+        if a in lower and b in lower and lower.index(a)<=lower.index(b):
+            return ', '.join(names[lower.index(a):lower.index(b)+1])
     length=re.search(r'(?i)wie viele buchstaben hat (?:das wort\s*)?'+_Q+r'([A-Za-zÄÖÜäöüß]{1,40})'+_QE,t)
     if length:
         return str(len(length.group(1)))

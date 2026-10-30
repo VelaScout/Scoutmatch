@@ -716,7 +716,9 @@ class Agent:
                     if reply.content:
                         messages.append({'role': 'assistant', 'content': reply.content[:1500],
                                          **({'_raw': reply.raw} if getattr(reply, 'raw', None) else {})})
-                    messages.append({'role': 'user', 'content': CONTINUE})
+                    rest = MORE_PARTS.split(text, maxsplit=1)[-1].strip(' ,.') if MORE_PARTS.search(text) else ''
+                    detail = f' Der offene Teil lautet: „{rest[:300]}“. Rufe dafür jetzt das passende Werkzeug auf.' if rest else ''
+                    messages.append({'role': 'user', 'content': CONTINUE + detail})
                     continue
                 final = reply.content
                 finished = True
