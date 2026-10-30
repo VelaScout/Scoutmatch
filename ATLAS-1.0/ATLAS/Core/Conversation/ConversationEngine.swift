@@ -48,6 +48,10 @@ final class ConversationEngine {
     private(set) var liveTranscript = ""
     /// Die aktuelle bzw. letzte Antwort von ATLAS.
     private(set) var responseText = ""
+    /// Chatverlauf zur Anzeige (wie ChatGPT/Claude) – Nachrichten des aktuellen Gesprächs.
+    private(set) var transcript: [ChatBubble] = []
+    /// Antwort, die gerade entsteht (nil = keine; leer = ATLAS denkt noch).
+    private(set) var streamingText: String?
     /// Was ATLAS gerade im Hintergrund tut (z. B. „Prüft Ihren Kalender“).
     private(set) var statusDetail: String?
     /// Werkzeugaktionen der laufenden bzw. letzten Aufgabe – sichtbar in der Oberfläche.
@@ -202,6 +206,10 @@ final class ConversationEngine {
         responseTask?.cancel()
         responseTask = nil
         synthesizer.stop()
+        if let partial = streamingText?.trimmingCharacters(in: .whitespacesAndNewlines), !partial.isEmpty, !streamFinished {
+            transcript.append(ChatBubble(kind: .stopped, text: partial))
+        }
+        streamingText = nil
         streamFinished = true
         statusDetail = nil
         listenAfterSpeech = false
@@ -247,6 +255,7 @@ final class ConversationEngine {
         learnedTurnCount = 0
         conversation = nil
         responseText = ""
+        transcript = []
         attachments = []
         goIdle()
     }
@@ -259,6 +268,7 @@ final class ConversationEngine {
             ChatTurn(role: $0.isUser ? .user : .assistant, text: $0.text)
         }
         responseText = record.sortedMessages.last(where: { !$0.isUser })?.text ?? ""
+        transcript = record.sortedMessages.map { ChatBubble(kind: $0.isUser ? .user : .assistant, text: $0.text, date: $0.timestamp) }
         learnedTurnCount = history.count
         goIdle()
     }
@@ -292,6 +302,8 @@ final class ConversationEngine {
         state = .speaking
         streamFinished = true
         responseText = match.screen.confirmation
+        transcript.append(ChatBubble(kind: .user, text: text))
+        transcript.append(ChatBubble(kind: .assistant, text: match.screen.confirmation))
         say(match.screen.confirmation)
         return true
     }
@@ -743,6 +755,7 @@ final class ConversationEngine {
         }
         state = .thinking
         responseText = ""
+        streamingText = ""
         statusDetail = nil
         streamFinished = false
 
@@ -794,6 +807,7 @@ final class ConversationEngine {
                         // Untertitel höchstens ~8× pro Sekunde aktualisieren – schont die Animation.
                         if Date.now.timeIntervalSince(lastCaptionUpdate) > 0.12 {
                             self.responseText = SpeechTextCleaner.clean(full)
+                            self.streamingText = full
                             self.lastCaptionUpdate = .now
                         }
                         for sentence in chunker.feed(delta) {
@@ -839,6 +853,8 @@ final class ConversationEngine {
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 self.synthesizer.stop()
                 self.responseText = message
+                self.streamingText = nil
+                self.transcript.append(ChatBubble(kind: .error, text: message))
                 self.statusDetail = nil
                 self.isInConversation = false
                 self.state = .error(message)
@@ -915,11 +931,12 @@ final class ConversationEngine {
         guard finished == generation else { return }
         streamFinished = true
         statusDetail = nil
+        streamingText = nil
         let text = full.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.isEmpty { responseText = SpeechTextCleaner.clean(text) }
         if !text.isEmpty {
             history.append(ChatTurn(role: .assistant, text: text))
-            persist(role: .assistant, text: SpeechTextCleaner.clean(text))
+            persist(role: .assistant, text: SpeechTextCleaner.clean(text), display: text)
         }
         if !synthesizer.isSpeaking, state == .thinking || state == .speaking {
             handleSpeechFinished()
@@ -1105,12 +1122,14 @@ final class ConversationEngine {
         }
     }
 
-    private func persist(role: ChatTurn.Role, text: String) {
+    /// `display`: Fassung für den Chat (mit Markdown und Links); gespeichert wird `text` wie bisher.
+    private func persist(role: ChatTurn.Role, text: String, display: String? = nil) {
         if conversation == nil {
             let record = ConversationRecord(title: String(text.prefix(60)))
             modelContext.insert(record)
             conversation = record
         }
+        transcript.append(ChatBubble(kind: role == .user ? .user : .assistant, text: display ?? text))
         let message = MessageRecord(role: role.rawValue, text: text)
         message.conversation = conversation
         modelContext.insert(message)

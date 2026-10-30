@@ -1,4 +1,16 @@
-# ATLAS Core 2.0.2 – was neu ist
+# ATLAS Core 2.0.3 – was neu ist
+
+## 2.0.3
+- **Neue Optik in der App:** Chat wie bei ChatGPT/Claude (Ihre Nachrichten rechts, Antworten links, live
+  entstehend), 3D-Teilchenkugel mit Hologramm-Ringen (atmet, hört zu, denkt, spricht), „Neuer Chat“-Knopf,
+  Vorschläge im leeren Chat. Einstellungen → Darstellung: „Kugel, lebendig“ oder „Kugel, ruhig“.
+  Gespeicherte Gespräche bleiben unverändert (gleiches Datenformat).
+  **Installation der App-Änderungen: `AKTUALISIEREN.command`** (baut die App mit Xcode neu, mit Sicherung).
+  `ATLAS_UPDATE.command` tauscht weiterhin nur den Dienst aus.
+- Letzte Fehler aus der Gesamtprüfung 2.0.2: Quellen mit Klammern (Wikipedia), Wochentage „von … bis …“,
+  Aufzählungen, Weitermachen nach Teilfehler.
+
+
 
 ## 2.0.2: beide Entwicklungslinien zusammengeführt
 Dieser Stand vereint **ATLAS Core 2.0.1** (Ihr Paket vom 30.10.2026) mit den Verbesserungen aus 1.0.1–1.0.3:

@@ -35,7 +35,7 @@ atlas_write_agent
 launchctl bootstrap "gui/$(id -u)" "$ATLAS_AGENT_PLIST"
 atlas_verify_service
 open "$destination"
-echo "Atlas 0.8.0 aktualisiert. Gesprächsdaten, Gedächtnis und Modelle bleiben erhalten."
+echo "ATLAS Core 2.0.3 aktualisiert (App mit neuer Chat-Optik und Dienst). Gesprächsdaten, Gedächtnis und Modelle bleiben erhalten."
 echo "Sicherungen: $ATLAS_INSTALL_ROOT (Backend-backup-$stamp, Daten-backup-$stamp) und ~/Applications/ATLAS Local-backup-$stamp.app"
 echo 'Kurztest mit dem echten Modell (3 Aufgaben) …'
 mkdir -p build
